@@ -66,6 +66,12 @@
 #include <uapi/drm/drm.h>
 #include <uapi/drm/drm_mode.h>
 
+#ifdef __NetBSD__
+#include <drm/drm_os_netbsd.h>
+#else
+#include <drm/drm_os_linux.h>
+#endif
+
 #include <drm/drm_agpsupport.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fourcc.h>
