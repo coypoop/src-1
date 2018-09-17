@@ -1133,11 +1133,11 @@ EXPORT_SYMBOL(drm_atomic_nonblocking_commit);
 void drm_atomic_print_state(const struct drm_atomic_state *state)
 {
 	struct drm_printer p = drm_info_printer(state->dev->dev);
-	struct drm_plane *plane;
+	struct drm_plane *plane __unused;
 	struct drm_plane_state *plane_state;
-	struct drm_crtc *crtc;
+	struct drm_crtc *crtc __unused;
 	struct drm_crtc_state *crtc_state;
-	struct drm_connector *connector;
+	struct drm_connector *connector __unused;
 	struct drm_connector_state *connector_state;
 	int i;
 
@@ -1236,4 +1236,3 @@ int drm_atomic_debugfs_init(struct drm_minor *minor)
 			minor->debugfs_root, minor);
 }
 #endif
-
