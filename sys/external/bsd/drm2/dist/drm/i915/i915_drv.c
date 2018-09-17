@@ -2175,6 +2175,7 @@ static int i915_resume_switcheroo(struct drm_device *dev)
 	return i915_drm_resume(dev);
 }
 
+#ifndef __NetBSD__		/* XXX runtime pm */
 static int i915_pm_prepare(struct device *kdev)
 {
 	struct pci_dev *pdev = to_pci_dev(kdev);
