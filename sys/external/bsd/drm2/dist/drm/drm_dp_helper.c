@@ -582,6 +582,7 @@ EXPORT_SYMBOL(drm_dp_downstream_id);
  * @aux: DisplayPort AUX channel
  *
  */
+#ifndef __NetBSD__
 void drm_dp_downstream_debug(struct seq_file *m,
 			     const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 			     const u8 port_cap[4], struct drm_dp_aux *aux)
@@ -659,6 +660,7 @@ void drm_dp_downstream_debug(struct seq_file *m,
 	}
 }
 EXPORT_SYMBOL(drm_dp_downstream_debug);
+#endif
 
 /*
  * I2C-over-AUX implementation
