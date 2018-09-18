@@ -1420,10 +1420,19 @@ drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 		if (!(crtc_mask & drm_crtc_mask(crtc)))
 			continue;
 
+#ifdef __NetBSD__
+		spin_lock(&dev->vbl_lock);
+		DRM_SPIN_WAIT_ON(ret, &dev->vblank[i].queue, &dev->vbl_lock,
+		    msecs_to_jiffies(50),
+		    (old_state->crtcs[i].last_vblank_count !=
+			drm_crtc_vblank_count(crtc)));
+		spin_unlock(&dev->vbl_lock);
+#else
 		ret = wait_event_timeout(dev->vblank[i].queue,
 				old_state->crtcs[i].last_vblank_count !=
 					drm_crtc_vblank_count(crtc),
 				msecs_to_jiffies(50));
+#endif
 
 		WARN(!ret, "[CRTC:%d:%s] vblank wait timed out\n",
 		     crtc->base.id, crtc->name);
