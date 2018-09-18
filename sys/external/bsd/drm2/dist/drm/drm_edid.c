@@ -33,6 +33,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/vga_switcheroo.h>
+#include <linux/bitmap.h>
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
@@ -1568,11 +1569,11 @@ static void connector_bad_edid(struct drm_connector *connector,
 		char prefix[20];
 
 		if (drm_edid_is_zero(block, EDID_LENGTH))
-			sprintf(prefix, "\t[%02x] ZERO ", i);
+			snprintf(prefix, sizeof prefix, "\t[%02x] ZERO ", i);
 		else if (!drm_edid_block_valid(block, i, false, NULL))
-			sprintf(prefix, "\t[%02x] BAD  ", i);
+			snprintf(prefix, sizeof prefix, "\t[%02x] BAD  ", i);
 		else
-			sprintf(prefix, "\t[%02x] GOOD ", i);
+			snprintf(prefix, sizeof prefix, "\t[%02x] GOOD ", i);
 
 		print_hex_dump(KERN_WARNING,
 			       prefix, DUMP_PREFIX_NONE, 16, 1,
@@ -2921,7 +2922,7 @@ static u8 *drm_find_edid_extension(const struct edid *edid, int ext_id)
 
 	/* Find CEA extension */
 	for (i = 0; i < edid->extensions; i++) {
-		edid_ext = (u8 *)edid + EDID_LENGTH * (i + 1);
+		edid_ext = (const u8 *)edid + EDID_LENGTH * (i + 1);
 		if (edid_ext[0] == ext_id)
 			break;
 	}
