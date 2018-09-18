@@ -8,6 +8,7 @@
 #include <linux/lockdep.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
+#include <linux/list.h>
 
 #include <drm/drm_connector.h>
 #include <drm/drm_crtc.h>
