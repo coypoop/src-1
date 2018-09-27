@@ -2917,7 +2917,7 @@ add_detailed_modes(struct drm_connector *connector, struct edid *edid,
 /*
  * Search EDID for CEA extension block.
  */
-static u8 *drm_find_edid_extension(const struct edid *edid, int ext_id)
+static const u8 *drm_find_edid_extension(const struct edid *edid, int ext_id)
 {
 	const u8 *edid_ext = NULL;
 	int i;
@@ -2939,12 +2939,12 @@ static u8 *drm_find_edid_extension(const struct edid *edid, int ext_id)
 	return edid_ext;
 }
 
-static u8 *drm_find_cea_extension(const struct edid *edid)
+static const u8 *drm_find_cea_extension(const struct edid *edid)
 {
 	return drm_find_edid_extension(edid, CEA_EXT);
 }
 
-static u8 *drm_find_displayid_extension(const struct edid *edid)
+static const u8 *drm_find_displayid_extension(const struct edid *edid)
 {
 	return drm_find_edid_extension(edid, DISPLAYID_EXT);
 }
@@ -3988,8 +3988,8 @@ static void clear_eld(struct drm_connector *connector)
 static void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 {
 	uint8_t *eld = connector->eld;
-	u8 *cea;
-	u8 *db;
+	const u8 *cea;
+	const u8 *db;
 	int total_sad_count = 0;
 	int mnl;
 	int dbl;
@@ -4086,7 +4086,7 @@ int drm_edid_to_sad(struct edid *edid, struct cea_sad **sads)
 {
 	int count = 0;
 	int i, start, end, dbl;
-	u8 *cea;
+	const u8 *cea;
 
 	cea = drm_find_cea_extension(edid);
 	if (!cea) {
@@ -4105,7 +4105,7 @@ int drm_edid_to_sad(struct edid *edid, struct cea_sad **sads)
 	}
 
 	for_each_cea_db(cea, i, start, end) {
-		u8 *db = &cea[i];
+		const u8 *db = &cea[i];
 
 		if (cea_db_tag(db) == AUDIO_BLOCK) {
 			int j;
@@ -4116,7 +4116,7 @@ int drm_edid_to_sad(struct edid *edid, struct cea_sad **sads)
 			if (!*sads)
 				return -ENOMEM;
 			for (j = 0; j < count; j++) {
-				u8 *sad = &db[1 + j * 3];
+				const u8 *sad = &db[1 + j * 3];
 
 				(*sads)[j].format = (sad[0] & 0x78) >> 3;
 				(*sads)[j].channels = sad[0] & 0x7;
@@ -4237,7 +4237,7 @@ EXPORT_SYMBOL(drm_av_sync_delay);
  */
 bool drm_detect_hdmi_monitor(struct edid *edid)
 {
-	u8 *edid_ext;
+	const u8 *edid_ext;
 	int i;
 	int start_offset, end_offset;
 
@@ -4275,7 +4275,7 @@ EXPORT_SYMBOL(drm_detect_hdmi_monitor);
  */
 bool drm_detect_monitor_audio(struct edid *edid)
 {
-	u8 *edid_ext;
+	const u8 *edid_ext;
 	int i, j;
 	bool has_audio = false;
 	int start_offset, end_offset;
@@ -4307,7 +4307,6 @@ end:
 	return has_audio;
 }
 EXPORT_SYMBOL(drm_detect_monitor_audio);
-
 
 /**
  * drm_default_rgb_quant_range - default RGB quantization range
@@ -4617,13 +4616,13 @@ u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edi
 	return quirks;
 }
 
-static int validate_displayid(u8 *displayid, int length, int idx)
+static int validate_displayid(const u8 *displayid, int length, int idx)
 {
 	int i;
 	u8 csum = 0;
-	struct displayid_hdr *base;
+	const struct displayid_hdr *base;
 
-	base = (struct displayid_hdr *)&displayid[idx];
+	base = (const struct displayid_hdr *)&displayid[idx];
 
 	DRM_DEBUG_KMS("base revision 0x%x, length %d, %d %d\n",
 		      base->rev, base->bytes, base->prod_id, base->ext_count);
@@ -4641,7 +4640,7 @@ static int validate_displayid(u8 *displayid, int length, int idx)
 }
 
 static struct drm_display_mode *drm_mode_displayid_detailed(struct drm_device *dev,
-							    struct displayid_detailed_timings_1 *timings)
+							    const struct displayid_detailed_timings_1 *timings)
 {
 	struct drm_display_mode *mode;
 	unsigned pixel_clock = (timings->pixel_clock[0] |
@@ -4686,9 +4685,9 @@ static struct drm_display_mode *drm_mode_displayid_detailed(struct drm_device *d
 }
 
 static int add_displayid_detailed_1_modes(struct drm_connector *connector,
-					  struct displayid_block *block)
+					  const struct displayid_block *block)
 {
-	struct displayid_detailed_timing_block *det = (struct displayid_detailed_timing_block *)block;
+	const struct displayid_detailed_timing_block *det = (const struct displayid_detailed_timing_block *)block;
 	int i;
 	int num_timings;
 	struct drm_display_mode *newmode;
@@ -4699,7 +4698,7 @@ static int add_displayid_detailed_1_modes(struct drm_connector *connector,
 
 	num_timings = block->num_bytes / 20;
 	for (i = 0; i < num_timings; i++) {
-		struct displayid_detailed_timings_1 *timings = &det->timings[i];
+		const struct displayid_detailed_timings_1 *timings = &det->timings[i];
 
 		newmode = drm_mode_displayid_detailed(connector->dev, timings);
 		if (!newmode)
@@ -4714,11 +4713,11 @@ static int add_displayid_detailed_1_modes(struct drm_connector *connector,
 static int add_displayid_detailed_modes(struct drm_connector *connector,
 					struct edid *edid)
 {
-	u8 *displayid;
+	const u8 *displayid;
 	int ret;
 	int idx = 1;
 	int length = EDID_LENGTH;
-	struct displayid_block *block;
+	const struct displayid_block *block;
 	int num_modes = 0;
 
 	displayid = drm_find_displayid_extension(edid);
@@ -4730,7 +4729,7 @@ static int add_displayid_detailed_modes(struct drm_connector *connector,
 		return 0;
 
 	idx += sizeof(struct displayid_hdr);
-	while (block = (struct displayid_block *)&displayid[idx],
+	while (block = (const struct displayid_block *)&displayid[idx],
 	       idx + sizeof(struct displayid_block) <= length &&
 	       idx + sizeof(struct displayid_block) + block->num_bytes <= length &&
 	       block->num_bytes > 0) {
@@ -5139,9 +5138,9 @@ drm_hdmi_vendor_infoframe_from_display_mode(struct hdmi_vendor_infoframe *frame,
 EXPORT_SYMBOL(drm_hdmi_vendor_infoframe_from_display_mode);
 
 static int drm_parse_tiled_block(struct drm_connector *connector,
-				 struct displayid_block *block)
+				 const struct displayid_block *block)
 {
-	struct displayid_tiled_block *tile = (struct displayid_tiled_block *)block;
+	const struct displayid_tiled_block *tile = (const struct displayid_tiled_block *)block;
 	u16 w, h;
 	u8 tile_v_loc, tile_h_loc;
 	u8 num_v_tile, num_h_tile;
@@ -5193,12 +5192,12 @@ static int drm_parse_tiled_block(struct drm_connector *connector,
 }
 
 static int drm_parse_display_id(struct drm_connector *connector,
-				u8 *displayid, int length,
+				const u8 *displayid, int length,
 				bool is_edid_extension)
 {
 	/* if this is an EDID extension the first byte will be 0x70 */
 	int idx = 0;
-	struct displayid_block *block;
+	const struct displayid_block *block;
 	int ret;
 
 	if (is_edid_extension)
@@ -5209,7 +5208,7 @@ static int drm_parse_display_id(struct drm_connector *connector,
 		return ret;
 
 	idx += sizeof(struct displayid_hdr);
-	while (block = (struct displayid_block *)&displayid[idx],
+	while (block = (const struct displayid_block *)&displayid[idx],
 	       idx + sizeof(struct displayid_block) <= length &&
 	       idx + sizeof(struct displayid_block) + block->num_bytes <= length &&
 	       block->num_bytes > 0) {
@@ -5237,7 +5236,7 @@ static int drm_parse_display_id(struct drm_connector *connector,
 static void drm_get_displayid(struct drm_connector *connector,
 			      struct edid *edid)
 {
-	void *displayid = NULL;
+	const void *displayid = NULL;
 	int ret;
 	connector->has_tile = false;
 	displayid = drm_find_displayid_extension(edid);
