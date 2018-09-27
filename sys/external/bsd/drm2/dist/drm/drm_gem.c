@@ -559,6 +559,41 @@ static void drm_gem_check_release_pagevec(struct pagevec *pvec)
  * after drm_gem_object_init() via mapping_set_gfp_mask(). shmem-core takes care
  * to keep pages in the required zone during swap-in.
  */
+#ifdef __NetBSD__
+struct page **
+drm_gem_get_pages(struct drm_gem_object *obj)
+{
+	struct pglist pglist;
+	struct vm_page *vm_page;
+	struct page **pages;
+	unsigned i, npages;
+	int ret;
+
+	KASSERT((obj->size & (PAGE_SIZE - 1)) != 0);
+
+	npages = obj->size >> PAGE_SHIFT;
+	pages = kvmalloc_array(npages, sizeof(*pages), GFP_KERNEL);
+	if (pages == NULL) {
+		ret = -ENOMEM;
+		goto fail0;
+	}
+
+	TAILQ_INIT(&pglist);
+	/* XXX errno NetBSD->Linux */
+	ret = -uvm_obj_wirepages(obj->filp, 0, obj->size, &pglist);
+	if (ret)
+		goto fail1;
+
+	i = 0;
+	TAILQ_FOREACH(vm_page, &pglist, pageq.queue)
+		pages[i++] = container_of(vm_page, struct page, p_vmp);
+
+	return pages;
+
+fail1:	kvfree(pages);
+fail0:	return ERR_PTR(ret);
+}
+#else
 struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 {
 	struct address_space *mapping;
@@ -614,6 +649,7 @@ fail:
 	return ERR_CAST(p);
 }
 EXPORT_SYMBOL(drm_gem_get_pages);
+#endif
 
 /**
  * drm_gem_put_pages - helper to free backing pages for a GEM object
