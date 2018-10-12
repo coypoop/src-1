@@ -75,8 +75,15 @@ MODULE_PARM_DESC(drm_leak_fbdev_smem,
 		 "Allow unsafe leaking fbdev physical smem address [default=false]");
 #endif
 
+#ifdef __NetBSD__		/* XXX LIST_HEAD means something else */
+static struct list_head kernel_fb_helper_list =
+    LIST_HEAD_INIT(kernel_fb_helper_list);
+#define	kernel_fb_helper_lock	drm_kernel_fb_helper_lock
+struct mutex kernel_fb_helper_lock;
+#else
 static LIST_HEAD(kernel_fb_helper_list);
 static DEFINE_MUTEX(kernel_fb_helper_lock);
+#endif
 
 /**
  * DOC: fbdev helpers
