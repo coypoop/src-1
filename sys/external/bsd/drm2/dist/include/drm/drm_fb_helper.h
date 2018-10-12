@@ -196,9 +196,11 @@ struct drm_fb_helper {
 	const struct drm_fb_helper_funcs *funcs;
 	struct fb_info *fbdev;
 	u32 pseudo_palette[17];
+#ifndef __NetBSD__		/* XXX fb dirty */
 	struct drm_clip_rect dirty_clip;
 	spinlock_t dirty_lock;
 	struct work_struct dirty_work;
+#endif
 	struct work_struct resume_work;
 
 	/**
