@@ -24,6 +24,7 @@
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
+#include <linux/math64.h>
 #include <drm/drmP.h>
 #include <drm/drm_rect.h>
 
