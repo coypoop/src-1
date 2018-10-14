@@ -197,7 +197,16 @@ struct drm_i915_gem_object {
 		struct mutex lock; /* protects the pages and their use */
 		atomic_t pages_pin_count;
 
+#ifdef __NetBSD__
+		struct pglist pageq;	/* wired pages of normal objects */
+		struct sg_table *sg;	/* drm prime objects */
+		bus_dma_segment_t *segs;/* internal objects */
+		unsigned nsegs;
+		int rsegs;
+		bus_dmamap_t pages;	/* expedient misnomer */
+#else
 		struct sg_table *pages;
+#endif
 		void *mapping;
 
 		/* TODO: whack some of this into the error state */
