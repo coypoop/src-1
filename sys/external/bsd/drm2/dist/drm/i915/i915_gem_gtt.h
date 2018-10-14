@@ -212,15 +212,14 @@ enum i915_cache_level;
 struct i915_vma;
 
 struct i915_page_dma {
+	struct page *page;
 #ifdef __NetBSD__
 	union {
 		bus_dma_segment_t seg;
 		uint32_t ggtt_offset;
 	};
 	bus_dmamap_t map;
-	int order;
 #else
-	struct page *page;
 	int order;
 	union {
 		dma_addr_t daddr;
@@ -233,8 +232,12 @@ struct i915_page_dma {
 #endif
 };
 
+#ifdef __NetBSD__
+#define px_dma(px) (px_base(px)->map->dm_segs[0].ds_addr)
+#else
 #define px_base(px) (&(px)->base)
 #define px_dma(px) (px_base(px)->daddr)
+#endif
 
 struct i915_page_table {
 	struct i915_page_dma base;
@@ -284,7 +287,11 @@ struct pagestash {
 struct i915_address_space {
 	struct drm_mm mm;
 	struct drm_i915_private *i915;
+#ifdef __NetBSD__
+	bus_dma_tag_t dmat;
+#else
 	struct device *dma;
+#endif
 	/* Every address space belongs to a struct file - except for the global
 	 * GTT that is owned by the driver (and so @file is set to NULL). In
 	 * principle, no information should leak from one context to another
@@ -319,7 +326,9 @@ struct i915_address_space {
 	 */
 	struct list_head unbound_list;
 
+#ifndef __NetBSD__
 	struct pagestash free_pages;
+#endif
 
 	/* Global GTT */
 	bool is_ggtt:1;
@@ -367,7 +376,21 @@ i915_vm_is_48bit(const struct i915_address_space *vm)
 static inline bool
 i915_vm_has_scratch_64K(struct i915_address_space *vm)
 {
+#ifdef __NetBSD__
+	return vm->scratch_page.seg.ds_len == I915_GTT_PAGE_SIZE_64K;
+#else
 	return vm->scratch_page.order == get_order(I915_GTT_PAGE_SIZE_64K);
+#endif
+}
+
+static inline dma_addr_t
+i915_vm_scratch_daddr(struct i915_address_space *vm)
+{
+#ifdef __NetBSD__
+	return vm->scratch_page.map->dm_segs[0].ds_addr;
+#else
+	return vm->scratch_page.daddr;
+#endif
 }
 
 /* The Graphics Translation Table is the way in which GEN hardware translates a
