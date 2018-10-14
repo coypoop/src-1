@@ -175,7 +175,6 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 	gobj = drm_gem_object_lookup(dev, file, args->handle);
 	if (gobj == NULL)
 		return -ENOENT;
-	obj = to_intel_bo(gobj);
 
 	if (!i915_tiling_ok(dev,
 			    args->stride, obj->base.size, args->tiling_mode)) {
