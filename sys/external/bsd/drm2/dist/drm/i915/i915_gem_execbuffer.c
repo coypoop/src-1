@@ -269,6 +269,42 @@ iowrite32(uint32_t value, uint32_t __gtt_iomem *ptr)
 	*ptr = value;
 }
 #endif
+<<<<<<< HEAD
+=======
+	void *vaddr;
+
+	if (cache->rq)
+		reloc_gpu_flush(cache);
+
+	if (!cache->vaddr)
+		return;
+
+	vaddr = unmask_page(cache->vaddr);
+	if (cache->vaddr & KMAP) {
+		if (cache->vaddr & CLFLUSH_AFTER)
+			mb();
+
+		kunmap_atomic(vaddr);
+		i915_gem_obj_finish_shmem_access((struct drm_i915_gem_object *)cache->node.mm);
+	} else {
+		wmb();
+#ifdef __NetBSD__
+		io_mapping_unmap_atomic(&ggtt->iomap, vaddr);
+#else
+		io_mapping_unmap_atomic((void __iomem *)vaddr);
+#endif
+		if (cache->node.allocated) {
+			struct i915_ggtt *ggtt = cache_to_ggtt(cache);
+
+			ggtt->vm.clear_range(&ggtt->vm,
+					     cache->node.start,
+					     cache->node.size);
+			drm_mm_remove_node(&cache->node);
+		} else {
+			i915_vma_unpin((struct i915_vma *)cache->node.mm);
+		}
+	}
+>>>>>>> 533f95ee1e55... Hack it up: disable no-fault fast paths, fix fd API, ifdef out stuff.
 
 static int
 relocate_entry_cpu(struct drm_i915_gem_object *obj,
@@ -339,8 +375,13 @@ relocate_entry_gtt(struct drm_i915_gem_object *obj,
 
 		if (offset_in_page(offset) == 0) {
 #ifdef __NetBSD__
+<<<<<<< HEAD
 			io_mapping_unmap_atomic(dev_priv->gtt.mappable,
 			    reloc_page);
+=======
+		io_mapping_unmap_atomic(&ggtt->iomap,
+		    unmask_page(cache->vaddr));
+>>>>>>> 533f95ee1e55... Hack it up: disable no-fault fast paths, fix fd API, ifdef out stuff.
 #else
 			io_mapping_unmap_atomic(reloc_page);
 #endif
@@ -412,7 +453,23 @@ relocate_entry_clflush(struct drm_i915_gem_object *obj,
 
 	kunmap_atomic(vaddr);
 
+<<<<<<< HEAD
 	return 0;
+=======
+	clflush_write32((void *)((char *)vaddr + offset_in_page(offset)),
+			lower_32_bits(target_offset),
+			eb->reloc_cache.vaddr);
+
+	if (wide) {
+		offset += sizeof(u32);
+		target_offset >>= 32;
+		wide = false;
+		goto repeat;
+	}
+
+out:
+	return target->node.start | UPDATE;
+>>>>>>> 533f95ee1e55... Hack it up: disable no-fault fast paths, fix fd API, ifdef out stuff.
 }
 
 static int
@@ -537,12 +594,19 @@ i915_gem_execbuffer_relocate_vma(struct i915_vma *vma,
 	user_relocs = to_user_ptr(entry->relocs_ptr);
 
 	remain = entry->relocation_count;
+<<<<<<< HEAD
 	while (remain) {
 		struct drm_i915_gem_relocation_entry *r = stack_reloc;
 		int count = remain;
 		if (count > ARRAY_SIZE(stack_reloc))
 			count = ARRAY_SIZE(stack_reloc);
 		remain -= count;
+=======
+#ifndef _LP64		/* XXX why, gcc, do you make it hard to be safe */
+	if (unlikely(remain > N_RELOC(ULONG_MAX)))
+		return -EINVAL;
+#endif
+>>>>>>> 533f95ee1e55... Hack it up: disable no-fault fast paths, fix fd API, ifdef out stuff.
 
 		if (__copy_from_user_inatomic(r, user_relocs, count*sizeof(r[0])))
 			return -EFAULT;
@@ -550,9 +614,31 @@ i915_gem_execbuffer_relocate_vma(struct i915_vma *vma,
 		do {
 			u64 offset = r->presumed_offset;
 
+<<<<<<< HEAD
 			ret = i915_gem_execbuffer_relocate_entry(vma->obj, eb, r);
 			if (ret)
 				return ret;
+=======
+		/*
+		 * This is the fast path and we cannot handle a pagefault
+		 * whilst holding the struct mutex lest the user pass in the
+		 * relocations contained within a mmaped bo. For in such a case
+		 * we, the page fault handler would call i915_gem_fault() and
+		 * we would try to acquire the struct mutex again. Obviously
+		 * this is bad and so lockdep complains vehemently.
+		 */
+#ifdef __NetBSD__		/* XXX copy fastpath */
+		copied = 1;
+#else
+		pagefault_disable();
+		copied = __copy_from_user_inatomic(r, urelocs, count * sizeof(r[0]));
+		pagefault_enable();
+#endif
+		if (unlikely(copied)) {
+			remain = -EFAULT;
+			goto out;
+		}
+>>>>>>> 533f95ee1e55... Hack it up: disable no-fault fast paths, fix fd API, ifdef out stuff.
 
 			if (r->presumed_offset != offset &&
 			    __copy_to_user_inatomic(&user_relocs->presumed_offset,
@@ -748,7 +834,22 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
 	bool has_fenced_gpu_access = INTEL_INFO(ring->dev)->gen < 4;
 	int retry;
 
+<<<<<<< HEAD
 	i915_gem_retire_requests_ring(ring);
+=======
+repeat:
+#ifdef __NetBSD__
+	if (sigispending(curlwp, 0)) {
+		err = -ERESTARTSYS;
+		goto out;
+	}
+#else
+	if (signal_pending(current)) {
+		err = -ERESTARTSYS;
+		goto out;
+	}
+#endif
+>>>>>>> 533f95ee1e55... Hack it up: disable no-fault fast paths, fix fd API, ifdef out stuff.
 
 	vm = list_first_entry(vmas, struct i915_vma, exec_list)->vm;
 
@@ -777,8 +878,27 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
 		} else
 			list_move_tail(&vma->exec_list, &ordered_vmas);
 
+<<<<<<< HEAD
 		obj->base.pending_read_domains = I915_GEM_GPU_DOMAINS & ~I915_GEM_DOMAIN_COMMAND;
 		obj->base.pending_write_domain = 0;
+=======
+	list_for_each_entry(vma, &eb->relocs, reloc_link) {
+		if (!have_copy) {
+#ifdef __NetBSD__
+			err = -EFAULT;
+#else
+			pagefault_disable();
+			err = eb_relocate_vma(eb, vma);
+			pagefault_enable();
+#endif
+			if (err)
+				goto repeat;
+		} else {
+			err = eb_relocate_vma_slow(eb, vma);
+			if (err)
+				goto err;
+		}
+>>>>>>> 533f95ee1e55... Hack it up: disable no-fault fast paths, fix fd API, ifdef out stuff.
 	}
 	list_splice(&ordered_vmas, vmas);
 
@@ -1437,6 +1557,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		       struct drm_i915_gem_execbuffer2 *args,
 		       struct drm_i915_gem_exec_object2 *exec)
 {
+<<<<<<< HEAD
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct eb_vmas *eb;
 	struct drm_i915_gem_object *batch_obj;
@@ -1459,6 +1580,42 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		return ret;
 
 	dispatch_flags = 0;
+=======
+	struct i915_execbuffer eb;
+	struct dma_fence *in_fence = NULL;
+	struct sync_file *out_fence = NULL;
+	int out_fence_fd = -1;
+#ifdef __NetBSD__
+	struct file *fp = NULL;
+#endif
+	int err;
+
+	BUILD_BUG_ON(__EXEC_INTERNAL_FLAGS & ~__I915_EXEC_ILLEGAL_FLAGS);
+	BUILD_BUG_ON(__EXEC_OBJECT_INTERNAL_FLAGS &
+		     ~__EXEC_OBJECT_UNKNOWN_FLAGS);
+
+	eb.i915 = to_i915(dev);
+	eb.file = file;
+	eb.args = args;
+	if (DBG_FORCE_RELOC || !(args->flags & I915_EXEC_NO_RELOC))
+		args->flags |= __EXEC_HAS_RELOC;
+
+	eb.exec = exec;
+	eb.vma = (struct i915_vma **)(exec + args->buffer_count + 1);
+	eb.vma[0] = NULL;
+	eb.flags = (unsigned int *)(eb.vma + args->buffer_count + 1);
+
+	eb.invalid_flags = __EXEC_OBJECT_UNKNOWN_FLAGS;
+	if (USES_FULL_PPGTT(eb.i915))
+		eb.invalid_flags |= EXEC_OBJECT_NEEDS_GTT;
+	reloc_cache_init(&eb.reloc_cache, eb.i915);
+
+	eb.buffer_count = args->buffer_count;
+	eb.batch_start_offset = args->batch_start_offset;
+	eb.batch_len = args->batch_len;
+
+	eb.batch_flags = 0;
+>>>>>>> 533f95ee1e55... Hack it up: disable no-fault fast paths, fix fd API, ifdef out stuff.
 	if (args->flags & I915_EXEC_SECURE) {
 		/* Return -EPERM to trigger fallback code on old binaries. */
 		if (!HAS_SECURE_BATCHES(dev_priv))
@@ -1538,6 +1695,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	intel_runtime_pm_get(dev_priv);
 
+<<<<<<< HEAD
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
 		goto pre_mutex_err;
@@ -1547,6 +1705,20 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		mutex_unlock(&dev->struct_mutex);
 		ret = PTR_ERR(ctx);
 		goto pre_mutex_err;
+=======
+	if (args->flags & I915_EXEC_FENCE_OUT) {
+#ifdef __NetBSD__
+		err = -fd_allocfile(&fp, &out_fence_fd);
+		if (err)
+			goto err_in_fence;
+#else
+		out_fence_fd = get_unused_fd_flags(O_CLOEXEC);
+		if (out_fence_fd < 0) {
+			err = out_fence_fd;
+			goto err_in_fence;
+		}
+#endif
+>>>>>>> 533f95ee1e55... Hack it up: disable no-fault fast paths, fix fd API, ifdef out stuff.
 	}
 
 	i915_gem_context_reference(ctx);
@@ -1661,9 +1833,23 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (ret)
 		goto err_batch_unpin;
 
+<<<<<<< HEAD
 	ret = i915_gem_request_add_to_client(params->request, file);
 	if (ret)
 		goto err_batch_unpin;
+=======
+	if (out_fence_fd != -1) {
+#ifdef __NetBSD__
+		out_fence = sync_file_create(&eb.request->fence, fp);
+#else
+		out_fence = sync_file_create(&eb.request->fence);
+#endif
+		if (!out_fence) {
+			err = -ENOMEM;
+			goto err_request;
+		}
+	}
+>>>>>>> 533f95ee1e55... Hack it up: disable no-fault fast paths, fix fd API, ifdef out stuff.
 
 	/*
 	 * Save assorted stuff away to pass through to *_submission().
@@ -1671,6 +1857,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	 * kept around beyond the duration of the IOCTL once the GPU
 	 * scheduler arrives.
 	 */
+<<<<<<< HEAD
 	params->dev                     = dev;
 	params->file                    = file;
 	params->ring                    = ring;
@@ -1679,6 +1866,59 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	params->ctx                     = ctx;
 
 	ret = dev_priv->gt.execbuf_submit(params, args, &eb->vmas);
+=======
+	eb.request->batch = eb.batch;
+
+	trace_i915_request_queue(eb.request, eb.batch_flags);
+	err = eb_submit(&eb);
+err_request:
+	i915_request_add(eb.request);
+	add_to_client(eb.request, file);
+
+	if (fences)
+		signal_fence_array(&eb, fences);
+
+	if (out_fence) {
+		if (err == 0) {
+			fd_install(out_fence_fd, out_fence->file);
+			args->rsvd2 &= GENMASK_ULL(31, 0); /* keep in-fence */
+			args->rsvd2 |= (u64)out_fence_fd << 32;
+			out_fence_fd = -1;
+		} else {
+#ifdef __NetBSD__
+			fd_abort(curproc, fp, out_fence_fd);
+			out_fence_fd = -1;
+			fp = NULL;
+#else
+			fput(out_fence->file);
+#endif
+		}
+	}
+
+err_batch_unpin:
+	if (eb.batch_flags & I915_DISPATCH_SECURE)
+		i915_vma_unpin(eb.batch);
+err_vma:
+	if (eb.exec)
+		eb_release_vmas(&eb);
+	mutex_unlock(&dev->struct_mutex);
+err_rpm:
+	intel_runtime_pm_put(eb.i915);
+	i915_gem_context_put(eb.ctx);
+err_destroy:
+	eb_destroy(&eb);
+err_out_fence:
+	if (out_fence_fd != -1)
+#ifdef __NetBSD__
+		fd_abort(curproc, fp, out_fence_fd);
+#else
+		put_unused_fd(out_fence_fd);
+#endif
+err_in_fence:
+	dma_fence_put(in_fence);
+	return err;
+}
+>>>>>>> 533f95ee1e55... Hack it up: disable no-fault fast paths, fix fd API, ifdef out stuff.
 
 err_batch_unpin:
 	/*
