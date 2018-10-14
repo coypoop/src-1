@@ -107,5 +107,30 @@ struct pci_controller;
  * Do not include drmP.h in new files.
  * Work is ongoing to remove drmP.h includes from existing files
  */
+#ifdef __NetBSD__
+
+/* XXX This is pretty kludgerific.  */
+
+#include <linux/io-mapping.h>
+
+static inline struct io_mapping *
+drm_io_mapping_create_wc(struct drm_device *dev, resource_size_t addr,
+    unsigned long size)
+{
+	return bus_space_io_mapping_create_wc(dev->bst, addr, size);
+}
+
+static inline bool
+drm_io_mapping_init_wc(struct drm_device *dev, struct io_mapping *mapping,
+    resource_size_t addr, unsigned long size)
+{
+	return bus_space_io_mapping_init_wc(dev->bst, mapping, addr, size);
+}
+
+#endif	/* defined(__NetBSD__) */
+
+#ifdef __NetBSD__
+extern const struct cdevsw drm_cdevsw;
+#endif
 
 #endif
