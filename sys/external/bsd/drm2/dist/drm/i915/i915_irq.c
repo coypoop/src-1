@@ -3052,7 +3052,7 @@ static inline void gen11_master_intr_enable(void __iomem * const regs)
 	raw_reg_write(regs, GEN11_GFX_MSTR_IRQ, GEN11_MASTER_IRQ);
 }
 
-static irqreturn_t gen11_irq_handler(int irq, void *arg)
+static irqreturn_t gen11_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_i915_private * const i915 = to_i915(arg);
 	u32 master_ctl;
@@ -3092,6 +3092,225 @@ static irqreturn_t gen11_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
+<<<<<<< HEAD
+=======
+static void i915_reset_device(struct drm_i915_private *dev_priv,
+			      u32 engine_mask,
+			      const char *reason)
+{
+	struct i915_gpu_error *error = &dev_priv->gpu_error;
+#ifndef __NetBSD__		/* XXX kobject uevent...?  */
+	struct kobject *kobj = &dev_priv->drm.primary->kdev->kobj;
+	char *error_event[] = { I915_ERROR_UEVENT "=1", NULL };
+	char *reset_event[] = { I915_RESET_UEVENT "=1", NULL };
+	char *reset_done_event[] = { I915_ERROR_UEVENT "=0", NULL };
+#endif
+	struct wedge_me w;
+
+#ifndef __NetBSD__
+	kobject_uevent_env(kobj, KOBJ_CHANGE, error_event);
+#endif
+
+	DRM_DEBUG_DRIVER("resetting chip\n");
+#ifndef __NetBSD__
+	kobject_uevent_env(kobj, KOBJ_CHANGE, reset_event);
+#endif
+
+	/* Use a watchdog to ensure that our reset completes */
+	i915_wedge_on_timeout(&w, dev_priv, 5*HZ) {
+		intel_prepare_reset(dev_priv);
+
+		error->reason = reason;
+		error->stalled_mask = engine_mask;
+
+		/* Signal that locked waiters should reset the GPU */
+		smp_mb__before_atomic();
+		set_bit(I915_RESET_HANDOFF, &error->flags);
+#ifdef __NetBSD__
+		/*
+		  XXX Umm?  Waiting for I915_RESET_HANDOFF is done on
+		  reset_queue, not wait_queue.
+		*/
+		spin_lock(&error->reset_lock);
+		DRM_SPIN_WAKEUP_ALL(&error->reset_queue, &error->reset_lock);
+		spin_unlock(&error->reset_lock);
+#else
+		wake_up_all(&error->wait_queue);
+#endif
+
+		/* Wait for anyone holding the lock to wakeup, without
+		 * blocking indefinitely on struct_mutex.
+		 */
+		do {
+			if (mutex_trylock(&dev_priv->drm.struct_mutex)) {
+				i915_reset(dev_priv, engine_mask, reason);
+				mutex_unlock(&dev_priv->drm.struct_mutex);
+			}
+		} while (wait_on_bit_timeout(&error->flags,
+					     I915_RESET_HANDOFF,
+					     TASK_UNINTERRUPTIBLE,
+					     1));
+
+		error->stalled_mask = 0;
+		error->reason = NULL;
+
+		intel_finish_reset(dev_priv);
+	}
+
+#ifndef __NetBSD__		/* XXX kobj uevent...?  */
+	if (!test_bit(I915_WEDGED, &error->flags))
+		kobject_uevent_env(kobj, KOBJ_CHANGE, reset_done_event);
+#endif
+}
+
+static void i915_clear_error_registers(struct drm_i915_private *dev_priv)
+{
+	u32 eir;
+
+	if (!IS_GEN2(dev_priv))
+		I915_WRITE(PGTBL_ER, I915_READ(PGTBL_ER));
+
+	if (INTEL_GEN(dev_priv) < 4)
+		I915_WRITE(IPEIR, I915_READ(IPEIR));
+	else
+		I915_WRITE(IPEIR_I965, I915_READ(IPEIR_I965));
+
+	I915_WRITE(EIR, I915_READ(EIR));
+	eir = I915_READ(EIR);
+	if (eir) {
+		/*
+		 * some errors might have become stuck,
+		 * mask them.
+		 */
+		DRM_DEBUG_DRIVER("EIR stuck: 0x%08x, masking\n", eir);
+		I915_WRITE(EMR, I915_READ(EMR) | eir);
+		I915_WRITE(IIR, I915_MASTER_ERROR_INTERRUPT);
+	}
+}
+
+/**
+ * i915_handle_error - handle a gpu error
+ * @dev_priv: i915 device private
+ * @engine_mask: mask representing engines that are hung
+ * @flags: control flags
+ * @fmt: Error message format string
+ *
+ * Do some basic checking of register state at error time and
+ * dump it to the syslog.  Also call i915_capture_error_state() to make
+ * sure we get a record and make it available in debugfs.  Fire a uevent
+ * so userspace knows something bad happened (should trigger collection
+ * of a ring dump etc.).
+ */
+void i915_handle_error(struct drm_i915_private *dev_priv,
+		       u32 engine_mask,
+		       unsigned long flags,
+		       const char *fmt, ...)
+{
+	struct intel_engine_cs *engine;
+	unsigned int tmp;
+	char error_msg[80];
+	char *msg = NULL;
+
+	if (fmt) {
+		va_list args;
+
+		va_start(args, fmt);
+		vscnprintf(error_msg, sizeof(error_msg), fmt, args);
+		va_end(args);
+
+		msg = error_msg;
+	}
+
+	/*
+	 * In most cases it's guaranteed that we get here with an RPM
+	 * reference held, for example because there is a pending GPU
+	 * request that won't finish until the reset is done. This
+	 * isn't the case at least when we get here by doing a
+	 * simulated reset via debugfs, so get an RPM reference.
+	 */
+	intel_runtime_pm_get(dev_priv);
+
+	engine_mask &= INTEL_INFO(dev_priv)->ring_mask;
+
+	if (flags & I915_ERROR_CAPTURE) {
+		i915_capture_error_state(dev_priv, engine_mask, msg);
+		i915_clear_error_registers(dev_priv);
+	}
+
+	/*
+	 * Try engine reset when available. We fall back to full reset if
+	 * single reset fails.
+	 */
+	if (intel_has_reset_engine(dev_priv)) {
+		for_each_engine_masked(engine, dev_priv, engine_mask, tmp) {
+			BUILD_BUG_ON(I915_RESET_MODESET >= I915_RESET_ENGINE);
+			if (test_and_set_bit(I915_RESET_ENGINE + engine->id,
+					     &dev_priv->gpu_error.flags))
+				continue;
+
+			if (i915_reset_engine(engine, msg) == 0)
+				engine_mask &= ~intel_engine_flag(engine);
+
+			clear_bit(I915_RESET_ENGINE + engine->id,
+				  &dev_priv->gpu_error.flags);
+			wake_up_bit(&dev_priv->gpu_error.flags,
+				    I915_RESET_ENGINE + engine->id);
+		}
+	}
+
+	if (!engine_mask)
+		goto out;
+
+	/* Full reset needs the mutex, stop any other user trying to do so. */
+	if (test_and_set_bit(I915_RESET_BACKOFF, &dev_priv->gpu_error.flags)) {
+#ifdef __NetBSD__
+		int ret;
+		spin_lock(&dev_priv->gpu_error.reset_lock);
+		DRM_SPIN_WAIT_NOINTR_UNTIL(ret,
+		    &dev_priv->gpu_error.reset_queue,
+		    &dev_priv->gpu_error.reset_lock,
+		    !test_bit(I915_RESET_BACKOFF,
+			&dev_priv->gpu_error.flags));
+		spin_unlock(&dev_priv->gpu_error.reset_lock);
+#else
+		wait_event(dev_priv->gpu_error.reset_queue,
+			   !test_bit(I915_RESET_BACKOFF,
+				     &dev_priv->gpu_error.flags));
+#endif
+		goto out;
+	}
+
+	/* Prevent any other reset-engine attempt. */
+	for_each_engine(engine, dev_priv, tmp) {
+		while (test_and_set_bit(I915_RESET_ENGINE + engine->id,
+					&dev_priv->gpu_error.flags))
+			wait_on_bit(&dev_priv->gpu_error.flags,
+				    I915_RESET_ENGINE + engine->id,
+				    TASK_UNINTERRUPTIBLE);
+	}
+
+	i915_reset_device(dev_priv, engine_mask, msg);
+
+	for_each_engine(engine, dev_priv, tmp) {
+		clear_bit(I915_RESET_ENGINE + engine->id,
+			  &dev_priv->gpu_error.flags);
+	}
+
+	clear_bit(I915_RESET_BACKOFF, &dev_priv->gpu_error.flags);
+#ifdef __NetBSD__
+	spin_lock(&dev_priv->gpu_error.reset_lock);
+	DRM_SPIN_WAKEUP_ALL(&dev_priv->gpu_error.reset_queue,
+	    &dev_priv->gpu_error.reset_lock);
+	spin_unlock(&dev_priv->gpu_error.reset_lock);
+#else
+	wake_up_all(&dev_priv->gpu_error.reset_queue);
+#endif
+
+out:
+	intel_runtime_pm_put(dev_priv);
+}
+
+>>>>>>> be5aa495856... More crap to make this thing get closer to building.
 /* Called from drm generic code, passed 'crtc' which
  * we use as a pipe index
  */
@@ -3565,7 +3784,7 @@ static void gen11_hpd_detection_setup(struct drm_i915_private *dev_priv)
 
 static void gen11_hpd_irq_setup(struct drm_i915_private *dev_priv)
 {
-	u32 hotplug_irqs, enabled_irqs;
+	u32 hotplug_irqs, enabled_irqs __unused;
 	u32 val;
 
 	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, hpd_gen11);
