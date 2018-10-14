@@ -341,6 +341,10 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 	return 0;
 }
 
+#ifdef __NetBSD__
+#  define	__iomem		__i915_vma_iomem
+#endif
+
 void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 {
 	void __iomem *ptr;
@@ -385,6 +389,10 @@ err_unpin:
 err:
 	return IO_ERR_PTR(err);
 }
+
+#ifdef __NetBSD__
+#  undef	__iomem
+#endif
 
 void i915_vma_flush_writes(struct i915_vma *vma)
 {

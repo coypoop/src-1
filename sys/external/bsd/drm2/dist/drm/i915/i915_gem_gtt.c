@@ -512,6 +512,46 @@ static int __setup_page_dma(struct i915_address_space *vm,
 			    struct i915_page_dma *p,
 			    gfp_t gfp)
 {
+#ifdef __NetBSD__
+	int busdmaflags = 0;
+	int error;
+	int nseg = 1;
+
+	if (flags & __GFP_WAIT)
+		busdmaflags |= BUS_DMA_WAITOK;
+	else
+		busdmaflags |= BUS_DMA_NOWAIT;
+
+	error = bus_dmamem_alloc(vm->dmat, PAGE_SIZE, PAGE_SIZE, 0, &p->seg,
+	    nseg, &nseg, busdmaflags);
+	if (error) {
+fail0:		p->map = NULL;
+		return -error;	/* XXX errno NetBSD->Linux */
+	}
+	KASSERT(nseg == 1);
+	error = bus_dmamap_create(vm->dmat, PAGE_SIZE, 1, PAGE_SIZE, 0,
+	    busdmaflags, &p->map);
+	if (error) {
+fail1:		bus_dmamem_free(vm->dmat, &p->seg, 1);
+		goto fail0;
+	}
+	error = bus_dmamap_load_raw(vm->dmat, p->map, &p->seg, 1, PAGE_SIZE,
+	    busdmaflags);
+	if (error) {
+fail2: __unused
+		bus_dmamap_destroy(vm->dmat, p->map);
+		goto fail1;
+	}
+
+	p->page = container_of(PHYS_TO_VM_PAGE(p->seg.ds_addr), struct page,
+	    p_vmp);
+
+	if (flags & __GFP_ZERO) {
+		void *va = kmap_atomic(p->page);
+		memset(va, 0, PAGE_SIZE);
+		kunmap_atomic(va);
+	}
+#else
 	p->page = vm_alloc_page(vm, gfp | I915_GFP_ALLOW_FAIL);
 	if (unlikely(!p->page))
 		return -ENOMEM;
@@ -526,6 +566,7 @@ static int __setup_page_dma(struct i915_address_space *vm,
 		return -ENOMEM;
 	}
 
+#endif
 	return 0;
 }
 

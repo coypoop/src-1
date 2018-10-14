@@ -264,7 +264,11 @@ struct i915_gpu_error {
 	 * Waitqueue to signal when a hang is detected. Used to for waiters
 	 * to release the struct_mutex for the reset to procede.
 	 */
+#ifdef __NetBSD__
+	drm_waitqueue_t wait_queue;
+#else
 	wait_queue_head_t wait_queue;
+#endif
 
 	/**
 	 * Waitqueue to signal when the reset has completed. Used by clients
