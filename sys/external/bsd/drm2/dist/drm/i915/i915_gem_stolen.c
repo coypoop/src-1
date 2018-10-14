@@ -204,6 +204,10 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 	if (base == 0)
 		return 0;
 
+#ifdef __NetBSD__		/* XXX stolen resource */
+	__USE(ggtt);
+	__USE(r);
+#else
 	/* make sure we don't clobber the GTT if it's within stolen memory */
 	if (INTEL_INFO(dev)->gen <= 4 && !IS_G33(dev) && !IS_G4X(dev)) {
 		struct {
@@ -481,7 +485,7 @@ int i915_gem_init_stolen(struct drm_device *dev)
 	 * memory, so just consider the start. */
 	reserved_total = stolen_top - reserved_base;
 
-	DRM_DEBUG_KMS("Memory reserved for graphics device: %zuK, usable: %luK\n",
+	DRM_DEBUG_KMS("Memory reserved for graphics device: %"PRIu64"K, usable: %"PRIu64"K\n",
 		      dev_priv->gtt.stolen_size >> 10,
 		      (dev_priv->gtt.stolen_size - reserved_total) >> 10);
 
@@ -506,9 +510,14 @@ int i915_gem_init_stolen(struct drm_device *dev)
 
 #ifdef __NetBSD__
 static bus_dmamap_t
-i915_pages_create_for_stolen(struct drm_device *dev, u32 offset, u32 size)
+#else
+static struct sg_table *
+#endif
+i915_pages_create_for_stolen(struct drm_device *dev,
+			     resource_size_t offset, resource_size_t size)
 {
-	struct drm_i915_private *const dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+#ifdef __NetBSD__
 	bus_dmamap_t dmamap = NULL;
 	bus_dma_segment_t *seg;
 	int nseg, i;
@@ -524,7 +533,7 @@ i915_pages_create_for_stolen(struct drm_device *dev, u32 offset, u32 size)
 	 * segments to begin with.
 	 */
 	for (i = 0; i < nseg; i++) {
-		seg[i].ds_addr = (bus_addr_t)dev_priv->mm.stolen_base +
+		seg[i].ds_addr = (bus_addr_t)dev_priv->dsm.start +
 		    offset + i*PAGE_SIZE;
 		seg[i].ds_len = PAGE_SIZE;
 	}
@@ -551,14 +560,8 @@ fail1: __unused
 	}
 
 out:	kmem_free(seg, nseg*sizeof(seg[0]));
-	return dmamap;
-}
+	return ret ? ERR_PTR(ret) : dmamap;
 #else
-static struct sg_table *
-i915_pages_create_for_stolen(struct drm_device *dev,
-			     u32 offset, u32 size)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct sg_table *st;
 	struct scatterlist *sg;
 
@@ -587,8 +590,8 @@ i915_pages_create_for_stolen(struct drm_device *dev,
 	sg_dma_len(sg) = size;
 
 	return st;
-}
 #endif
+}
 
 static int i915_gem_object_get_pages_stolen(struct drm_i915_gem_object *obj)
 {
