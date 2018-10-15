@@ -92,6 +92,15 @@ active_instance(struct i915_active *ref, u64 idx)
 	/* Move the currently active fence into the rbtree */
 	idx = old->fence.context;
 
+#ifdef __NetBSD__
+	__USE(parent);
+	__USE(p);
+	active = rb_tree_find_node(&vma->active.rbr_tree, &idx);
+	if (active) {
+		KASSERT(active->timeline == idx);
+		goto replace;
+	}
+#else
 	parent = NULL;
 	p = &ref->tree.rb_node;
 	while (*p) {
@@ -106,6 +115,7 @@ active_instance(struct i915_active *ref, u64 idx)
 		else
 			p = &parent->rb_left;
 	}
+#endif
 
 	node = kmem_cache_alloc(global.slab_cache, GFP_KERNEL);
 
@@ -121,9 +131,14 @@ active_instance(struct i915_active *ref, u64 idx)
 	i915_active_request_init(&node->base, NULL, node_retire);
 	node->ref = ref;
 	node->timeline = idx;
-
+#ifdef __NetBSD__
+	struct i915_vma_active *collision __diagused;
+	collision = rb_tree_insert_node(&vma->active.rbr_tree, active);
+	KASSERT(collision == active);
+#else
 	rb_link_node(&node->node, parent, p);
 	rb_insert_color(&node->node, &ref->tree);
+#endif
 
 replace:
 	/*
