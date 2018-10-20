@@ -37,9 +37,18 @@
 
 #include <linux/scatterlist.h>
 
+struct page;
+
 void drm_clflush_pages(struct page *pages[], unsigned long num_pages);
+#ifdef __NetBSD__		/* XXX drm clflush */
+struct pglist;
+void drm_clflush_pglist(struct pglist *);
+void drm_clflush_page(struct page *);
+void drm_clflush_virt_range(const void *, size_t);
+#else
 void drm_clflush_sg(struct sg_table *st);
 void drm_clflush_virt_range(void *addr, unsigned long length);
+#endif
 u64 drm_get_max_iomem(void);
 
 
