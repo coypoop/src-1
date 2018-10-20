@@ -823,7 +823,7 @@ static int evergreen_cs_track_validate_texture(struct radeon_cs_parser *p,
 
 	/* align height */
 	evergreen_surface_check(p, &surf, NULL);
-	surf.nby = ALIGN(surf.nby, surf.halign);
+	surf.nby = round_up(surf.nby, surf.halign);
 
 	r = evergreen_surface_check(p, &surf, "texture");
 	if (r) {
@@ -896,8 +896,8 @@ static int evergreen_cs_track_validate_texture(struct radeon_cs_parser *p,
 				 __func__, __LINE__, surf.mode);
 			return -EINVAL;
 		}
-		surf.nbx = ALIGN(surf.nbx, surf.palign);
-		surf.nby = ALIGN(surf.nby, surf.halign);
+		surf.nbx = round_up(surf.nbx, surf.palign);
+		surf.nby = round_up(surf.nby, surf.halign);
 
 		r = evergreen_surface_check(p, &surf, "mipmap");
 		if (r) {

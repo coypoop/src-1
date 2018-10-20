@@ -189,7 +189,7 @@ int radeon_bo_create(struct radeon_device *rdev,
 	size_t acc_size;
 	int r;
 
-	size = ALIGN(size, PAGE_SIZE);
+	size = round_up(size, PAGE_SIZE);
 
 	if (kernel) {
 		type = ttm_bo_type_kernel;

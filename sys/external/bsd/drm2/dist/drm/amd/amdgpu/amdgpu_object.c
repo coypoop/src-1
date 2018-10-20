@@ -433,12 +433,12 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 		size <<= PAGE_SHIFT;
 	} else if (bp->domain & AMDGPU_GEM_DOMAIN_GDS) {
 		/* Both size and alignment must be a multiple of 4. */
-		page_align = ALIGN(bp->byte_align, 4);
-		size = ALIGN(size, 4) << PAGE_SHIFT;
+		page_align = round_up(bp->byte_align, 4);
+		size = round_up(size, 4) << PAGE_SHIFT;
 	} else {
 		/* Memory should be aligned at least to a page size. */
-		page_align = ALIGN(bp->byte_align, PAGE_SIZE) >> PAGE_SHIFT;
-		size = ALIGN(size, PAGE_SIZE);
+		page_align = round_up(bp->byte_align, PAGE_SIZE) >> PAGE_SHIFT;
+		size = round_up(size, PAGE_SIZE);
 	}
 
 	if (!amdgpu_bo_validate_size(adev, size, bp->domain))
