@@ -223,6 +223,7 @@ void ttm_tt_destroy(struct ttm_tt *ttm)
 	ttm->func->destroy(ttm);
 }
 
+static
 void ttm_tt_init_fields(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
 			uint32_t page_flags)
 {
@@ -231,7 +232,16 @@ void ttm_tt_init_fields(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
 	ttm->caching_state = tt_cached;
 	ttm->page_flags = page_flags;
 	ttm->state = tt_unpopulated;
+#ifdef __NetBSD__
+	WARN(bo->num_pages == 0,
+	    "zero-size allocation in %s, please file a NetBSD PR",
+	    __func__);	/* paranoia -- can't prove in five minutes */
+	ttm->swap_storage = uao_create(MAX(1, bo->num_pages), 0);
+	uao_set_pgfl(ttm->swap_storage, bus_dmamem_pgfl(ttm->bdev->dmat));
+	TAILQ_INIT(&ttm->pglist);
+#else
 	ttm->swap_storage = NULL;
+#endif
 	ttm->sg = bo->sg;
 }
 
@@ -448,6 +458,7 @@ out_err:
 
 static void ttm_tt_add_mapping(struct ttm_tt *ttm)
 {
+#ifndef __NetBSD__
 	pgoff_t i;
 
 	if (ttm->page_flags & TTM_PAGE_FLAG_SG)
@@ -455,6 +466,7 @@ static void ttm_tt_add_mapping(struct ttm_tt *ttm)
 
 	for (i = 0; i < ttm->num_pages; ++i)
 		ttm->pages[i]->mapping = ttm->bdev->dev_mapping;
+#endif
 }
 
 int ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
@@ -467,7 +479,11 @@ int ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 	if (ttm->bdev->driver->ttm_tt_populate)
 		ret = ttm->bdev->driver->ttm_tt_populate(ttm, ctx);
 	else
+#ifdef __NetBSD__
+		panic("no ttm population");
+#else
 		ret = ttm_pool_populate(ttm, ctx);
+#endif
 	if (!ret)
 		ttm_tt_add_mapping(ttm);
 	return ret;
@@ -496,5 +512,9 @@ void ttm_tt_unpopulate(struct ttm_tt *ttm)
 	if (ttm->bdev->driver->ttm_tt_unpopulate)
 		ttm->bdev->driver->ttm_tt_unpopulate(ttm);
 	else
+#ifdef __NetBSD__
+		panic("no ttm pool unpopulation");
+#else
 		ttm_pool_unpopulate(ttm);
+#endif
 }
