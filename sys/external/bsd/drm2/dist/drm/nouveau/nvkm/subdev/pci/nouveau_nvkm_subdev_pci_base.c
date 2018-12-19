@@ -116,6 +116,26 @@ nvkm_pci_oneinit(struct nvkm_subdev *subdev)
 			return ret;
 	}
 
+#ifdef __NetBSD__
+    {
+	const struct pci_attach_args *pa = &pdev->pd_pa;
+	int counts[PCI_INTR_TYPE_SIZE] =  {
+			[PCI_INTR_TYPE_INTX] = 1,
+			[PCI_INTR_TYPE_MSI] = 0,
+			[PCI_INTR_TYPE_MSIX] = 0,
+	};
+
+	/* XXX errno NetBSD->Linux */
+	ret = -pci_intr_alloc(pa, &pci->pci_ihp, counts, PCI_INTR_TYPE_INTX);
+	if (ret)
+		return ret;
+	pci->pci_intrcookie = pci_intr_establish_xname(pa->pa_pc,
+	    pci->pci_ihp[0], IPL_DRM, nvkm_pci_intr, pci,
+	    device_xname(pci_dev_dev(pdev)));
+	if (pci->pci_intrcookie == NULL)
+		return -EIO;	/* XXX er? */
+    }
+#else
 	ret = request_irq(pdev->irq, nvkm_pci_intr, IRQF_SHARED, "nvkm", pci);
 	if (ret)
 		return ret;
