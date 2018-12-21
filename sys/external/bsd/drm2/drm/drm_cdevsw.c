@@ -1,4 +1,4 @@
-/*	$NetBSD: drm_cdevsw.c,v 1.12 2018/08/28 03:41:39 riastradh Exp $	*/
+/*	$NetBSD: drm_cdevsw.c,v 1.13 2018/12/21 07:51:18 maya Exp $	*/
 
 /*-
  * Copyright (c) 2013 The NetBSD Foundation, Inc.
@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD: drm_cdevsw.c,v 1.12 2018/08/28 03:41:39 riastradh Exp $");
+__KERNEL_RCSID(0, "$NetBSD: drm_cdevsw.c,v 1.13 2018/12/21 07:51:18 maya Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -73,6 +73,7 @@ static int	drm_dequeue_event(struct drm_file *, size_t,
 		    struct drm_pending_event **, int);
 static void	drm_requeue_event(struct drm_file *,
 		    struct drm_pending_event *);
+static int	drm_ioctl_shim(struct file *, unsigned long, void *);
 static int	drm_poll(struct file *, int);
 static int	drm_kqfilter(struct file *, struct knote *);
 static int	drm_stat(struct file *, struct stat *);
@@ -101,7 +102,7 @@ static const struct fileops drm_fileops = {
 	.fo_name = "drm",
 	.fo_read = drm_read,
 	.fo_write = fbadop_write,
-	.fo_ioctl = drm_ioctl,
+	.fo_ioctl = drm_ioctl_shim,
 	.fo_fcntl = fnullop_fcntl,
 	.fo_poll = drm_poll,
 	.fo_stat = drm_stat,
@@ -396,6 +397,18 @@ drm_requeue_event(struct drm_file *file, struct drm_pending_event *event)
 	KASSERT(file->event_space >= event->event->length);
 	file->event_space -= event->event->length;
 	spin_unlock_irqrestore(&dev->event_lock, irqflags);
+}
+
+static int
+drm_ioctl_shim(struct file *fp, unsigned long cmd, void *data)
+{
+	struct drm_file *file = fp->f_data;
+	struct drm_driver *driver = file->minor->dev->driver;
+
+	if (driver->ioctl_override)
+		return driver->ioctl_override(fp, cmd, data);
+	else
+		return drm_ioctl(fp, cmd, data);
 }
 
 static int

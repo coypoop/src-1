@@ -291,11 +291,17 @@ usif_object_new(struct drm_file *f, void *data, u32 size, void *argv, u32 argc)
 }
 
 int
+#ifdef __NetBSD__
+usif_ioctl(struct drm_file *filp, void *data, u32 argc)
+#else
 usif_ioctl(struct drm_file *filp, void __user *user, u32 argc)
+#endif
 {
 	struct nouveau_cli *cli = nouveau_cli(filp);
 	struct nvif_client *client = &cli->base;
+#ifndef __NetBSD__
 	void *data = kmalloc(argc, GFP_KERNEL);
+#endif
 	u32   size = argc;
 	union {
 		struct nvif_ioctl_v0 v0;
@@ -304,10 +310,12 @@ usif_ioctl(struct drm_file *filp, void __user *user, u32 argc)
 	u8 owner;
 	int ret;
 
+#ifndef __NetBSD__
 	if (ret = -ENOMEM, !argv)
 		goto done;
 	if (ret = -EFAULT, copy_from_user(argv, user, size))
 		goto done;
+#endif
 
 	if (!(ret = nvif_unpack(-ENOSYS, &data, &size, argv->v0, 0, 0, true))) {
 		/* block access to objects not created via this interface */
@@ -368,10 +376,14 @@ usif_ioctl(struct drm_file *filp, void __user *user, u32 argc)
 	argv->v0.owner = owner;
 	mutex_unlock(&cli->mutex);
 
+#ifndef __NetBSD__
 	if (copy_to_user(user, argv, argc))
 		ret = -EFAULT;
+#endif
 done:
+#ifndef __NetBSD__
 	kfree(argv);
+#endif
 	return ret;
 }
 
