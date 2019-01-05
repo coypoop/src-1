@@ -59,7 +59,7 @@ int	linux_dma_fence_trace = 0;
  *	dma_fence_init; after the last dma_fence_put, this becomes
  *	false.
  */
-static inline bool
+static inline bool __diagused
 dma_fence_referenced_p(struct dma_fence *fence)
 {
 
