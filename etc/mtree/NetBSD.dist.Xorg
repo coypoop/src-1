@@ -27,6 +27,8 @@
 ./usr/X11R7/include/freetype2/freetype/cache
 ./usr/X11R7/include/freetype2/freetype/config
 ./usr/X11R7/include/libdrm
+./usr/X11R7/include/libdrm/nouveau
+./usr/X11R7/include/libdrm/nouveau/nvif
 ./usr/X11R7/include/libkms
 ./usr/X11R7/include/pixman-1
 ./usr/X11R7/include/xcb
