@@ -56,6 +56,8 @@ LLVM_INCLUDE_OBJDIR!=	cd ${LLVM_TOPLEVEL}/include && ${PRINTOBJDIR}
 .if ${MKLLDB:Uno} == "yes"
 CPPFLAGS+=	-DLLDB_DISABLE_PYTHON
 .endif
+CFLAGS+=	-fPIC
+CXXFLAGS+=	-fPIC
 CXXFLAGS+=	-std=c++11
 CXXFLAGS+=	-fno-rtti -fno-exceptions
 CXXFLAGS+=	-ffunction-sections -fdata-sections
@@ -69,7 +71,7 @@ CPPFLAGS+=	-I${LLVM_INCLUDE_OBJDIR} -I${LLVM_INCLUDE_CONFIG} \
 LLVM_PLATFORM=${MACHINE_GNU_ARCH}--netbsd
 
 LLVM_CONFIGURE_ARGS=	\
-	--enable-targets=x86,powerpc,sparc,aarch64,arm,mips \
+	--enable-targets=x86,powerpc,sparc,aarch64,arm,mips,amdgpu \
 	--with-c-include-dirs=/usr/include/clang-${CLANG_VERSION:R}:/usr/include \
 	--disable-timestamps --prefix=/usr --sysconfdir=/etc/llvm \
 	--with-clang-default-openmp-runtime=libomp \

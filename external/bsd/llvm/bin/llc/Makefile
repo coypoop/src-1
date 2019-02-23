@@ -18,6 +18,12 @@ LLVM_LIBS+= \
 	IRReader \
 	AsmParser \
 	BitReader \
+	AMDGPUAsmParser \
+	AMDGPUCodeGen \
+	AMDGPUMCTargetDesc \
+	AMDGPUTargetInfo \
+	AMDGPUAsmPrinter \
+	AMDGPUUtils \
 	AArch64CodeGen \
 	AArch64TargetInfo \
 	AArch64AsmParser \
@@ -59,6 +65,7 @@ LLVM_LIBS+= \
 	ProfileData \
 	Instrumentation \
 	ScalarOpts \
+	ipo \
 	TransformsUtils \
 	Analysis \
 	Target \

@@ -11,6 +11,10 @@ SRCS=	Statistics.cpp \
 	llvm-dwarfdump.cpp
 
 LLVM_LIBS+= \
+	AMDGPUTargetInfo \
+	AMDGPUMCTargetDesc \
+	AMDGPUAsmPrinter \
+	AMDGPUUtils \
 	AArch64TargetInfo \
 	AArch64MCTargetDesc \
 	AArch64AsmPrinter \

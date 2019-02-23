@@ -8,4 +8,8 @@ LIB=	LLVMMCJIT
 
 SRCS+=	MCJIT.cpp
 
+.if defined(HOSTLIB)
+.include <bsd.hostlib.mk>
+.else
 .include <bsd.lib.mk>
+.endif

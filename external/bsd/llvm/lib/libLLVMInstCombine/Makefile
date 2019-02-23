@@ -10,6 +10,8 @@ TABLEGEN_SRC=		InstCombineTables.td
 TABLEGEN_OUTPUT= \
 	InstCombineTables.inc|-gen-searchable-tables
 
+.include "${.PARSEDIR}/../../tablegen.mk"
+
 SRCS+=	InstructionCombining.cpp \
 	InstCombineAddSub.cpp \
 	InstCombineAndOrXor.cpp \
@@ -23,8 +25,6 @@ SRCS+=	InstructionCombining.cpp \
 	InstCombineShifts.cpp \
 	InstCombineSimplifyDemanded.cpp \
 	InstCombineVectorOps.cpp
-
-.include "${.PARSEDIR}/../../tablegen.mk"
 
 .if defined(HOSTLIB)
 .include <bsd.hostlib.mk>

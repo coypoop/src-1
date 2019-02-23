@@ -2,9 +2,13 @@
 
 .include <bsd.own.mk>
 
-SUBDIR=	clang \
-	clang-tblgen \
-	tblgen
+SUBDIR=	tblgen
+
+.if ${MKCLANG} != "no"
+SUBDIR+=	\
+	clang	\
+	clang-tblgen
+.endif
 
 .if ${MKLLD} != "no"
 SUBDIR+=	\

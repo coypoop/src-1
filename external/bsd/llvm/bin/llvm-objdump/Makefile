@@ -14,6 +14,12 @@ SRCS=	llvm-objdump.cpp \
 	WasmDump.cpp
 
 LLVM_LIBS+= \
+	AMDGPUAsmParser \
+	AMDGPUDisassembler \
+	AMDGPUMCTargetDesc \
+	AMDGPUTargetInfo \
+	AMDGPUAsmPrinter \
+	AMDGPUUtils \
 	AArch64Disassembler \
 	AArch64AsmParser \
 	AArch64MCTargetDesc \

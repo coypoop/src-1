@@ -10,6 +10,8 @@ TABLEGEN_SRC=		AttributesCompatFunc.td
 TABLEGEN_OUTPUT= \
 	AttributesCompatFunc.inc|-gen-attrs
 
+.include "${.PARSEDIR}/../../tablegen.mk"
+
 SRCS+=	AsmWriter.cpp \
 	Attributes.cpp \
 	AutoUpgrade.cpp \
@@ -61,8 +63,6 @@ SRCS+=	AsmWriter.cpp \
 	Value.cpp \
 	ValueSymbolTable.cpp \
 	Verifier.cpp
-
-.include "${.PARSEDIR}/../../tablegen.mk"
 
 .if defined(HOSTLIB)
 .include <bsd.hostlib.mk>

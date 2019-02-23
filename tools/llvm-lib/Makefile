@@ -2,6 +2,7 @@
 
 .include <bsd.hostinit.mk>
 
+HOST_BUILD=
 NO_LLVM_DEVELOPER=	yes
 
 .include "${.PARSEDIR}/../llvm/Makefile.inc"

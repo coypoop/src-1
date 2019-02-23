@@ -12,6 +12,13 @@ SRCS=	llvm-mc.cpp \
 
 LLVM_LIBS+= \
 	MCDisassembler \
+	AMDGPUAsmParser \
+	AMDGPUCodeGen \
+	AMDGPUDisassembler \
+	AMDGPUMCTargetDesc \
+	AMDGPUTargetInfo \
+	AMDGPUAsmPrinter \
+	AMDGPUUtils \
 	AArch64CodeGen \
 	AArch64TargetInfo \
 	AArch64AsmParser \

@@ -12,6 +12,11 @@ SRCS=	DWPError.cpp \
 
 LLVM_LIBS+= \
 	DebugInfoDWARF \
+	AMDGPUCodeGen \
+	AMDGPUTargetInfo \
+	AMDGPUMCTargetDesc \
+	AMDGPUAsmPrinter \
+	AMDGPUUtils \
 	AArch64CodeGen \
 	AArch64TargetInfo \
 	AArch64MCTargetDesc \
@@ -49,11 +54,13 @@ LLVM_LIBS+= \
 	SelectionDAG \
 	CodeGen \
 	ProfileData \
+	Vectorize \
 	Target \
 	InstCombine \
 	Instrumentation \
 	ScalarOpts \
 	MC \
+	ipo \
 	TransformsUtils \
 	Analysis \
 	IR \

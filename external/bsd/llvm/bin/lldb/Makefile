@@ -92,6 +92,13 @@ LLVM_LIBS+= \
 	IRReader \
 	AsmParser \
 	MCDisassembler \
+	AMDGPUAsmParser \
+	AMDGPUCodeGen \
+	AMDGPUDisassembler \
+	AMDGPUMCTargetDesc \
+	AMDGPUTargetInfo \
+	AMDGPUAsmPrinter \
+	AMDGPUUtils \
 	AArch64CodeGen \
 	AArch64TargetInfo \
 	AArch64AsmParser \

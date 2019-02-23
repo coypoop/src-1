@@ -11,6 +11,7 @@ SRCS=	llvm-cxxdump.cpp \
 	Error.cpp
 
 LLVM_LIBS+= \
+	AMDGPUTargetInfo \
 	ARMTargetInfo \
 	AArch64TargetInfo \
 	MipsTargetInfo \

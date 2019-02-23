@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-SUBDIR=	\
+SUBDIR+=	\
 	libLLVMAnalysis \
 	libLLVMAsmParser \
 	libLLVMAsmPrinter \
@@ -13,6 +13,7 @@ SUBDIR=	\
 	libLLVMDebugInfoCodeView \
 	libLLVMDebugInfoMSF \
 	libLLVMDemangle \
+	libLLVMExecutionEngine \
 	libLLVMGlobalISel \
 	libLLVMIR \
 	libLLVMIRReader \
@@ -23,6 +24,7 @@ SUBDIR=	\
 	libLLVMLinker \
 	libLLVMMC \
 	libLLVMMCDisassembler \
+	libLLVMMCJIT \
 	libLLVMMCParser \
 	libLLVMObjCARC \
 	libLLVMObject \
@@ -30,6 +32,7 @@ SUBDIR=	\
 	libLLVMPasses \
 	libLLVMProfileData \
 	libLLVMProfileDataCoverage \
+	libLLVMRuntimeDyld \
 	libLLVMScalarOpts \
 	libLLVMSelectionDAG \
 	libLLVMSupport \
@@ -40,6 +43,7 @@ SUBDIR=	\
 	libLLVMTransformsUtils \
 	libLLVMVectorize \
 	libLLVMAArch64CodeGen \
+	libLLVMAMDGPUCodeGen \
 	libLLVMARMCodeGen \
 	libLLVMMipsCodeGen \
 	libLLVMPowerPCCodeGen \
@@ -55,6 +59,14 @@ SUBDIR+= \
 	libLLVMAArch64MCTargetDesc \
 	libLLVMAArch64TargetInfo \
 	libLLVMAArch64Utils
+
+SUBDIR+= \
+	libLLVMAMDGPUAsmParser \
+	libLLVMAMDGPUAsmPrinter \
+	libLLVMAMDGPUDisassembler \
+	libLLVMAMDGPUMCTargetDesc \
+	libLLVMAMDGPUTargetInfo \
+	libLLVMAMDGPUUtils
 
 SUBDIR+= \
 	libLLVMARMAsmParser \
@@ -95,11 +107,8 @@ SUBDIR+= \
 
 .if ${NO_LLVM_DEVELOPER:Uno} == "no" && (${LLVM_DEVELOPER:U} == "yes" || ${MKLLDB} == "yes")
 SUBDIR+= \
-	libLLVMExecutionEngine \
-	libLLVMMCJIT \
 	libLLVMMIRParser \
-	libLLVMOrc \
-	libLLVMRuntimeDyld
+	libLLVMOrc
 .endif
 
 .if (${NO_LLVM_DEVELOPER:Uno} == "no" && ${LLVM_DEVELOPER:U} == "yes") || ${MKLLD} == "yes"
@@ -121,6 +130,7 @@ SUBDIR+= \
 	libLLVMXRay
 .endif
 
+.if ${MKCLANG} != "no"
 SUBDIR+= \
 	libclangAnalysis \
 	libclangARCMigrate \
@@ -144,6 +154,7 @@ SUBDIR+= \
 	libclangStaticAnalyzerCore \
 	.WAIT \
 	libclangStaticAnalyzerFrontend
+.endif
 
 .if ${NO_LLVM_DEVELOPER:Uno} == "no" && ${LLVM_DEVELOPER:U} == "yes"
 SUBDIR+= \

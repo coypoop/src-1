@@ -130,8 +130,10 @@ SUBDIR+= \
 .if ${MKLLVM} != "no" && !defined(EXTERNAL_TOOLCHAIN)
 SUBDIR+= \
 	.WAIT llvm-include .WAIT \
-	llvm-lib .WAIT \
-	llvm-clang
+	llvm-lib
+.if ${MKCLANG} != "no"
+SUBDIR+=	.WAIT llvm-clang
+.endif
 . if ${MKLLD} != "no"
 SUBDIR+=	llvm-lld
 . endif

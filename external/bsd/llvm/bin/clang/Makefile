@@ -53,6 +53,12 @@ LLVM_LIBS+= \
 	AsmParser \
 	BitReader \
 	BitWriter \
+	AMDGPUAsmParser \
+	AMDGPUCodeGen \
+	AMDGPUMCTargetDesc \
+	AMDGPUTargetInfo \
+	AMDGPUAsmPrinter \
+	AMDGPUUtils \
 	AArch64CodeGen \
 	AArch64TargetInfo \
 	AArch64AsmParser \

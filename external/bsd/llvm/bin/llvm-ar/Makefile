@@ -12,6 +12,13 @@ SRCS=	llvm-ar.cpp
 LLVM_LIBS+= \
 	ToolDriversDlltool \
 	ToolDrivers \
+	AMDGPUAsmParser \
+	AMDGPUCodeGen \
+	AMDGPUDisassembler \
+	AMDGPUMCTargetDesc \
+	AMDGPUTargetInfo \
+	AMDGPUAsmPrinter \
+	AMDGPUUtils \
 	AArch64AsmParser \
 	AArch64MCTargetDesc \
 	AArch64AsmPrinter \

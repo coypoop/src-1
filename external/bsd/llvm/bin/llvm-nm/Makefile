@@ -10,6 +10,12 @@ NOMAN=		yes
 SRCS=	llvm-nm.cpp
 
 LLVM_LIBS+= \
+	AMDGPUAsmParser \
+	AMDGPUCodeGen \
+	AMDGPUMCTargetDesc \
+	AMDGPUTargetInfo \
+	AMDGPUAsmPrinter \
+	AMDGPUUtils \
 	AArch64AsmParser \
 	AArch64MCTargetDesc \
 	AArch64AsmPrinter \

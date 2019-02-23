@@ -10,6 +10,11 @@ NOMAN=		yes
 SRCS=	sancov.cc
 
 LLVM_LIBS+= \
+	AMDGPUDisassembler \
+	AMDGPUMCTargetDesc \
+	AMDGPUAsmPrinter \
+	AMDGPUTargetInfo \
+	AMDGPUUtils \
 	AArch64Disassembler \
 	AArch64MCTargetDesc \
 	AArch64AsmPrinter \

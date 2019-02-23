@@ -5498,7 +5498,8 @@ LLVM_ENUM_ASM_PARSERS=""
 LLVM_ENUM_DISASSEMBLERS=""
 for target_to_build in $TARGETS_TO_BUILD; do
   LLVM_ENUM_TARGETS="$LLVM_ENUM_TARGETS${as_nl}LLVM_TARGET($target_to_build)"
-  if test -f ${llvm_srcdir}/lib/Target/${target_to_build}/*AsmPrinter.cpp ; then
+  target_has_asm_printer=${llvm_srcdir}/lib/Target/${target_to_build}/*AsmPrinter.cpp
+  if test -n "$target_has_asm_printer"; then
     LLVM_ENUM_ASM_PRINTERS="$LLVM_ENUM_ASM_PRINTERS${as_nl}LLVM_ASM_PRINTER($target_to_build)";
   fi
   if test -f ${llvm_srcdir}/lib/Target/${target_to_build}/AsmParser/CMakeLists.txt ; then

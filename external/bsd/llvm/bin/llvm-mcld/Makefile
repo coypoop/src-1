@@ -29,6 +29,12 @@ MCLINKER_LIBS+= \
 LLVM_LIBS+= \
 	AsmParser \
 	BitReader \
+	AMDGPUAsmParser \
+	AMDGPUCodeGen \
+	AMDGPUMCTargetDesc \
+	AMDGPUTargetInfo \
+	AMDGPUAsmPrinter \
+	AMDGPUUtils \
 	AArch64CodeGen \
 	AArch64TargetInfo \
 	AArch64AsmParser \
