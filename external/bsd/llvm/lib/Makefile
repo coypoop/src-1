@@ -2,6 +2,11 @@
 
 .include <bsd.own.mk>
 
+# XXX hack to get llvm-config.h in time for MesaLib
+.ifndef HOST_BUILD
+SUBDIR+=	../include
+.endif
+
 SUBDIR+=	\
 	libLLVMAnalysis \
 	libLLVMAsmParser \
