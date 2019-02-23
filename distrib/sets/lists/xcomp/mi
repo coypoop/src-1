@@ -29,10 +29,11 @@
 ./usr/X11R7/include/GL/internal/sarea.h			-unknown-	obsolete
 ./usr/X11R7/include/GL/osmesa.h				-unknown-	xorg
 ./usr/X11R7/include/GL/wglext.h				-unknown-	xorg
-./usr/X11R7/include/GL/wmesa.h				-unknown-	xorg
+./usr/X11R7/include/GL/wmesa.h				-unknown-	obsolete
 ./usr/X11R7/include/GL/xmesa.h				-unknown-	obsolete
 ./usr/X11R7/include/GL/xmesa_x.h			-unknown-	obsolete
 ./usr/X11R7/include/GL/xmesa_xf86.h			-unknown-	obsolete
+./usr/X11R7/include/KHR/khrplatform.h			-unknown-	xorg
 ./usr/X11R7/include/X11/CallbackI.h			-unknown-	xorg
 ./usr/X11R7/include/X11/Composite.h			-unknown-	xorg
 ./usr/X11R7/include/X11/CompositeP.h			-unknown-	xorg

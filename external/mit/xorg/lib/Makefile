@@ -19,7 +19,7 @@ SUBDIR+=xkeyboard-config
 SUBDIR+=libxcb \
 	.WAIT
 .if !defined(MLIBDIR)
-SUBDIR+=dri7 dri gallium
+SUBDIR+=dri gallium
 .endif
 SUBDIR+=fontconfig libSM libX11 \
 	.WAIT \

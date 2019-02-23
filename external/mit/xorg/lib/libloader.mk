@@ -4,15 +4,18 @@
 
 # loader stuff.
 .PATH:		${X11SRCDIR.MesaLib}/src/loader
-.PATH:		${X11SRCDIR.MesaLib}/src/mesa/drivers/dri/common
+.PATH:		${X11SRCDIR.MesaLib}/src/util
 SRCS.loader += \
 	loader.c \
 	pci_id_driver_map.c \
+	u_process.c \
 	xmlconfig.c
 
 .for _f in ${SRCS.loader}
-CPPFLAGS.${_f}= 	-I${X11SRCDIR.MesaLib}/src/mesa \
-			-I${X11SRCDIR.MesaLib}/src
+CPPFLAGS.${_f}= 	-I${X11SRCDIR.MesaLib}/src/util \
+			-I${X11SRCDIR.MesaLib}/src/mesa \
+			-I${X11SRCDIR.MesaLib}/src \
+			-DUSE_DRICONF
 .endfor
 
 SRCS+=	${SRCS.loader}

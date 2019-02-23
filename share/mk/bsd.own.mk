@@ -985,6 +985,14 @@ MKCOMPATMODULES:=	no
 .endif
 
 #
+# Build LLVM libraries
+# Used by mesa llvmpipe
+#
+.if ${MACHINE_ARCH} == "x86_64" || ${MACHINE_ARCH} == "i386"
+MKLLVM?=	yes
+.endif
+
+#
 # These platforms use softfloat by default.
 #
 .if ${MACHINE_ARCH} == "mips64eb" || ${MACHINE_ARCH} == "mips64el"
