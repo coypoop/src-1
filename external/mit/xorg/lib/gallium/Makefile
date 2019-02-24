@@ -70,6 +70,10 @@ GALLIUM_SUBDIRS_ATI= \
 	winsys/radeon/drm \
 	winsys/amdgpu/drm
 
+GALLIUM_SUBDIRS_I915= \
+	drivers/i915 \
+	winsys/i915/drm
+
 GALLIUM_SUBDIRS_NOUVEAU= \
 	drivers/nouveau \
 	drivers/nouveau/nv30 \
@@ -82,8 +86,10 @@ BUILD_RADEON=0
 BUILD_NOUVEAU=0
 BUILD_VDPAU=0
 BUILD_LLVMPIPE=0
+BUILD_I915=0
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "x86_64"
 BUILD_RADEON=1
+BUILD_I915=1
 .endif
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "x86_64" || ${MACHINE} == "evbarm"
 BUILD_NOUVEAU=1
@@ -106,6 +112,9 @@ GALLIUM_SUBDIRS+=	${GALLIUM_SUBDIRS_NOUVEAU}
 .if ${BUILD_VDPAU} == 1
 GALLIUM_SUBDIRS+=	${GALLIUM_SUBDIRS_VDPAU}
 .endif
+.if ${BUILD_I915} == 1
+GALLIUM_SUBDIRS+=	${GALLIUM_SUBDIRS_I915}
+.endif
 .if ${BUILD_LLVMPIPE} == 1
 GALLIUM_SUBDIRS+=	${GALLIUM_SUBDIRS_LLVMPIPE}
 .endif
@@ -114,6 +123,7 @@ GALLIUM_SOURCES.auxiliary/cso_cache= \
 	cso_cache.c \
 	cso_context.c \
 	cso_hash.c
+
 GALLIUM_SOURCES.auxiliary/draw= \
 	draw_context.c \
 	draw_fs.c \
@@ -400,6 +410,39 @@ CPPFLAGS.DRIVERrbug_core.c+=	-I${X11SRCDIR.MesaLib}/src/gallium/drivers
 CPPFLAGS.DRIVERrbug_context.c+=	-I${X11SRCDIR.MesaLib}/src/gallium/auxiliary
 CPPFLAGS.DRIVERrbug_context.c+=	-I${X11SRCDIR.MesaLib}/src/gallium/auxiliary/driver_rbug
 CPPFLAGS.DRIVERrbug_context.c+=	-I${X11SRCDIR.MesaLib}/src/gallium/drivers
+
+GALLIUM_SOURCES.drivers/i915= \
+	i915_blit.c \
+	i915_clear.c \
+	i915_context.c \
+	i915_debug.c \
+	i915_debug_fp.c \
+	i915_flush.c \
+	i915_fpc_emit.c \
+	i915_fpc_optimize.c \
+	i915_fpc_translate.c \
+	i915_prim_emit.c \
+	i915_prim_vbuf.c \
+	i915_query.c \
+	i915_resource_buffer.c \
+	i915_resource.c \
+	i915_resource_texture.c \
+	i915_screen.c \
+	i915_state.c \
+	i915_state_derived.c \
+	i915_state_dynamic.c \
+	i915_state_emit.c \
+	i915_state_fpc.c \
+	i915_state_immediate.c \
+	i915_state_sampler.c \
+	i915_state_static.c \
+	i915_surface.c
+
+GALLIUM_SOURCES.winsys/i915/drm= \
+	i915_drm_batchbuffer.c \
+	i915_drm_buffer.c \
+	i915_drm_fence.c \
+	i915_drm_winsys.c
 
 # Conflicts with r600/radeon_video.c and radeon/radeon_video.c
 BUILDSYMLINKS+=	${X11SRCDIR.MesaLib}/src/gallium/drivers/r600/radeon_video.c r600_radeon_video.c
@@ -888,6 +931,9 @@ LIBDPLIBS+=	pthread		${.CURDIR}/../../../../../lib/libpthread
 LIBDPLIBS+=	m		${.CURDIR}/../../../../../lib/libm
 .if ${BUILD_RADEON} == 1 || ${BUILD_NOUVEAU} == 1
 LIBDPLIBS+= 	drm		${.CURDIR}/../libdrm
+.if ${BUILD_I915} == 1
+LIBDPLIBS+= 	drm_intel	${.CURDIR}/../libdrm_intel
+.endif
 .if ${BUILD_RADEON} == 1
 LIBDPLIBS+= 	drm_radeon	${.CURDIR}/../libdrm_radeon
 LIBDPLIBS+= 	drm_amdgpu	${.CURDIR}/../libdrm_amdgpu
@@ -1022,7 +1068,11 @@ CPPFLAGS.target.c += \
 CPPFLAGS.target.c += \
 	-DGALLIUM_LLVMPIPE
 .endif  #${BUILD_LLVMPIPE} == 1
-
+.if ${BUILD_I915} == 1
+CPPFLAGS.target.c += \
+	-DGALLIUM_I915 \
+	-DGALLIUM_ILO
+.endif
 .if ${BUILD_RADEON} == 1
 CPPFLAGS.target.c += \
 	-DGALLIUM_R200 \
