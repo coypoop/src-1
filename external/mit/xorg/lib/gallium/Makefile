@@ -17,6 +17,7 @@ LLVM_TOOLCONF_OBJDIR!=	cd ${NETBSDSRCDIR}/tools/llvm && ${PRINTOBJDIR}
 LLVM_INCLUDE_OBJDIR!=	cd ${NETBSDSRCDIR}/tools/llvm-include && ${PRINTOBJDIR}
 
 CXXFLAGS+=	-std=c++11
+CFLAGS+=	-std=gnu11
 CPPFLAGS+=	-I${DESTDIR}${X11INCDIR}/libdrm \
 		-I${NETBSDSRCDIR}/external/bsd/llvm/dist/llvm/include \
 		-I${LLVM_TOOLCONF_OBJDIR}/config/include \
@@ -52,6 +53,9 @@ GALLIUM_SUBDIRS= \
 	winsys/sw/wrapper \
 	state_trackers/dri
 
+GALLIUM_SUBDIRS_VDPAU=	\
+	state_trackers/vdpau
+
 GALLIUM_SUBDIRS_LLVMPIPE= \
 	auxiliary/gallivm \
 	drivers/llvmpipe
@@ -76,12 +80,14 @@ GALLIUM_SUBDIRS_NOUVEAU= \
 
 BUILD_RADEON=0
 BUILD_NOUVEAU=0
+BUILD_VDPAU=0
 BUILD_LLVMPIPE=0
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "x86_64"
 BUILD_RADEON=1
 .endif
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "x86_64" || ${MACHINE} == "evbarm"
 BUILD_NOUVEAU=1
+BUILD_VDPAU=1
 .endif
 # Requires LLVM libraries as well as LLVM JIT support
 .if ${MKLLVM} == "yes"
@@ -96,6 +102,9 @@ GALLIUM_SUBDIRS+=	${GALLIUM_SUBDIRS_ATI}
 .if ${BUILD_NOUVEAU} == 1
 DRIVERS+=		nouveau
 GALLIUM_SUBDIRS+=	${GALLIUM_SUBDIRS_NOUVEAU}
+.endif
+.if ${BUILD_VDPAU} == 1
+GALLIUM_SUBDIRS+=	${GALLIUM_SUBDIRS_VDPAU}
 .endif
 .if ${BUILD_LLVMPIPE} == 1
 GALLIUM_SUBDIRS+=	${GALLIUM_SUBDIRS_LLVMPIPE}
@@ -297,6 +306,7 @@ GALLIUM_SOURCES.auxiliary/vl= \
 	vl_mpeg12_decoder.c \
 	vl_vertex_buffers.c \
 	vl_video_buffer.c \
+	vl_winsys_dri.c \
 	vl_zscan.c
 
 # Generated
@@ -305,6 +315,9 @@ GALLIUM_SOURCES.auxiliary= \
 	u_indices_gen.c \
 	u_unfilled_gen.c \
 	u_format_table.c
+.for _f in ${GALLIUM_SOURCES.auxiliary/vl}
+CPPFLAGS.${_f} +=	-I${X11SRCDIR.MesaLib}/src/loader
+.endfor
 .for _f in ${GALLIUM_SOURCES.auxiliary}
 CPPFLAGS.${_f} +=	-I${X11SRCDIR.MesaLib}/src/gallium/auxiliary/util
 CPPFLAGS.${_f} +=	-I${X11SRCDIR.MesaLib}/src/util
@@ -731,6 +744,19 @@ GALLIUM_SOURCES.winsys/amdgpu/drm = \
 CPPFLAGS.${_f} +=	-I${X11SRCDIR.MesaLib}/src/amd
 .endfor
 
+GALLIUM_SOURCES.state_trackers/vdpau = \
+	bitmap.c \
+	decode.c \
+	device.c \
+	ftab.c \
+	htab.c \
+	mixer.c \
+	output.c \
+	preemption.c \
+	presentation.c \
+	query.c \
+	surface.c
+
 GALLIUM_SOURCES.drivers/llvmpipe = \
 	lp_bld_alpha.c \
 	lp_bld_blend_aos.c \
@@ -1019,7 +1045,9 @@ CWARNFLAGS.clang+=	-Wno-error=constant-conversion \
 			-Wno-error=static-in-inline \
 			-Wno-error=logical-not-parentheses \
 			-Wno-error=constant-logical-operand \
-			-Wno-error=unknown-warning-option
+			-Wno-error=unknown-warning-option \
+			-Wno-error=typedef-redefinition \
+			-Wno-error=enum-conversion # https://bugs.freedesktop.org/show_bug.cgi?id=109761
 
 .include <bsd.x11.mk>
 LIBDIR=		${X11USRLIBDIR}/modules/dri

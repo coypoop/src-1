@@ -200,6 +200,9 @@
 ./usr/X11R7/lib/libpixman-1.so			-unknown-		xorg,compatx11file
 ./usr/X11R7/lib/libpixman-1.so.2		-unknown-		xorg,compatx11file
 ./usr/X11R7/lib/libpixman-1.so.2.2		-unknown-		xorg,compatx11file
+./usr/X11R7/lib/libvdpau.so			-unknown-		xorg,compatx11file
+./usr/X11R7/lib/libvdpau.so.1			-unknown-		xorg,compatx11file
+./usr/X11R7/lib/libvdpau.so.1.0			-unknown-		xorg,compatx11file
 ./usr/X11R7/lib/libxcb-atom.so			-unknown-		xorg,compatx11file
 ./usr/X11R7/lib/libxcb-atom.so.1		-unknown-		xorg,compatx11file
 ./usr/X11R7/lib/libxcb-atom.so.1.0		-unknown-		xorg,compatx11file

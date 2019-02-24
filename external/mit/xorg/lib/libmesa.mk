@@ -2,7 +2,7 @@
 #
 # Consumer of this Makefile should set MESA_SRC_MODULES.
 
-INCLUDES.all=	mapi mesa mesa/main
+INCLUDES.all=	mapi mesa
 
 CPPFLAGS.ac_surface.c+=	${${ACTIVE_CC} == "clang":? -Wno-error=enum-conversion :}
 
@@ -11,7 +11,7 @@ CPPFLAGS.ac_surface.c+=	${${ACTIVE_CC} == "clang":? -Wno-error=enum-conversion :
 
 # Main sources
 PATHS.main=	mesa/main
-INCLUDES.main=	glsl
+INCLUDES.main=	glsl mesa/main
 SRCS.main= \
 	accum.c \
 	api_arrayelt.c \
@@ -139,6 +139,7 @@ SRCS.main= \
 	uniform_query.cpp \
 	uniforms.c \
 	varray.c \
+	vdpau.c \
 	version.c \
 	viewport.c \
 	vtxfmt.c \
@@ -239,6 +240,7 @@ SRCS.tnl= \
 
 # Software raster sources
 PATHS.swrast=		mesa/swrast
+INCLUDES.swrast=	mesa/main
 SRCS.swrast= \
 	s_aaline.c \
 	s_aatriangle.c \
@@ -339,7 +341,7 @@ COPTS.sse_minmax.c+= -msse4.1
 
 # State tracker sources
 PATHS.state_tracker=	mesa/state_tracker
-INCLUDES.state_tracker=	glsl
+INCLUDES.state_tracker=	glsl mesa/main
 SRCS.state_tracker= \
 	st_atifs_to_tgsi.c \
 	st_atom.c \
@@ -472,7 +474,6 @@ CPPFLAGS+=	-I${X11SRCDIR.MesaLib}/src/${_path_}
 CPPFLAGS+=	-I${X11SRCDIR.MesaLib}/include
 CPPFLAGS+=	-I${X11SRCDIR.MesaLib}/src
 CPPFLAGS+=	-I${X11SRCDIR.MesaLib}/src/mesa
-CPPFLAGS+=	-I${X11SRCDIR.MesaLib}/src/mesa/main
 CPPFLAGS+=	-I${X11SRCDIR.MesaLib}/src/mapi
 CPPFLAGS+=	-I${X11SRCDIR.MesaLib}/src/gallium/include
 CPPFLAGS+=	-I${X11SRCDIR.MesaLib}/../src/mapi/glapi

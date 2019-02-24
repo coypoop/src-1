@@ -34,6 +34,8 @@
 ./usr/X11R7/include/GL/xmesa_x.h			-unknown-	obsolete
 ./usr/X11R7/include/GL/xmesa_xf86.h			-unknown-	obsolete
 ./usr/X11R7/include/KHR/khrplatform.h			-unknown-	xorg
+./usr/X11R7/include/vdpau/vdpau.h			-unknown-	xorg
+./usr/X11R7/include/vdpau/vdpau_x11.h			-unknown-	xorg
 ./usr/X11R7/include/X11/CallbackI.h			-unknown-	xorg
 ./usr/X11R7/include/X11/Composite.h			-unknown-	xorg
 ./usr/X11R7/include/X11/CompositeP.h			-unknown-	xorg
@@ -1232,6 +1234,8 @@
 ./usr/X11R7/lib/libpthread-stubs_p.a			-unknown-	profile,xorg,compatx11file
 ./usr/X11R7/lib/libre.a					-unknown-	obsolete
 ./usr/X11R7/lib/libre_p.a				-unknown-	obsolete
+./usr/X11R7/lib/libvdpau.a				-unknown-	xorg,compatx11file
+./usr/X11R7/lib/libvdpau_p.a				-unknown-	profile,xorg,compatx11file
 ./usr/X11R7/lib/libxcb-atom.a				-unknown-	xorg,compatx11file
 ./usr/X11R7/lib/libxcb-atom_p.a				-unknown-	profile,xorg,compatx11file
 ./usr/X11R7/lib/libxcb-aux.a				-unknown-	xorg,compatx11file

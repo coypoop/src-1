@@ -40,12 +40,19 @@ SRCS.glx=	\
 	renderpix.c \
 	single2.c \
 	singlepix.c \
-	vertarr.c
+	vertarr.c \
+
+SRCS+=	UTILdebug.c
+CPPFLAGS.UTILdebug.c+=	-I${X11SRCDIR.MesaLib}/src/util \
+			-I${X11SRCDIR.MesaLib}/src/mesa \
+			-I${X11SRCDIR.MesaLib}/src \
+			-I${X11SRCDIR.MesaLib}/src/gallium/include
 
 BUILDSYMLINKS+=	${X11SRCDIR.MesaLib}/src/glx/indirect_init.c MESAindirect_init.c
 BUILDSYMLINKS+=	${X11SRCDIR.MesaLib}/src/glx/indirect_window_pos.c MESAindirect_window_pos.c
 BUILDSYMLINKS+=	${X11SRCDIR.MesaLib}/src/glx/indirect.c MESAindirect.c
 BUILDSYMLINKS+=	${X11SRCDIR.MesaLib}/src/glx/indirect_size.c MESAindirect_size.c
+BUILDSYMLINKS+=	${X11SRCDIR.MesaLib}/src/util/debug.c UTILdebug.c
 
 # glapi
 .PATH:		${X11SRCDIR.MesaLib}/src/mapi

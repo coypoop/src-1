@@ -16,7 +16,8 @@ SRCS.util=	\
 	format_srgb.c \
 	mesa-sha1.c \
 	os_time.c \
-	MESAralloc.c \
+	ralloc.c \
+	UTILdebug.c \
 	rand_xor.c \
 	rb_tree.c \
 	register_allocate.c \
@@ -48,8 +49,9 @@ CPPFLAGS+=		-DGALLIUM_STATIC_TARGETS \
 CPPFLAGS.format_srgb.c+=	-I${X11SRCDIR.MesaLib}/src/util
 CPPFLAGS.hash_table.c+=		-I${X11SRCDIR.MesaLib}/src/util
 CPPFLAGS.MESAralloc.c+=		-I${X11SRCDIR.MesaLib}/src/util
+CPPFLAGS.UTILdebug.c+=		-I${X11SRCDIR.MesaLib}/src/util
 
-BUILDSYMLINKS+=	${X11SRCDIR.MesaLib}/src/util/ralloc.c MESAralloc.c
+BUILDSYMLINKS+=	${X11SRCDIR.MesaLib}/src/util/debug.c UTILdebug.c
 
 SRCS+=	${SRCS.util} ${SRCS.pipe-loader}
 

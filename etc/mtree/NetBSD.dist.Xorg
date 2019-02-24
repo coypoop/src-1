@@ -6,6 +6,7 @@
 ./usr/X11R7/include/GL
 ./usr/X11R7/include/GL/internal
 ./usr/X11R7/include/KHR
+./usr/X11R7/include/vdpau
 ./usr/X11R7/include/X11
 ./usr/X11R7/include/X11/ICE
 ./usr/X11R7/include/X11/PM

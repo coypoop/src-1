@@ -147,6 +147,7 @@
 ./usr/X11R7/include/GL					base-x11-root	xorg
 ./usr/X11R7/include/GL/internal				base-x11-root	xorg
 ./usr/X11R7/include/KHR					base-x11-root	xorg
+./usr/X11R7/include/vdpau				base-x11-root	xorg
 ./usr/X11R7/include/X11					base-x11-root	xorg
 ./usr/X11R7/include/X11/ICE				base-x11-root	xorg
 ./usr/X11R7/include/X11/PM				base-x11-root	xorg

@@ -1488,7 +1488,7 @@ HAVE_XORG_GLAMOR?=	no
 	xbitmaps appres xeyes xev xedit sessreg pixman \
 	beforelight bitmap editres makedepend fonttosfnt fslsfonts fstobdf \
 	glu glw mesa-demos MesaGLUT MesaLib MesaLib7 \
-	ico iceauth listres lndir \
+	ico iceauth libvdpau listres lndir \
 	luit xproxymanagementprotocol mkfontdir oclock proxymngr rgb \
 	rstart setxkbmap showfont smproxy twm viewres \
 	x11perf xauth xcalc xclipboard \

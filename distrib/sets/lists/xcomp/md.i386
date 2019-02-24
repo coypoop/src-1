@@ -29,6 +29,7 @@
 ./usr/X11R7/lib/libdrm_nouveau.a			-unknown-	xorg
 ./usr/X11R7/lib/libdrm_nouveau_p.a			-unknown-	profile,xorg
 ./usr/X11R7/lib/libdrm_nouveau_pic.a			-unknown-	xorg,picinstall
+./usr/X11R7/lib/pkgconfig/libvdpau.pc			-unknown-	xorg
 ./usr/X11R7/lib/pkgconfig/libdrm_amdgpu.pc		-unknown-	xorg
 ./usr/X11R7/lib/pkgconfig/libdrm_intel.pc		-unknown-	xorg
 ./usr/X11R7/lib/pkgconfig/libdrm_nouveau.pc		-unknown-	xorg
