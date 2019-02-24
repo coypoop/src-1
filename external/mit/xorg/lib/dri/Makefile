@@ -53,7 +53,6 @@ DRI_SOURCES.i915 = \
 	i915_fragprog.c \
 	i915_program.c \
 	i915_state.c \
-	i915_tex_layout.c \
 	i915_texstate.c \
 	i915_vtbl.c \
 
@@ -67,8 +66,8 @@ I915_INTEL_FILES = \
 	intel_extensions.c \
 	intel_fbo.c \
 	intel_mipmap_tree.c \
-	intel_pixel_bitmap.c \
 	intel_pixel.c \
+	intel_pixel_bitmap.c \
 	intel_pixel_copy.c \
 	intel_pixel_draw.c \
 	intel_pixel_read.c \
@@ -91,41 +90,94 @@ DRI_SOURCES.i915+=	i915_${_f}
 CPPFLAGS.i915_${_f}+=	-I${X11SRCDIR.MesaLib}/src/mesa/drivers/dri/i915
 .endfor
 
+.PATH: ${X11SRCDIR.MesaLib}/src/intel/compiler
+.PATH: ${X11SRCDIR.MesaLib}/src/intel/isl
+
 DRI_SOURCES.i965 = \
 	brw_binding_tables.c \
 	brw_blorp.c \
 	brw_bufmgr.c \
+	brw_cfg.cpp \
 	brw_clear.c \
 	brw_clip.c \
+	brw_clip_line.c \
+	brw_clip_point.c \
+	brw_clip_tri.c \
+	brw_clip_unfilled.c \
+	brw_clip_util.c \
+	brw_compile_clip.c \
+	brw_compile_sf.c \
+	brw_compiler.c \
 	brw_compute.c \
 	brw_conditional_render.c \
 	brw_context.c \
 	brw_cs.c \
 	brw_curbe.c \
+	brw_dead_control_flow.cpp \
+	brw_disasm.c \
+	brw_disasm_info.c \
 	brw_disk_cache.c \
 	brw_draw.c \
 	brw_draw_upload.c \
+	brw_eu.c \
+	brw_eu_compact.c \
+	brw_eu_emit.c \
+	brw_eu_util.c \
+	brw_eu_validate.c \
 	brw_ff_gs.c \
 	brw_ff_gs_emit.c \
 	brw_formatquery.c \
+	brw_fs.cpp \
+	brw_fs_bank_conflicts.cpp \
+	brw_fs_cmod_propagation.cpp \
+	brw_fs_combine_constants.cpp \
+	brw_fs_copy_propagation.cpp \
+	brw_fs_cse.cpp \
+	brw_fs_dead_code_eliminate.cpp \
+	brw_fs_generator.cpp \
+	brw_fs_live_variables.cpp \
+	brw_fs_lower_conversions.cpp \
+	brw_fs_lower_pack.cpp \
+	brw_fs_nir.cpp \
+	brw_fs_reg_allocate.cpp \
+	brw_fs_register_coalesce.cpp \
+	brw_fs_saturate_propagation.cpp \
+	brw_fs_sel_peephole.cpp \
+	brw_fs_surface_builder.cpp \
+	brw_fs_validate.cpp \
+	brw_fs_visitor.cpp \
 	brw_generate_mipmap.c \
 	brw_gs.c \
 	brw_gs_surface_state.c \
+	brw_interpolation_map.c \
 	brw_link.cpp \
 	brw_meta_util.c \
 	brw_misc_state.c \
+	brw_nir.c \
+	brw_nir_analyze_boolean_resolves.c \
+	brw_nir_analyze_ubo_ranges.c \
+	brw_nir_attribute_workarounds.c \
+	brw_nir_lower_cs_intrinsics.c \
+	brw_nir_lower_image_load_store.c \
+	brw_nir_opt_peephole_ffma.c \
+	brw_nir_tcs_workarounds.c \
 	brw_nir_uniforms.cpp \
 	brw_object_purgeable.c \
-	brw_pipe_control.c \
+	brw_packed_float.c \
 	brw_performance_query.c \
 	brw_performance_query_mdapi.c \
+	brw_pipe_control.c \
+	brw_predicated_break.cpp \
+	brw_primitive_restart.c \
 	brw_program.c \
 	brw_program_binary.c \
 	brw_program_cache.c \
-	brw_primitive_restart.c \
 	brw_queryobj.c \
+	brw_reg_type.c \
 	brw_reset.c \
+	brw_schedule_instructions.cpp \
 	brw_sf.c \
+	brw_shader.cpp \
 	brw_state_upload.c \
 	brw_surface_formats.c \
 	brw_sync.c \
@@ -135,12 +187,31 @@ DRI_SOURCES.i965 = \
 	brw_tes_surface_state.c \
 	brw_urb.c \
 	brw_util.c \
+	brw_vec4.cpp \
+	brw_vec4_cmod_propagation.cpp \
+	brw_vec4_copy_propagation.cpp \
+	brw_vec4_cse.cpp \
+	brw_vec4_dead_code_eliminate.cpp \
+	brw_vec4_generator.cpp \
+	brw_vec4_gs_nir.cpp \
+	brw_vec4_gs_visitor.cpp \
+	brw_vec4_live_variables.cpp \
+	brw_vec4_nir.cpp \
+	brw_vec4_reg_allocate.cpp \
+	brw_vec4_surface_builder.cpp \
+	brw_vec4_tcs.cpp \
+	brw_vec4_tes.cpp \
+	brw_vec4_visitor.cpp \
+	brw_vec4_vs_visitor.cpp \
 	brw_vs.c \
 	brw_vs_surface_state.c \
+	brw_vue_map.c \
 	brw_wm.c \
+	brw_wm_iz.cpp \
 	brw_wm_surface_state.c \
 	gen6_clip_state.c \
 	gen6_constant_state.c \
+	gen6_gs_visitor.cpp \
 	gen6_multisample_state.c \
 	gen6_queryobj.c \
 	gen6_sampler_state.c \
@@ -152,7 +223,17 @@ DRI_SOURCES.i965 = \
 	gen8_depth_state.c \
 	gen8_multisample_state.c \
 	hsw_queryobj.c \
-	hsw_sol.c
+	hsw_sol.c \
+	isl.c \
+	isl_drm.c \
+	isl_format.c \
+	isl_format_layout.c \
+	isl_gen4.c \
+	isl_gen6.c \
+	isl_gen7.c \
+	isl_gen8.c \
+	isl_gen9.c \
+	isl_storage_image.c
 
 I965_INTEL_FILES = \
 	intel_batchbuffer.c \
@@ -163,8 +244,8 @@ I965_INTEL_FILES = \
 	intel_extensions.c \
 	intel_fbo.c \
 	intel_mipmap_tree.c \
-	intel_pixel_bitmap.c \
 	intel_pixel.c \
+	intel_pixel_bitmap.c \
 	intel_pixel_copy.c \
 	intel_pixel_draw.c \
 	intel_pixel_read.c \
@@ -174,13 +255,17 @@ I965_INTEL_FILES = \
 	intel_tex_copy.c \
 	intel_tex_image.c \
 	intel_tex_validate.c \
+	intel_tiled_memcpy.c \
+	intel_tiled_memcpy_normal.c \
+	intel_tiled_memcpy_sse41.c \
 	intel_upload.c
 
+CPPFLAGS.i965_intel_tiled_memcpy.c+=		-msse4.1
+CPPFLAGS.i965_intel_tiled_memcpy_sse41.c+=	-msse4.1
 
-PERGEN_FILES=	genX_blorp_exec.c genX_state_upload.c
-INTEL_GENS=	40 45 50 60 70 75 80 90 100 110
+INTEL_GENS_BLORP=	40 45 50 60 70 75 80 90 100 110
 
-.for _gen in ${INTEL_GENS}
+.for _gen in ${INTEL_GENS_BLORP}
 BUILDSYMLINKS+=		${X11SRCDIR.MesaLib}/src/mesa/drivers/dri/i965/genX_state_upload.c ${_gen}_state_upload.c
 BUILDSYMLINKS+=		${X11SRCDIR.MesaLib}/src/mesa/drivers/dri/i965/genX_blorp_exec.c ${_gen}_blorp_exec.c
 
@@ -188,6 +273,18 @@ CPPFLAGS.${_gen}_state_upload.c+=	-DGEN_VERSIONx10=${_gen}
 CPPFLAGS.${_gen}_blorp_exec.c+=		-DGEN_VERSIONx10=${_gen}
 .endfor
 
+INTEL_GENS_ISL=	40 50 60 70 75 80 90 100 110
+
+ISL_GENS_FILES= \
+	isl_emit_depth_stencil.c \
+	isl_surface_state.c
+
+.for _gen in ${INTEL_GENS_ISL}
+BUILDSYMLINKS+=		${X11SRCDIR.MesaLib}/src/intel/isl/isl_emit_depth_stencil.c ${_gen}_isl_emit_depth_stencil.c
+BUILDSYMLINKS+=		${X11SRCDIR.MesaLib}/src/intel/isl/isl_surface_state.c ${_gen}_isl_surface_state.c
+CPPFLAGS.${_gen}_isl_emit_depth_stencil.c+=	-DGEN_VERSIONx10=${_gen}
+CPPFLAGS.${_gen}_isl_surface_state.c+=		-DGEN_VERSIONx10=${_gen}
+.endfor
 
 .for _f in ${I965_INTEL_FILES}
 BUILDSYMLINKS+=		${X11SRCDIR.MesaLib}/src/mesa/drivers/dri/i965/${_f} i965_${_f}
