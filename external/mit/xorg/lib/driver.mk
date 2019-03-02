@@ -4,7 +4,6 @@
 
 # util
 .PATH:		${X11SRCDIR.MesaLib}/src/util
-.PATH:		${X11SRCDIR.MesaLib}/src/gallium/auxiliary/pipe-loader
 
 SRCS.util=	\
 	hash_table.c \
@@ -26,25 +25,12 @@ SRCS.util=	\
 	slab.c \
 	string_buffer.c \
 	strtod.c \
+	u_cpu_detect.c \
 	u_math.c \
 	u_queue.c \
+	u_process.c \
 	u_vector.c \
 	vma.c
-
-SRCS.pipe-loader= \
-	pipe_loader.c \
-	pipe_loader_drm.c \
-	pipe_loader_sw.c
-
-.for _f in ${SRCS.pipe-loader}
-CPPFLAGS.${_f}+=	-I${X11SRCDIR.MesaLib}/src/gallium/winsys \
-			-I${X11SRCDIR.MesaLib}/src/gallium/auxiliary \
-			-I${X11SRCDIR.MesaLib}/src/loader
-.endfor
-
-CPPFLAGS+=		-DGALLIUM_STATIC_TARGETS \
-			-DHAVE_PIPE_LOADER_DRI \
-			-DHAVE_PIPE_LOADER_KMS
 
 CPPFLAGS.format_srgb.c+=	-I${X11SRCDIR.MesaLib}/src/util
 CPPFLAGS.hash_table.c+=		-I${X11SRCDIR.MesaLib}/src/util
@@ -53,7 +39,7 @@ CPPFLAGS.UTILdebug.c+=		-I${X11SRCDIR.MesaLib}/src/util
 
 BUILDSYMLINKS+=	${X11SRCDIR.MesaLib}/src/util/debug.c UTILdebug.c
 
-SRCS+=	${SRCS.util} ${SRCS.pipe-loader}
+SRCS+=	${SRCS.util}
 
 # also need to pull in libdricommon.la libmegadriver_stub.la
 .PATH: ${X11SRCDIR.MesaLib}/src/mesa/drivers/dri/common

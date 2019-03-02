@@ -36,6 +36,7 @@ GALLIUM_SUBDIRS= \
 	auxiliary/nir \
 	auxiliary/os \
 	auxiliary/pipebuffer \
+	auxiliary/pipe-loader \
 	auxiliary/postprocess \
 	auxiliary/rbug \
 	auxiliary/renderonly \
@@ -182,6 +183,17 @@ GALLIUM_SOURCES.auxiliary/indices= \
 	u_primconvert.c
 GALLIUM_SOURCES.auxiliary/os= \
 	os_process.c
+GALLIUM_SOURCES.auxiliary/pipe-loader= \
+	pipe_loader.c \
+	pipe_loader_drm.c \
+	pipe_loader_sw.c
+
+.for _f in ${GALLIUM_SOURCES.auxiliary/pipe-loader}
+CPPFLAGS.${_f} +=	-DHAVE_PIPE_LOADER_KMS=1 \
+			-DHAVE_PIPE_LOADER_DRI=1 \
+			-DGALLIUM_STATIC_TARGETS=1
+.endfor
+
 GALLIUM_SOURCES.auxiliary/pipebuffer= \
 	pb_buffer_fenced.c \
 	pb_buffer_malloc.c \
@@ -246,7 +258,6 @@ GALLIUM_SOURCES.auxiliary/util= \
 	u_blitter.c \
 	u_cache.c \
 	u_debug.c \
-	u_cpu_detect.c \
 	u_debug_describe.c \
 	u_debug_flush.c \
 	u_debug_gallium.c \

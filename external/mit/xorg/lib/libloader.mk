@@ -8,7 +8,6 @@
 SRCS.loader += \
 	loader.c \
 	pci_id_driver_map.c \
-	u_process.c \
 	xmlconfig.c
 
 .for _f in ${SRCS.loader}

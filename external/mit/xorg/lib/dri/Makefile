@@ -15,6 +15,8 @@ LIB=		mesa_dri_drivers
 DRIDIR=		${X11USRLIBDIR}/modules/dri
 DRIDEBUGDIR=	${DEBUGDIR}${X11USRLIBDIR}/modules/dri
 
+LDFLAGS+=	-Wl,--build-id=sha1
+
 #	-I${X11SRCDIR.MesaLib}/src/mesa/drivers/dri/${MODULE}/server \
 
 CPPFLAGS+= \
@@ -42,7 +44,7 @@ DRIVERS=	r200 radeon
 
 DRI_SUBDIRS= ${DRIVERS}
 
-DRI_SOURCES.i915 = \
+DRI_SOURCES.i915+= \
 	i830_context.c \
 	i830_state.c \
 	i830_texblend.c \
@@ -55,6 +57,7 @@ DRI_SOURCES.i915 = \
 	i915_state.c \
 	i915_texstate.c \
 	i915_vtbl.c \
+	i915_tex_layout.c
 
 I915_INTEL_FILES = \
 	intel_batchbuffer.c \
@@ -90,10 +93,25 @@ DRI_SOURCES.i915+=	i915_${_f}
 CPPFLAGS.i915_${_f}+=	-I${X11SRCDIR.MesaLib}/src/mesa/drivers/dri/i915
 .endfor
 
+.PATH: ${X11SRCDIR.MesaLib}/src/intel/blorp
+.PATH: ${X11SRCDIR.MesaLib}/src/intel/common
 .PATH: ${X11SRCDIR.MesaLib}/src/intel/compiler
+.PATH: ${X11SRCDIR.MesaLib}/src/intel/dev
 .PATH: ${X11SRCDIR.MesaLib}/src/intel/isl
 
-DRI_SOURCES.i965 = \
+
+DRI_SOURCES.i965+= \
+	blorp.c \
+	blorp_blit.c \
+	blorp_clear.c \
+	gen_batch_decoder.c \
+	gen_debug.c \
+	gen_decoder.c \
+	gen_device_info.c \
+	gen_disasm.c \
+	gen_urb_config.c \
+	gen_l3_config.c \
+	intel_log.c \
 	brw_binding_tables.c \
 	brw_blorp.c \
 	brw_bufmgr.c \
@@ -121,6 +139,7 @@ DRI_SOURCES.i965 = \
 	brw_draw_upload.c \
 	brw_eu.c \
 	brw_eu_compact.c \
+	brw_oa_metrics.c \
 	brw_eu_emit.c \
 	brw_eu_util.c \
 	brw_eu_validate.c \
@@ -156,6 +175,7 @@ DRI_SOURCES.i965 = \
 	brw_nir.c \
 	brw_nir_analyze_boolean_resolves.c \
 	brw_nir_analyze_ubo_ranges.c \
+	brw_nir_trig_workarounds.c \
 	brw_nir_attribute_workarounds.c \
 	brw_nir_lower_cs_intrinsics.c \
 	brw_nir_lower_image_load_store.c \
@@ -268,6 +288,7 @@ INTEL_GENS_BLORP=	40 45 50 60 70 75 80 90 100 110
 .for _gen in ${INTEL_GENS_BLORP}
 BUILDSYMLINKS+=		${X11SRCDIR.MesaLib}/src/mesa/drivers/dri/i965/genX_state_upload.c ${_gen}_state_upload.c
 BUILDSYMLINKS+=		${X11SRCDIR.MesaLib}/src/mesa/drivers/dri/i965/genX_blorp_exec.c ${_gen}_blorp_exec.c
+DRI_SOURCES.i965+=	${_gen}_state_upload.c ${_gen}_blorp_exec.c
 
 CPPFLAGS.${_gen}_state_upload.c+=	-DGEN_VERSIONx10=${_gen}
 CPPFLAGS.${_gen}_blorp_exec.c+=		-DGEN_VERSIONx10=${_gen}
@@ -275,15 +296,13 @@ CPPFLAGS.${_gen}_blorp_exec.c+=		-DGEN_VERSIONx10=${_gen}
 
 INTEL_GENS_ISL=	40 50 60 70 75 80 90 100 110
 
-ISL_GENS_FILES= \
-	isl_emit_depth_stencil.c \
-	isl_surface_state.c
-
 .for _gen in ${INTEL_GENS_ISL}
 BUILDSYMLINKS+=		${X11SRCDIR.MesaLib}/src/intel/isl/isl_emit_depth_stencil.c ${_gen}_isl_emit_depth_stencil.c
 BUILDSYMLINKS+=		${X11SRCDIR.MesaLib}/src/intel/isl/isl_surface_state.c ${_gen}_isl_surface_state.c
-CPPFLAGS.${_gen}_isl_emit_depth_stencil.c+=	-DGEN_VERSIONx10=${_gen}
-CPPFLAGS.${_gen}_isl_surface_state.c+=		-DGEN_VERSIONx10=${_gen}
+DRI_SOURCES.i965+=	${_gen}_isl_emit_depth_stencil.c ${_gen}_isl_surface_state.c
+
+CPPFLAGS.${_gen}_isl_emit_depth_stencil.c+=	-DGEN_VERSIONx10=${_gen} -I${X11SRCDIR.MesaLib}/src/intel/isl/
+CPPFLAGS.${_gen}_isl_surface_state.c+=		-DGEN_VERSIONx10=${_gen} -I${X11SRCDIR.MesaLib}/src/intel/isl/
 .endfor
 
 .for _f in ${I965_INTEL_FILES}
