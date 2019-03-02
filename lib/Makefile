@@ -60,6 +60,10 @@ SUBDIR+=	../external/public-domain/sqlite/lib
 SUBDIR+=	../external/apache2/mDNSResponder/lib
 .endif
 
+.if (${MKLLVM} != "no")
+SUBDIR+=	../external/bsd/llvm/lib
+.endif
+
 SUBDIR+=	../external/bsd/am-utils/lib
 
 SUBDIR+=	../external/bsd/flex/lib
