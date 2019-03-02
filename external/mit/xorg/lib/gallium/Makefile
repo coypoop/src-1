@@ -191,7 +191,9 @@ GALLIUM_SOURCES.auxiliary/pipe-loader= \
 .for _f in ${GALLIUM_SOURCES.auxiliary/pipe-loader}
 CPPFLAGS.${_f} +=	-DHAVE_PIPE_LOADER_KMS=1 \
 			-DHAVE_PIPE_LOADER_DRI=1 \
-			-DGALLIUM_STATIC_TARGETS=1
+			-DGALLIUM_STATIC_TARGETS=1 \
+			-I${X11SRCDIR.MesaLib}/src/gallium/winsys \
+			-I${X11SRCDIR.MesaLib}/src/loader
 .endfor
 
 GALLIUM_SOURCES.auxiliary/pipebuffer= \

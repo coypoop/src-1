@@ -106,6 +106,8 @@ CPPFLAGS.${fn}= \
 .endfor
 .endif
 
+SRCS.util+=	u_process.c
+
 .include "../libloader.mk"
 
 .PATH:		${X11SRCDIR.MesaLib}/src/glw
@@ -117,7 +119,7 @@ INCS=	gl.h gl_mangle.h glcorearb.h glext.h \
 INCSDIR=${X11INCDIR}/GL
 
 
-SRCS+=	${SRCS.dri} ${SRCS.glx} ${SRCS.glapi}
+SRCS+=	${SRCS.dri} ${SRCS.util} ${SRCS.glx} ${SRCS.glapi}
 
 CPPFLAGS+= \
 	-I${X11SRCDIR.MesaLib}/include \

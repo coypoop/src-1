@@ -60,10 +60,6 @@ SUBDIR+=	../external/public-domain/sqlite/lib
 SUBDIR+=	../external/apache2/mDNSResponder/lib
 .endif
 
-.if (${MKLLVM} != "no")
-SUBDIR+=	../external/bsd/llvm/lib
-.endif
-
 SUBDIR+=	../external/bsd/am-utils/lib
 
 SUBDIR+=	../external/bsd/flex/lib
@@ -174,6 +170,10 @@ SUBDIR+=	../external/gpl3/${EXTERNAL_GCC_SUBDIR}/lib/libsupc++
 
 #==================== 2nd library dependency barrier ====================
 SUBDIR+=	.WAIT
+
+.if (${MKLLVM} != "no")
+SUBDIR+=	../external/bsd/llvm	# depends on libexecinfo
+.endif
 
 .for sanitizer in asan lsan ubsan
 .if exists(../external/gpl3/${EXTERNAL_GCC_SUBDIR}/lib/lib${sanitizer})
