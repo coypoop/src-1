@@ -26,7 +26,6 @@ CPPFLAGS+=	-I${DESTDIR}${X11INCDIR}/libdrm \
 GALLIUM_SUBDIRS= \
 	auxiliary \
 	auxiliary/cso_cache \
-	auxiliary/draw \
 	auxiliary/driver_ddebug \
 	auxiliary/driver_noop \
 	auxiliary/driver_rbug \
@@ -58,6 +57,7 @@ GALLIUM_SUBDIRS_VDPAU=	\
 	state_trackers/vdpau
 
 GALLIUM_SUBDIRS_LLVMPIPE= \
+	auxiliary/draw \
 	auxiliary/gallivm \
 	drivers/llvmpipe
 
@@ -91,14 +91,13 @@ BUILD_I915=0
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "x86_64"
 BUILD_RADEON=1
 BUILD_I915=1
+.if ${MKLLVM} == "yes"
+BUILD_LLVMPIPE=1
+.endif
 .endif
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "x86_64" || ${MACHINE} == "evbarm"
 BUILD_NOUVEAU=1
 BUILD_VDPAU=1
-.endif
-# Requires LLVM libraries as well as LLVM JIT support
-.if ${MKLLVM} == "yes"
-BUILD_LLVMPIPE=1
 .endif
 
 DRIVERS=		kms_swrast swrast
@@ -161,13 +160,11 @@ GALLIUM_SOURCES.auxiliary/draw= \
 	draw_vs_exec.c \
 	draw_vs_variant.c
 
-.if ${MKLLVM} == "yes"
 GALLIUM_SOURCES.auxiliary/draw+= \
 	draw_llvm.c \
 	draw_llvm_sample.c \
 	draw_pt_fetch_shade_pipeline_llvm.c \
 	draw_vs_llvm.c
-.endif
 
 GALLIUM_SOURCES.auxiliary/hud= \
 	font.c \
