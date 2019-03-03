@@ -25,6 +25,10 @@ CPPFLAGS+= \
 	-I${X11SRCDIR.MesaLib}/../src/mesa/drivers/dri/common \
 	-I${DESTDIR}${X11INCDIR}/libdrm
 
+.if ${MACHINE_ARCH} == "i386"
+CPPFLAGS.brw_disk_cache.c+=	-march=i586
+.endif
+
 #CPPFLAGS+=	-D_NETBSD_SOURCE -DPTHREADS
 
 # We don't actually build this on non-x86 at all, currently.

@@ -32,6 +32,10 @@ SRCS.util=	\
 	u_vector.c \
 	vma.c
 
+.if ${MACHINE_ARCH} == "i386"
+CPPFLAGS.disk_cache.c+=		-march=i586
+.endif
+
 CPPFLAGS.format_srgb.c+=	-I${X11SRCDIR.MesaLib}/src/util
 CPPFLAGS.hash_table.c+=		-I${X11SRCDIR.MesaLib}/src/util
 CPPFLAGS.MESAralloc.c+=		-I${X11SRCDIR.MesaLib}/src/util
