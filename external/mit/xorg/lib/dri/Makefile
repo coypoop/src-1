@@ -461,7 +461,8 @@ FILES=		drirc
 LIBDIR=		${X11USRLIBDIR}/modules/dri
 
 CWARNFLAGS.clang+=	-Wno-error=initializer-overrides -Wno-error=switch \
-			-Wno-error=tautological-constant-out-of-range-compare
+			-Wno-error=tautological-constant-out-of-range-compare \
+			-Wno-error=enum-conversion
 
 COPTS.brw_state_batch.c += -Wno-stack-protector
 COPTS.brw_eu_compact.c += -Wno-stack-protector

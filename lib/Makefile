@@ -172,7 +172,7 @@ SUBDIR+=	../external/gpl3/${EXTERNAL_GCC_SUBDIR}/lib/libsupc++
 SUBDIR+=	.WAIT
 
 .if (${MKLLVM} != "no")
-SUBDIR+=	../external/bsd/llvm	# depends on libexecinfo
+SUBDIR+=	../external/bsd/llvm/lib	# depends on libexecinfo
 .endif
 
 .for sanitizer in asan lsan ubsan

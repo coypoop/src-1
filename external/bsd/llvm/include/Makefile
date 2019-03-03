@@ -299,6 +299,6 @@ run-configure:
 	    ${LLVM_INCLUDE_CONFIG}/llvm/Config/config.h.in
 .endif
 
-depend dependall all: ${DPSRCS}
+includes depend dependall all: ${DPSRCS}
 
 .include <bsd.prog.mk>
