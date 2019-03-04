@@ -25,16 +25,13 @@ SRCS.util=	\
 	slab.c \
 	string_buffer.c \
 	strtod.c \
+	u_atomic.c \
 	u_cpu_detect.c \
 	u_math.c \
 	u_queue.c \
 	u_process.c \
 	u_vector.c \
 	vma.c
-
-.if ${MACHINE_ARCH} == "i386"
-CPPFLAGS.disk_cache.c+=		-march=i586
-.endif
 
 CPPFLAGS.format_srgb.c+=	-I${X11SRCDIR.MesaLib}/src/util
 CPPFLAGS.hash_table.c+=		-I${X11SRCDIR.MesaLib}/src/util
