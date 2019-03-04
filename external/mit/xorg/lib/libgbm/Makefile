@@ -13,7 +13,15 @@ SRCS.main=	\
 SRCS.dri=	\
 	gbm_dri.c
 
-SRCS=	${SRCS.main} ${SRCS.dri}
+BUILDSYMLINKS+= ${X11SRCDIR.MesaLib}/src/util/debug.c UTILdebug.c
+SRCS.util=      \
+	UTILdebug.c
+CPPFLAGS.UTILdebug.c+=          -I${X11SRCDIR.MesaLib}/src/util \
+				-I${X11SRCDIR.MesaLib}/src/mesa \
+				-I${X11SRCDIR.MesaLib}/src \
+				-I${X11SRCDIR.MesaLib}/src/gallium/include
+
+SRCS=	${SRCS.main} ${SRCS.dri} ${SRCS.util}
 
 CPPFLAGS+=	-D_OS_UNIX=1
 CPPFLAGS+=	-DHAVE_PTHREAD=1 -DHAVE_TIMESPEC_GET
@@ -35,8 +43,8 @@ COPTS.gbm_dri.c+=	-Wno-error
 INCS=		gbm.h
 INCSDIR=	${X11INCDIR}
 
-LIBDPLIBS=      glapi	${.CURDIR}/../libglapi
-LIBDPLIBS=      drm     ${.CURDIR}/../libdrm
+LIBDPLIBS=	glapi	${.CURDIR}/../libglapi
+LIBDPLIBS+=	drm     ${.CURDIR}/../libdrm
 
 PKGCONFIG=	gbm
 PKGDIST.gbm=	${X11SRCDIR.MesaLib}/src/gbm/main

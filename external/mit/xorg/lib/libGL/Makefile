@@ -211,8 +211,10 @@ PKGCONFIG_SED_FLAGS= \
 
 
 CWARNFLAGS.clang+=	-Wno-tautological-compare -Wno-format -Wno-constant-conversion \
-			-Wno-error=incompatible-pointer-types
+			-Wno-error=incompatible-pointer-types -Wno-error=atomic-alignment
+.if ${HAVE_GCC:U0} >= 7
 CWARNFLAGS.gcc+=	-Wno-error=stringop-overflow
+.endif
 
 .include <bsd.x11.mk>
 .include <bsd.lib.mk>

@@ -39,7 +39,10 @@ CPPFLAGS.disk_cache.c+=		-march=i586
 CPPFLAGS.format_srgb.c+=	-I${X11SRCDIR.MesaLib}/src/util
 CPPFLAGS.hash_table.c+=		-I${X11SRCDIR.MesaLib}/src/util
 CPPFLAGS.MESAralloc.c+=		-I${X11SRCDIR.MesaLib}/src/util
-CPPFLAGS.UTILdebug.c+=		-I${X11SRCDIR.MesaLib}/src/util
+CPPFLAGS.UTILdebug.c+=		-I${X11SRCDIR.MesaLib}/src/util \
+				-I${X11SRCDIR.MesaLib}/src/mesa \
+				-I${X11SRCDIR.MesaLib}/src \
+				-I${X11SRCDIR.MesaLib}/src/gallium/include
 
 BUILDSYMLINKS+=	${X11SRCDIR.MesaLib}/src/util/debug.c UTILdebug.c
 
