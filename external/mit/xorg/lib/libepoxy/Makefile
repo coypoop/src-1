@@ -16,6 +16,12 @@ SRCS.EGL= \
 	dispatch_egl.c \
 	egl_generated_dispatch.c
 
+# XXX should depend on some form of 3D acceleration
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "x86_64" 
+SRCS+=	${SRCS.EGL}
+CPPFLAGS+=	-DPLATFORM_HAS_EGL
+.endif
+
 INCSDIR=${X11INCDIR}/epoxy
 INCS= \
 	gl.h gl_generated.h \

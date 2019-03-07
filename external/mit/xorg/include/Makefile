@@ -2,7 +2,7 @@
 
 # *proto packages for xorg
 
-SUBDIR=	KHR libvdpau xorgproto
+SUBDIR=	libvdpau MesaLib xorgproto
 SUBDIR+= xbitmaps xcb-proto .WAIT xtrans
 
 .include <bsd.subdir.mk>

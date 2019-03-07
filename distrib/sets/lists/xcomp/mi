@@ -5,6 +5,11 @@
 ./etc/mtree/set.xcomp					xcomp-sys-root
 ./usr/X11R7/bin/freetype-config				-unknown-	xorg
 ./usr/X11R7/bin/xft-config				-unknown-	obsolete
+./usr/X11R7/include/EGL/egl.h				-unknown-	xorg
+./usr/X11R7/include/EGL/eglext.h			-unknown-	xorg
+./usr/X11R7/include/EGL/eglextchromium.h		-unknown-	xorg
+./usr/X11R7/include/EGL/eglmesaext.h			-unknown-	xorg
+./usr/X11R7/include/EGL/eglplatform.h			-unknown-	xorg
 ./usr/X11R7/include/GL/GLwDrawA.h			-unknown-	xorg
 ./usr/X11R7/include/GL/GLwDrawAP.h			-unknown-	xorg
 ./usr/X11R7/include/GL/GLwMDrawA.h			-unknown-	xorg

@@ -10,6 +10,11 @@ SUBDIR=		common ddc dixmods doc dri dri2 i2c loader \
 SUBDIR+=	int10 
 .endif
 
+# XXX should depend on some form of 3D acceleration
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "x86_64" 
+SUBDIR+=	glamoregl
+.endif
+
 SUBDIR+=	.WAIT utils
 
 SUBDIR+=	.WAIT Xorg

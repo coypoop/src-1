@@ -11,7 +11,7 @@ SUBDIR+=libdrm_intel libdrm_amdgpu
 .endif
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "x86_64" || ${MACHINE} == "evbarm"
 SUBDIR+=libdrm_nouveau
-SUBDIR+=libvdpau
+SUBDIR+=libvdpau libEGL
 .endif
 SUBDIR+=libdrm_radeon pixman
 .if !defined(MLIBDIR)

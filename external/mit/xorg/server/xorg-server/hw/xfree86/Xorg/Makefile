@@ -34,7 +34,7 @@ LDADD+=	${LDADD.dix}
 LDADD+=	${LDADD.config}
 LDADD+=	${LDADD.dbe}
 .if ${HAVE_XORG_GLAMOR} != "no"  
-LDADD+=	${LDADD.glamor}
+LDADD+=	${LDADD.glamor} ${LDADD.gbm}
 .endif
 LDADD+=	${LDADD.record}
 LDADD+=	${LDADD.hw/xfree86/loader}
