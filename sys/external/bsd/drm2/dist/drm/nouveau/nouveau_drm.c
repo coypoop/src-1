@@ -1063,11 +1063,12 @@ nouveau_ioctl_override(struct file *fp, unsigned long cmd, void *data)
 
 	ret = pm_runtime_get_sync(dev->dev);
 	if (ret < 0 && ret != -EACCES)
-		return ret;
+		/* XXX errno Linux->NetBSD */
+		return -ret;
 
 	switch (DRM_IOCTL_NR(cmd) - DRM_COMMAND_BASE) {
 	case DRM_NOUVEAU_NVIF:
-		/* XXX errno NetBSD->Linux */
+		/* XXX errno Linux->NetBSD */
 		ret = -usif_ioctl(file, data, IOCPARM_LEN(cmd));
 		break;
 	default:

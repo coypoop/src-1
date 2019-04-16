@@ -633,6 +633,8 @@ dma_fence_wait_any_timeout(struct dma_fence **fences, uint32_t nfences,
 		}
 		end = hardclock_ticks;
 		__insn_barrier();
+		if (ret == -ERESTART)
+			ret = -ERESTARTSYS;
 		if (ret)
 			break;
 		timeout -= MIN(timeout, (unsigned)end - (unsigned)start);
@@ -777,6 +779,8 @@ dma_fence_default_wait(struct dma_fence *fence, bool intr, long timeout)
 			}
 		}
 		/* If the wait failed, give up.  */
+		if (ret == -ERESTART)
+			ret = -ERESTARTSYS;
 		if (ret)
 			break;
 	}

@@ -257,9 +257,27 @@ static long
 nouveau_fence_wait_legacy(struct dma_fence *f, bool intr, long wait)
 {
 	struct nouveau_fence *fence = from_fence(f);
+#ifndef __NetBSD__
 	unsigned long sleep_time = NSEC_PER_MSEC / 1000;
+#endif
 	unsigned long t = jiffies, timeout = t + wait;
 
+#ifdef __NetBSD__
+	while (!nouveau_fence_done(fence)) {
+		int ret;
+		/* XXX what lock? */
+		/* XXX errno NetBSD->Linux */
+		ret = -kpause("nvfencel", intr, 1, NULL);
+		if (ret) {
+			if (ret == -ERESTART)
+				ret = -ERESTARTSYS;
+			return ret;
+		}
+		t = jiffies;
+		if (t >= timeout)
+			return 0;
+	}
+#else
 	while (!nouveau_fence_done(fence)) {
 		ktime_t kt;
 
@@ -284,6 +302,7 @@ nouveau_fence_wait_legacy(struct dma_fence *f, bool intr, long wait)
 	}
 
 	__set_current_state(TASK_RUNNING);
+#endif
 
 	return timeout - t;
 }
