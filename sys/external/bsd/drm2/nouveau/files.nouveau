@@ -3,7 +3,7 @@
 version	20190626
 
 define	nouveaufbbus	{ }
-device	nouveau: drmkms, drmkms_ttm, nouveaufbbus
+device	nouveau: drmkms, drmkms_ttm, nouveaufbbus, firmload
 
 attach	nouveau at pci with nouveau_pci: drmkms_pci
 file	external/bsd/drm2/nouveau/nouveau_pci.c			nouveau_pci
