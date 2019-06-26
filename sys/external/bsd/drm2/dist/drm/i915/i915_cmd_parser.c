@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2013 Intel Corporation
  *
@@ -26,9 +24,6 @@
  *    Brad Volkin <bradley.d.volkin@intel.com>
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include "i915_drv.h"
 #include "intel_ringbuffer.h"
@@ -870,7 +865,7 @@ void intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
 	int cmd_table_count;
 	int ret;
 
-	if (!IS_GEN7(engine->i915))
+	if (!IS_GEN(engine->i915, 7))
 		return;
 
 	switch (engine->id) {

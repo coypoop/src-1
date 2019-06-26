@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* amdgpu_drv.h -- Private header for amdgpu driver -*- linux-c -*-
  *
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.

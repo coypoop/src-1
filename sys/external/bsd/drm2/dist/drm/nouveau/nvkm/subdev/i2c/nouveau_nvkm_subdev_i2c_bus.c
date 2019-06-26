@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2015 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "bus.h"
 #include "pad.h"
 
@@ -115,6 +110,19 @@ nvkm_i2c_bus_init(struct nvkm_i2c_bus *bus)
 	BUS_TRACE(bus, "init");
 	if (bus->func->init)
 		bus->func->init(bus);
+
+	mutex_lock(&bus->mutex);
+	bus->enabled = true;
+	mutex_unlock(&bus->mutex);
+}
+
+void
+nvkm_i2c_bus_fini(struct nvkm_i2c_bus *bus)
+{
+	BUS_TRACE(bus, "fini");
+	mutex_lock(&bus->mutex);
+	bus->enabled = false;
+	mutex_unlock(&bus->mutex);
 }
 
 void
@@ -131,9 +139,15 @@ nvkm_i2c_bus_acquire(struct nvkm_i2c_bus *bus)
 {
 	struct nvkm_i2c_pad *pad = bus->pad;
 	int ret;
+
 	BUS_TRACE(bus, "acquire");
 	mutex_lock(&bus->mutex);
-	ret = nvkm_i2c_pad_acquire(pad, NVKM_I2C_PAD_I2C);
+
+	if (bus->enabled)
+		ret = nvkm_i2c_pad_acquire(pad, NVKM_I2C_PAD_I2C);
+	else
+		ret = -EIO;
+
 	if (ret)
 		mutex_unlock(&bus->mutex);
 	return ret;
@@ -184,11 +198,6 @@ nvkm_i2c_bus_del(struct nvkm_i2c_bus **pbus)
 		BUS_TRACE(bus, "dtor");
 		list_del(&bus->head);
 		i2c_del_adapter(&bus->i2c);
-#ifdef __NetBSD__
-		linux_mutex_destroy(&bus->mutex);
-#else
-		mutex_destroy(&bus->mutex);
-#endif
 		kfree(bus->i2c.algo_data);
 		kfree(*pbus);
 		*pbus = NULL;
@@ -212,11 +221,7 @@ nvkm_i2c_bus_ctor(const struct nvkm_i2c_bus_func *func,
 	bus->func = func;
 	bus->pad = pad;
 	bus->id = id;
-#ifdef __NetBSD__
-	linux_mutex_init(&bus->mutex);
-#else
 	mutex_init(&bus->mutex);
-#endif
 	list_add_tail(&bus->head, &pad->i2c->bus);
 	BUS_TRACE(bus, "ctor");
 

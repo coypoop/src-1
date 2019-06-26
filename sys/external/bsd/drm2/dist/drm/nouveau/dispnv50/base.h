@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 #ifndef __NV50_KMS_BASE_H__
 #define __NV50_KMS_BASE_H__
 #include "wndw.h"

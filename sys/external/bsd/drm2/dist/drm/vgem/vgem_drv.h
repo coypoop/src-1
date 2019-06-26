@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2012 Intel Corporation
  * Copyright © 2014 The Chromium OS Authors

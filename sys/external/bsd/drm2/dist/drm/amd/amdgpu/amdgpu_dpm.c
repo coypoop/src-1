@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2011 Advanced Micro Devices, Inc.
  *
@@ -24,10 +22,6 @@
  * Authors: Alex Deucher
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
-#include <asm/byteorder.h>
 #include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_atombios.h"
@@ -190,61 +184,6 @@ u32 amdgpu_dpm_get_vrefresh(struct amdgpu_device *adev)
 	return vrefresh;
 }
 
-void amdgpu_calculate_u_and_p(u32 i, u32 r_c, u32 p_b,
-			      u32 *p, u32 *u)
-{
-	u32 b_c = 0;
-	u32 i_c;
-	u32 tmp;
-
-	i_c = (i * r_c) / 100;
-	tmp = i_c >> p_b;
-
-	while (tmp) {
-		b_c++;
-		tmp >>= 1;
-	}
-
-	*u = (b_c + 1) / 2;
-	*p = i_c / (1 << (2 * (*u)));
-}
-
-int amdgpu_calculate_at(u32 t, u32 h, u32 fh, u32 fl, u32 *tl, u32 *th)
-{
-	u32 k, a, ah, al;
-	u32 t1;
-
-	if ((fl == 0) || (fh == 0) || (fl > fh))
-		return -EINVAL;
-
-	k = (100 * fh) / fl;
-	t1 = (t * (k - 100));
-	a = (1000 * (100 * h + t1)) / (10000 + (t1 / 100));
-	a = (a + 5) / 10;
-	ah = ((a * t) + 5000) / 10000;
-	al = a - ah;
-
-	*th = t - ah;
-	*tl = t + al;
-
-	return 0;
-}
-
-bool amdgpu_is_uvd_state(u32 class, u32 class2)
-{
-	if (class & ATOM_PPLIB_CLASSIFICATION_UVDSTATE)
-		return true;
-	if (class & ATOM_PPLIB_CLASSIFICATION_HD2STATE)
-		return true;
-	if (class & ATOM_PPLIB_CLASSIFICATION_HDSTATE)
-		return true;
-	if (class & ATOM_PPLIB_CLASSIFICATION_SDSTATE)
-		return true;
-	if (class2 & ATOM_PPLIB_CLASSIFICATION2_MVC)
-		return true;
-	return false;
-}
-
 bool amdgpu_is_internal_thermal_sensor(enum amdgpu_int_thermal_type sensor)
 {
 	switch (sensor) {
@@ -321,7 +260,7 @@ int amdgpu_get_platform_caps(struct amdgpu_device *adev)
 	if (!amdgpu_atom_parse_data_header(mode_info->atom_context, index, NULL,
 				   &frev, &crev, &data_offset))
 		return -EINVAL;
-	power_info = (union power_info *)((char *)mode_info->atom_context->bios + data_offset);
+	power_info = (union power_info *)(mode_info->atom_context->bios + data_offset);
 
 	adev->pm.dpm.platform_caps = le32_to_cpu(power_info->pplib.ulPlatformCaps);
 	adev->pm.dpm.backbias_response_time = le16_to_cpu(power_info->pplib.usBackbiasTime);
@@ -354,13 +293,13 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 	if (!amdgpu_atom_parse_data_header(mode_info->atom_context, index, NULL,
 				   &frev, &crev, &data_offset))
 		return -EINVAL;
-	power_info = (union power_info *)((char *)mode_info->atom_context->bios + data_offset);
+	power_info = (union power_info *)(mode_info->atom_context->bios + data_offset);
 
 	/* fan table */
 	if (le16_to_cpu(power_info->pplib.usTableSize) >=
 	    sizeof(struct _ATOM_PPLIB_POWERPLAYTABLE3)) {
 		if (power_info->pplib3.usFanTableOffset) {
-			fan_info = (union fan_info *)((char *)mode_info->atom_context->bios + data_offset +
+			fan_info = (union fan_info *)(mode_info->atom_context->bios + data_offset +
 						      le16_to_cpu(power_info->pplib3.usFanTableOffset));
 			adev->pm.dpm.fan.t_hyst = fan_info->fan.ucTHyst;
 			adev->pm.dpm.fan.t_min = le16_to_cpu(fan_info->fan.usTMin);
@@ -391,7 +330,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 	    sizeof(struct _ATOM_PPLIB_POWERPLAYTABLE4)) {
 		if (power_info->pplib4.usVddcDependencyOnSCLKOffset) {
 			dep_table = (ATOM_PPLIB_Clock_Voltage_Dependency_Table *)
-				((char *)mode_info->atom_context->bios + data_offset +
+				(mode_info->atom_context->bios + data_offset +
 				 le16_to_cpu(power_info->pplib4.usVddcDependencyOnSCLKOffset));
 			ret = amdgpu_parse_clk_voltage_dep_table(&adev->pm.dpm.dyn_state.vddc_dependency_on_sclk,
 								 dep_table);
@@ -402,7 +341,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 		}
 		if (power_info->pplib4.usVddciDependencyOnMCLKOffset) {
 			dep_table = (ATOM_PPLIB_Clock_Voltage_Dependency_Table *)
-				((char *)mode_info->atom_context->bios + data_offset +
+				(mode_info->atom_context->bios + data_offset +
 				 le16_to_cpu(power_info->pplib4.usVddciDependencyOnMCLKOffset));
 			ret = amdgpu_parse_clk_voltage_dep_table(&adev->pm.dpm.dyn_state.vddci_dependency_on_mclk,
 								 dep_table);
@@ -413,7 +352,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 		}
 		if (power_info->pplib4.usVddcDependencyOnMCLKOffset) {
 			dep_table = (ATOM_PPLIB_Clock_Voltage_Dependency_Table *)
-				((char *)mode_info->atom_context->bios + data_offset +
+				(mode_info->atom_context->bios + data_offset +
 				 le16_to_cpu(power_info->pplib4.usVddcDependencyOnMCLKOffset));
 			ret = amdgpu_parse_clk_voltage_dep_table(&adev->pm.dpm.dyn_state.vddc_dependency_on_mclk,
 								 dep_table);
@@ -424,7 +363,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 		}
 		if (power_info->pplib4.usMvddDependencyOnMCLKOffset) {
 			dep_table = (ATOM_PPLIB_Clock_Voltage_Dependency_Table *)
-				((char *)mode_info->atom_context->bios + data_offset +
+				(mode_info->atom_context->bios + data_offset +
 				 le16_to_cpu(power_info->pplib4.usMvddDependencyOnMCLKOffset));
 			ret = amdgpu_parse_clk_voltage_dep_table(&adev->pm.dpm.dyn_state.mvdd_dependency_on_mclk,
 								 dep_table);
@@ -436,7 +375,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 		if (power_info->pplib4.usMaxClockVoltageOnDCOffset) {
 			ATOM_PPLIB_Clock_Voltage_Limit_Table *clk_v =
 				(ATOM_PPLIB_Clock_Voltage_Limit_Table *)
-				((char *)mode_info->atom_context->bios + data_offset +
+				(mode_info->atom_context->bios + data_offset +
 				 le16_to_cpu(power_info->pplib4.usMaxClockVoltageOnDCOffset));
 			if (clk_v->ucNumEntries) {
 				adev->pm.dpm.dyn_state.max_clock_voltage_on_dc.sclk =
@@ -454,7 +393,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 		if (power_info->pplib4.usVddcPhaseShedLimitsTableOffset) {
 			ATOM_PPLIB_PhaseSheddingLimits_Table *psl =
 				(ATOM_PPLIB_PhaseSheddingLimits_Table *)
-				((char *)mode_info->atom_context->bios + data_offset +
+				(mode_info->atom_context->bios + data_offset +
 				 le16_to_cpu(power_info->pplib4.usVddcPhaseShedLimitsTableOffset));
 			ATOM_PPLIB_PhaseSheddingLimits_Record *entry;
 
@@ -501,7 +440,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 		if (power_info->pplib5.usCACLeakageTableOffset) {
 			ATOM_PPLIB_CAC_Leakage_Table *cac_table =
 				(ATOM_PPLIB_CAC_Leakage_Table *)
-				((char *)mode_info->atom_context->bios + data_offset +
+				(mode_info->atom_context->bios + data_offset +
 				 le16_to_cpu(power_info->pplib5.usCACLeakageTableOffset));
 			ATOM_PPLIB_CAC_Leakage_Record *entry;
 			u32 size = cac_table->ucNumEntries * sizeof(struct amdgpu_cac_leakage_table);
@@ -536,21 +475,21 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 	if (le16_to_cpu(power_info->pplib.usTableSize) >=
 	    sizeof(struct _ATOM_PPLIB_POWERPLAYTABLE3)) {
 		ATOM_PPLIB_EXTENDEDHEADER *ext_hdr = (ATOM_PPLIB_EXTENDEDHEADER *)
-			((char *)mode_info->atom_context->bios + data_offset +
+			(mode_info->atom_context->bios + data_offset +
 			 le16_to_cpu(power_info->pplib3.usExtendendedHeaderOffset));
 		if ((le16_to_cpu(ext_hdr->usSize) >= SIZE_OF_ATOM_PPLIB_EXTENDEDHEADER_V2) &&
 			ext_hdr->usVCETableOffset) {
 			VCEClockInfoArray *array = (VCEClockInfoArray *)
-				((char *)mode_info->atom_context->bios + data_offset +
+				(mode_info->atom_context->bios + data_offset +
 				 le16_to_cpu(ext_hdr->usVCETableOffset) + 1);
 			ATOM_PPLIB_VCE_Clock_Voltage_Limit_Table *limits =
 				(ATOM_PPLIB_VCE_Clock_Voltage_Limit_Table *)
-				((char *)mode_info->atom_context->bios + data_offset +
+				(mode_info->atom_context->bios + data_offset +
 				 le16_to_cpu(ext_hdr->usVCETableOffset) + 1 +
 				 1 + array->ucNumEntries * sizeof(VCEClockInfo));
 			ATOM_PPLIB_VCE_State_Table *states =
 				(ATOM_PPLIB_VCE_State_Table *)
-				((char *)mode_info->atom_context->bios + data_offset +
+				(mode_info->atom_context->bios + data_offset +
 				 le16_to_cpu(ext_hdr->usVCETableOffset) + 1 +
 				 1 + (array->ucNumEntries * sizeof (VCEClockInfo)) +
 				 1 + (limits->numEntries * sizeof(ATOM_PPLIB_VCE_Clock_Voltage_Limit_Record)));
@@ -604,11 +543,11 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 		if ((le16_to_cpu(ext_hdr->usSize) >= SIZE_OF_ATOM_PPLIB_EXTENDEDHEADER_V3) &&
 			ext_hdr->usUVDTableOffset) {
 			UVDClockInfoArray *array = (UVDClockInfoArray *)
-				((char *)mode_info->atom_context->bios + data_offset +
+				(mode_info->atom_context->bios + data_offset +
 				 le16_to_cpu(ext_hdr->usUVDTableOffset) + 1);
 			ATOM_PPLIB_UVD_Clock_Voltage_Limit_Table *limits =
 				(ATOM_PPLIB_UVD_Clock_Voltage_Limit_Table *)
-				((char *)mode_info->atom_context->bios + data_offset +
+				(mode_info->atom_context->bios + data_offset +
 				 le16_to_cpu(ext_hdr->usUVDTableOffset) + 1 +
 				 1 + (array->ucNumEntries * sizeof (UVDClockInfo)));
 			ATOM_PPLIB_UVD_Clock_Voltage_Limit_Record *entry;
@@ -641,7 +580,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 			ext_hdr->usSAMUTableOffset) {
 			ATOM_PPLIB_SAMClk_Voltage_Limit_Table *limits =
 				(ATOM_PPLIB_SAMClk_Voltage_Limit_Table *)
-				((char *)mode_info->atom_context->bios + data_offset +
+				(mode_info->atom_context->bios + data_offset +
 				 le16_to_cpu(ext_hdr->usSAMUTableOffset) + 1);
 			ATOM_PPLIB_SAMClk_Voltage_Limit_Record *entry;
 			u32 size = limits->numEntries *
@@ -667,7 +606,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 		if ((le16_to_cpu(ext_hdr->usSize) >= SIZE_OF_ATOM_PPLIB_EXTENDEDHEADER_V5) &&
 		    ext_hdr->usPPMTableOffset) {
 			ATOM_PPLIB_PPM_Table *ppm = (ATOM_PPLIB_PPM_Table *)
-				((char *)mode_info->atom_context->bios + data_offset +
+				(mode_info->atom_context->bios + data_offset +
 				 le16_to_cpu(ext_hdr->usPPMTableOffset));
 			adev->pm.dpm.dyn_state.ppm_table =
 				kzalloc(sizeof(struct amdgpu_ppm_table), GFP_KERNEL);
@@ -699,7 +638,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 			ext_hdr->usACPTableOffset) {
 			ATOM_PPLIB_ACPClk_Voltage_Limit_Table *limits =
 				(ATOM_PPLIB_ACPClk_Voltage_Limit_Table *)
-				((char *)mode_info->atom_context->bios + data_offset +
+				(mode_info->atom_context->bios + data_offset +
 				 le16_to_cpu(ext_hdr->usACPTableOffset) + 1);
 			ATOM_PPLIB_ACPClk_Voltage_Limit_Record *entry;
 			u32 size = limits->numEntries *
@@ -724,7 +663,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 		}
 		if ((le16_to_cpu(ext_hdr->usSize) >= SIZE_OF_ATOM_PPLIB_EXTENDEDHEADER_V7) &&
 			ext_hdr->usPowerTuneTableOffset) {
-			u8 rev = *(u8 *)((char *)mode_info->atom_context->bios + data_offset +
+			u8 rev = *(u8 *)(mode_info->atom_context->bios + data_offset +
 					 le16_to_cpu(ext_hdr->usPowerTuneTableOffset));
 			ATOM_PowerTune_Table *pt;
 			adev->pm.dpm.dyn_state.cac_tdp_table =
@@ -735,14 +674,14 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 			}
 			if (rev > 0) {
 				ATOM_PPLIB_POWERTUNE_Table_V1 *ppt = (ATOM_PPLIB_POWERTUNE_Table_V1 *)
-					((char *)mode_info->atom_context->bios + data_offset +
+					(mode_info->atom_context->bios + data_offset +
 					 le16_to_cpu(ext_hdr->usPowerTuneTableOffset));
 				adev->pm.dpm.dyn_state.cac_tdp_table->maximum_power_delivery_limit =
 					ppt->usMaximumPowerDeliveryLimit;
 				pt = &ppt->power_tune_table;
 			} else {
 				ATOM_PPLIB_POWERTUNE_Table *ppt = (ATOM_PPLIB_POWERTUNE_Table *)
-					((char *)mode_info->atom_context->bios + data_offset +
+					(mode_info->atom_context->bios + data_offset +
 					 le16_to_cpu(ext_hdr->usPowerTuneTableOffset));
 				adev->pm.dpm.dyn_state.cac_tdp_table->maximum_power_delivery_limit = 255;
 				pt = &ppt->power_tune_table;
@@ -763,7 +702,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 		if ((le16_to_cpu(ext_hdr->usSize) >= SIZE_OF_ATOM_PPLIB_EXTENDEDHEADER_V8) &&
 				ext_hdr->usSclkVddgfxTableOffset) {
 			dep_table = (ATOM_PPLIB_Clock_Voltage_Dependency_Table *)
-				((char *)mode_info->atom_context->bios + data_offset +
+				(mode_info->atom_context->bios + data_offset +
 				 le16_to_cpu(ext_hdr->usSclkVddgfxTableOffset));
 			ret = amdgpu_parse_clk_voltage_dep_table(
 					&adev->pm.dpm.dyn_state.vddgfx_dependency_on_sclk,
@@ -834,7 +773,7 @@ void amdgpu_add_thermal_controller(struct amdgpu_device *adev)
 				   &frev, &crev, &data_offset))
 		return;
 	power_table = (ATOM_PPLIB_POWERPLAYTABLE *)
-		((char *)mode_info->atom_context->bios + data_offset);
+		(mode_info->atom_context->bios + data_offset);
 	controller = &power_table->sThermalController;
 
 	/* add the i2c bus for thermal/fan chip */
@@ -953,39 +892,6 @@ enum amdgpu_pcie_gen amdgpu_get_pcie_gen_support(struct amdgpu_device *adev,
 			return AMDGPU_PCIE_GEN1;
 	}
 	return AMDGPU_PCIE_GEN1;
-}
-
-u16 amdgpu_get_pcie_lane_support(struct amdgpu_device *adev,
-				 u16 asic_lanes,
-				 u16 default_lanes)
-{
-	switch (asic_lanes) {
-	case 0:
-	default:
-		return default_lanes;
-	case 1:
-		return 1;
-	case 2:
-		return 2;
-	case 4:
-		return 4;
-	case 8:
-		return 8;
-	case 12:
-		return 12;
-	case 16:
-		return 16;
-	}
-}
-
-u8 amdgpu_encode_pci_lane_width(u32 lanes)
-{
-	u8 encoded_lanes[] = { 0, 1, 2, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 0, 6 };
-
-	if (lanes > 16)
-		return 0;
-
-	return encoded_lanes[lanes];
 }
 
 struct amd_vce_state*

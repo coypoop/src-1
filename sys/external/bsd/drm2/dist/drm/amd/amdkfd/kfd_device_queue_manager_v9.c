@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2016-2018 Advanced Micro Devices, Inc.
  *
@@ -22,9 +20,6 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include "kfd_device_queue_manager.h"
 #include "vega10_enum.h"

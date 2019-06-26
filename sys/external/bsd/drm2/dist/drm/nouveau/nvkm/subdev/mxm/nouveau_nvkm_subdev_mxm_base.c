@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2011 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "mxms.h"
 
 #include <core/option.h>
@@ -119,7 +114,7 @@ mxm_shadow_dsm(struct nvkm_mxm *mxm, u8 version)
 		mxm->mxms = kmemdup(obj->buffer.pointer,
 					 obj->buffer.length, GFP_KERNEL);
 	} else if (obj->type == ACPI_TYPE_INTEGER) {
-		nvkm_debug(subdev, "DSM MXMS returned 0x%"PRIx64"\n",
+		nvkm_debug(subdev, "DSM MXMS returned 0x%llx\n",
 			   obj->integer.value);
 	}
 

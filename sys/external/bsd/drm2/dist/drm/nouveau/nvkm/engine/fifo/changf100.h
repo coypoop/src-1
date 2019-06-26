@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __GF100_FIFO_CHAN_H__
 #define __GF100_FIFO_CHAN_H__

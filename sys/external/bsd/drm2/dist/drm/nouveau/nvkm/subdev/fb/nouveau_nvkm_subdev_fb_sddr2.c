@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2014 Roy Spliet
  *
@@ -24,10 +22,6 @@
  * Authors: Roy Spliet <rspliet@eclipso.eu>
  *          Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
-#include "ram.h"
 #include "priv.h"
 #include "ram.h"
 

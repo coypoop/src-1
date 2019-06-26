@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (c) 2016, NVIDIA CORPORATION. All rights reserved.
  *

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * MIPI DSI Bus
  *
@@ -26,9 +24,6 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <drm/drm_mipi_dsi.h>
 

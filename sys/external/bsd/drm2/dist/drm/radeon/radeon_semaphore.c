@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2011 Christian König.
  * All Rights Reserved.
@@ -29,9 +27,6 @@
  * Authors:
  *    Christian König <deathsimple@vodafone.de>
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/drmP.h>
 #include "radeon.h"
 #include "radeon_trace.h"

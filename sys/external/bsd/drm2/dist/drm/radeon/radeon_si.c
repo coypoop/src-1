@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2011 Advanced Micro Devices, Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Alex Deucher
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/firmware.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -1579,7 +1574,7 @@ int si_mc_load_microcode(struct radeon_device *rdev)
 	const __be32 *fw_data = NULL;
 	const __le32 *new_fw_data = NULL;
 	u32 running;
-	const u32 *io_mc_regs = NULL;
+	u32 *io_mc_regs = NULL;
 	const __le32 *new_io_mc_regs = NULL;
 	int i, regs_size, ucode_size;
 
@@ -1602,24 +1597,24 @@ int si_mc_load_microcode(struct radeon_device *rdev)
 
 		switch (rdev->family) {
 		case CHIP_TAHITI:
-			io_mc_regs = &tahiti_io_mc_regs[0][0];
+			io_mc_regs = (u32 *)&tahiti_io_mc_regs;
 			regs_size = TAHITI_IO_MC_REGS_SIZE;
 			break;
 		case CHIP_PITCAIRN:
-			io_mc_regs = &pitcairn_io_mc_regs[0][0];
+			io_mc_regs = (u32 *)&pitcairn_io_mc_regs;
 			regs_size = TAHITI_IO_MC_REGS_SIZE;
 			break;
 		case CHIP_VERDE:
 		default:
-			io_mc_regs = &verde_io_mc_regs[0][0];
+			io_mc_regs = (u32 *)&verde_io_mc_regs;
 			regs_size = TAHITI_IO_MC_REGS_SIZE;
 			break;
 		case CHIP_OLAND:
-			io_mc_regs = &oland_io_mc_regs[0][0];
+			io_mc_regs = (u32 *)&oland_io_mc_regs;
 			regs_size = TAHITI_IO_MC_REGS_SIZE;
 			break;
 		case CHIP_HAINAN:
-			io_mc_regs = &hainan_io_mc_regs[0][0];
+			io_mc_regs = (u32 *)&hainan_io_mc_regs;
 			regs_size = TAHITI_IO_MC_REGS_SIZE;
 			break;
 		}
@@ -1697,11 +1692,7 @@ static int si_init_microcode(struct radeon_device *rdev)
 		rlc_req_size = SI_RLC_UCODE_SIZE * 4;
 		mc_req_size = SI_MC_UCODE_SIZE * 4;
 		mc2_req_size = TAHITI_MC_UCODE_SIZE * 4;
-#ifdef __NetBSD__		/* XXX ALIGN means something else.  */
-		smc_req_size = round_up(TAHITI_SMC_UCODE_SIZE, 4);
-#else
 		smc_req_size = ALIGN(TAHITI_SMC_UCODE_SIZE, 4);
-#endif
 		break;
 	case CHIP_PITCAIRN:
 		chip_name = "PITCAIRN";
@@ -1716,11 +1707,7 @@ static int si_init_microcode(struct radeon_device *rdev)
 		rlc_req_size = SI_RLC_UCODE_SIZE * 4;
 		mc_req_size = SI_MC_UCODE_SIZE * 4;
 		mc2_req_size = PITCAIRN_MC_UCODE_SIZE * 4;
-#ifdef __NetBSD__		/* XXX ALIGN means something else.  */
-		smc_req_size = round_up(PITCAIRN_SMC_UCODE_SIZE, 4);
-#else
 		smc_req_size = ALIGN(PITCAIRN_SMC_UCODE_SIZE, 4);
-#endif
 		break;
 	case CHIP_VERDE:
 		chip_name = "VERDE";
@@ -1741,11 +1728,7 @@ static int si_init_microcode(struct radeon_device *rdev)
 		rlc_req_size = SI_RLC_UCODE_SIZE * 4;
 		mc_req_size = SI_MC_UCODE_SIZE * 4;
 		mc2_req_size = VERDE_MC_UCODE_SIZE * 4;
-#ifdef __NetBSD__		/* XXX ALIGN means something else.  */
-		smc_req_size = round_up(VERDE_SMC_UCODE_SIZE, 4);
-#else
 		smc_req_size = ALIGN(VERDE_SMC_UCODE_SIZE, 4);
-#endif
 		break;
 	case CHIP_OLAND:
 		chip_name = "OLAND";
@@ -1763,11 +1746,7 @@ static int si_init_microcode(struct radeon_device *rdev)
 		ce_req_size = SI_CE_UCODE_SIZE * 4;
 		rlc_req_size = SI_RLC_UCODE_SIZE * 4;
 		mc_req_size = mc2_req_size = OLAND_MC_UCODE_SIZE * 4;
-#ifdef __NetBSD__		/* XXX ALIGN means something else.  */
-		smc_req_size = round_up(OLAND_SMC_UCODE_SIZE, 4);
-#else
 		smc_req_size = ALIGN(OLAND_SMC_UCODE_SIZE, 4);
-#endif
 		break;
 	case CHIP_HAINAN:
 		chip_name = "HAINAN";
@@ -1788,11 +1767,7 @@ static int si_init_microcode(struct radeon_device *rdev)
 		ce_req_size = SI_CE_UCODE_SIZE * 4;
 		rlc_req_size = SI_RLC_UCODE_SIZE * 4;
 		mc_req_size = mc2_req_size = OLAND_MC_UCODE_SIZE * 4;
-#ifdef __NetBSD__		/* XXX ALIGN means something else.  */
-		smc_req_size = round_up(HAINAN_SMC_UCODE_SIZE, 4);
-#else
 		smc_req_size = ALIGN(HAINAN_SMC_UCODE_SIZE, 4);
-#endif
 		break;
 	default: BUG();
 	}
@@ -3114,7 +3089,7 @@ static void si_setup_rb(struct radeon_device *rdev,
 static void si_gpu_init(struct radeon_device *rdev)
 {
 	u32 gb_addr_config = 0;
-	u32 mc_shared_chmap __unused, mc_arb_ramcfg;
+	u32 mc_shared_chmap, mc_arb_ramcfg;
 	u32 sx_debug_1;
 	u32 hdp_host_path_cntl;
 	u32 tmp;
@@ -4845,7 +4820,7 @@ static void si_vm_decode_fault(struct radeon_device *rdev,
 	u32 mc_id = (status & MEMORY_CLIENT_ID_MASK) >> MEMORY_CLIENT_ID_SHIFT;
 	u32 vmid = (status & FAULT_VMID_MASK) >> FAULT_VMID_SHIFT;
 	u32 protections = (status & PROTECTIONS_MASK) >> PROTECTIONS_SHIFT;
-	const char *block;
+	char *block;
 
 	if (rdev->family == CHIP_TAHITI) {
 		switch (mc_id) {
@@ -6319,15 +6294,8 @@ restart_ih:
 
 				if (rdev->irq.crtc_vblank_int[crtc_idx]) {
 					drm_handle_vblank(rdev->ddev, crtc_idx);
-#ifdef __NetBSD__
-					spin_lock(&rdev->irq.vblank_lock);
-					rdev->pm.vblank_sync = true;
-					DRM_SPIN_WAKEUP_ONE(&rdev->irq.vblank_queue, &rdev->irq.vblank_lock);
-					spin_unlock(&rdev->irq.vblank_lock);
-#else
 					rdev->pm.vblank_sync = true;
 					wake_up(&rdev->irq.vblank_queue);
-#endif
 				}
 				if (atomic_read(&rdev->irq.pflip[crtc_idx])) {
 					radeon_crtc_handle_vblank(rdev,
@@ -7113,7 +7081,6 @@ int si_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 
 static void si_pcie_gen3_enable(struct radeon_device *rdev)
 {
-#ifndef __NetBSD__		/* XXX radeon pcie */
 	struct pci_dev *root = rdev->pdev->bus->self;
 	enum pci_bus_speed speed_cap;
 	int bridge_pos, gpu_pos;
@@ -7216,7 +7183,7 @@ static void si_pcie_gen3_enable(struct radeon_device *rdev)
 				tmp |= LC_REDO_EQ;
 				WREG32_PCIE_PORT(PCIE_LC_CNTL4, tmp);
 
-				mdelay(100);
+				msleep(100);
 
 				/* linkctl */
 				pci_read_config_word(root, bridge_pos + PCI_EXP_LNKCTL, &tmp16);
@@ -7272,7 +7239,6 @@ static void si_pcie_gen3_enable(struct radeon_device *rdev)
 			break;
 		udelay(1);
 	}
-#endif
 }
 
 static void si_program_aspm(struct radeon_device *rdev)
@@ -7405,17 +7371,13 @@ static void si_program_aspm(struct radeon_device *rdev)
 
 			if (!disable_clkreq &&
 			    !pci_is_root_bus(rdev->pdev->bus)) {
-#ifndef __NetBSD__		/* XXX radeon pcie */
 				struct pci_dev *root = rdev->pdev->bus->self;
 				u32 lnkcap;
-#endif
 
 				clk_req_support = false;
-#ifndef __NetBSD__		/* XXX radeon pcie */
 				pcie_capability_read_dword(root, PCI_EXP_LNKCAP, &lnkcap);
 				if (lnkcap & PCI_EXP_LNKCAP_CLKPM)
 					clk_req_support = true;
-#endif
 			} else {
 				clk_req_support = false;
 			}

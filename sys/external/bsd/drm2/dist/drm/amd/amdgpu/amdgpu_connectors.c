@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2007-8 Advanced Micro Devices, Inc.
  * Copyright 2008 Red Hat Inc.
@@ -25,13 +23,10 @@
  * Authors: Dave Airlie
  *          Alex Deucher
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "atom.h"
@@ -39,6 +34,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "atombios_dp.h"
 #include "amdgpu_connectors.h"
 #include "amdgpu_i2c.h"
+#include "amdgpu_display.h"
 
 #include <linux/pm_runtime.h>
 

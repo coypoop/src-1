@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "priv.h"
 
 #include <core/memory.h>
@@ -137,7 +132,7 @@ gf100_ltc_invalidate(struct nvkm_ltc *ltc)
 	taken = nvkm_wait_msec(device, 2000, 0x70004, 0x00000003, 0x00000000);
 
 	if (taken > 0)
-		nvkm_debug(&ltc->subdev, "LTC invalidate took %"PRId64" ns\n", taken);
+		nvkm_debug(&ltc->subdev, "LTC invalidate took %lld ns\n", taken);
 }
 
 void
@@ -150,7 +145,7 @@ gf100_ltc_flush(struct nvkm_ltc *ltc)
 	taken = nvkm_wait_msec(device, 2000, 0x70010, 0x00000003, 0x00000000);
 
 	if (taken > 0)
-		nvkm_debug(&ltc->subdev, "LTC flush took %"PRId64" ns\n", taken);
+		nvkm_debug(&ltc->subdev, "LTC flush took %lld ns\n", taken);
 }
 
 /* TODO: Figure out tag memory details and drop the over-cautious allocation.

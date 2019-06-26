@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -24,9 +22,6 @@
  * Authors: Ben Skeggs
  *          Roy Spliet
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #define gt215_clk(p) container_of((p), struct gt215_clk, base)
 #include "gt215.h"
 #include "pll.h"

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2014 Intel Corporation
  *

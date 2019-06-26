@@ -1,13 +1,8 @@
-/*	$NetBSD$	*/
-
 /*
  * SPDX-License-Identifier: MIT
  *
  * Copyright © 2014-2018 Intel Corporation
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include "i915_gem_batch_pool.h"
 #include "i915_drv.h"

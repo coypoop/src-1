@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2014 Advanced Micro Devices, Inc.
  *
@@ -22,9 +20,6 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/drmP.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
@@ -33,8 +28,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "amdgpu_pll.h"
 #include <asm/div64.h>
 #include <linux/gcd.h>
-
-#include "amdgpu_pll.h"
 
 /**
  * amdgpu_pll_reduce_ratio - fractional number reduction

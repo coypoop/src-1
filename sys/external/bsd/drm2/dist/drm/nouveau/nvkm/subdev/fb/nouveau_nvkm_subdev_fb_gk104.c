@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -24,9 +22,6 @@
  * Authors: Ben Skeggs
  *          Lyude Paul
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "gk104.h"
 #include "gf100.h"
 #include "ram.h"

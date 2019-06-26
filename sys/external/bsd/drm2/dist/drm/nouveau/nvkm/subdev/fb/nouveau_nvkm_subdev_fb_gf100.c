@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "gf100.h"
 #include "ram.h"
 
@@ -66,50 +61,6 @@ gf100_fb_oneinit(struct nvkm_fb *base)
 	if (ret)
 		return ret;
 
-#ifdef __NetBSD__
-    {
-	const bus_dma_tag_t dmat = device->func->dma_tag(device);
-	int nsegs;
-	int ret;
-
-	fb->r100c10_page = NULL; /* paranoia */
-	fb->r100c10_kva = NULL;
-
-	/* XXX errno NetBSD->Linux */
-	ret = -bus_dmamem_alloc(dmat, PAGE_SIZE, PAGE_SIZE, 0,
-	    &fb->r100c10_seg, 1, &nsegs, BUS_DMA_WAITOK);
-	if (ret)
-fail0:		return ret;
-	KASSERT(nsegs == 1);
-
-	/* XXX errno NetBSD->Linux */
-	ret = -bus_dmamap_create(dmat, PAGE_SIZE, 1, PAGE_SIZE, 0,
-	    BUS_DMA_WAITOK, &fb->r100c10_page);
-	if (ret) {
-fail1:		bus_dmamem_free(dmat, &fb->r100c10_seg, 1);
-		goto fail0;
-	}
-
-	/* XXX errno NetBSD->Linux */
-	ret = -bus_dmamem_map(dmat, &fb->r100c10_seg, 1, PAGE_SIZE,
-	    &fb->r100c10_kva, BUS_DMA_WAITOK);
-	if (ret) {
-fail2:		bus_dmamap_destroy(dmat, fb->r100c10_page);
-		goto fail1;
-	}
-	(void)memset(fb->r100c10_kva, 0, PAGE_SIZE);
-
-	/* XXX errno NetBSD->Linux */
-	ret = -bus_dmamap_load(dmat, fb->r100c10_page, fb->r100c10_kva,
-	    PAGE_SIZE, NULL, BUS_DMA_WAITOK);
-	if (ret) {
-fail3: __unused	bus_dmamem_unmap(dmat, fb->r100c10_kva, PAGE_SIZE);
-		goto fail2;
-	}
-
-	fb->r100c10 = fb->r100c10_page->dm_segs[0].ds_addr;
-    }
-#else
 	fb->r100c10_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (fb->r100c10_page) {
 		fb->r100c10 = dma_map_page(device->dev, fb->r100c10_page, 0,
@@ -117,7 +68,6 @@ fail3: __unused	bus_dmamem_unmap(dmat, fb->r100c10_kva, PAGE_SIZE);
 		if (dma_mapping_error(device->dev, fb->r100c10))
 			return -EFAULT;
 	}
-#endif
 
 	return 0;
 }
@@ -157,19 +107,9 @@ gf100_fb_dtor(struct nvkm_fb *base)
 	struct nvkm_device *device = fb->base.subdev.device;
 
 	if (fb->r100c10_page) {
-#ifdef __NetBSD__
-		const bus_dma_tag_t dmat = device->func->dma_tag(device);
-
-		bus_dmamap_unload(dmat, fb->r100c10_page);
-		bus_dmamem_unmap(dmat, fb->r100c10_kva, PAGE_SIZE);
-		bus_dmamap_destroy(dmat, fb->r100c10_page);
-		bus_dmamem_free(dmat, &fb->r100c10_seg, 1);
-		fb->r100c10_page = NULL;
-#else
 		dma_unmap_page(device->dev, fb->r100c10, PAGE_SIZE,
 			       DMA_BIDIRECTIONAL);
 		__free_page(fb->r100c10_page);
-#endif
 	}
 
 	return fb;

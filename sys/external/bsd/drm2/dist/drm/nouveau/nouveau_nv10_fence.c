@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
@@ -93,7 +88,6 @@ nv10_fence_destroy(struct nouveau_drm *drm)
 		nouveau_bo_unpin(priv->bo);
 	nouveau_bo_ref(NULL, &priv->bo);
 	drm->fence = NULL;
-	spin_lock_destroy(&priv->lock);
 	kfree(priv);
 }
 

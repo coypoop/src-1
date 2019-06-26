@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2009 Jerome Glisse.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Jerome Glisse
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/drmP.h>
 #include <drm/radeon_drm.h>
 #include "radeon_reg.h"
@@ -80,7 +75,7 @@ static int radeon_benchmark_do_move(struct radeon_device *rdev, unsigned size,
 static void radeon_benchmark_log_results(int n, unsigned size,
 					 unsigned int time,
 					 unsigned sdomain, unsigned ddomain,
-					 const char *kind)
+					 char *kind)
 {
 	unsigned int throughput = (n * (size >> 10)) / time;
 	DRM_INFO("radeon: %s %u bo moves of %u kB from"

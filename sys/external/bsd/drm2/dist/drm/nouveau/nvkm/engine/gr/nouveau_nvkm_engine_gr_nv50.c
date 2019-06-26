@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "nv50.h"
 
 #include <core/client.h>
@@ -435,7 +430,7 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 			nvkm_error(subdev, "TRAP DISPATCH_FAULT\n");
 			if (display && (addr & 0x80000000)) {
 				nvkm_error(subdev,
-					   "ch %d [%010"PRIx64" %s] subc %d "
+					   "ch %d [%010llx %s] subc %d "
 					   "class %04x mthd %04x data %08x%08x "
 					   "400808 %08x 400848 %08x\n",
 					   chid, inst, name, subc, class, mthd,
@@ -461,7 +456,7 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 			nvkm_error(subdev, "TRAP DISPATCH_QUERY\n");
 			if (display && (addr & 0x80000000)) {
 				nvkm_error(subdev,
-					   "ch %d [%010"PRIx64" %s] subc %d "
+					   "ch %d [%010llx %s] subc %d "
 					   "class %04x mthd %04x data %08x "
 					   "40084c %08x\n", chid, inst, name,
 					   subc, class, mthd, data, addr);
@@ -668,7 +663,7 @@ nv50_gr_intr(struct nvkm_gr *base)
 	if (show) {
 		show &= show_bitfield;
 		nvkm_snprintbf(msg, sizeof(msg), nv50_gr_intr_name, show);
-		nvkm_error(subdev, "%08x [%s] ch %d [%010"PRIx64" %s] subc %d "
+		nvkm_error(subdev, "%08x [%s] ch %d [%010llx %s] subc %d "
 				   "class %04x mthd %04x data %08x\n",
 			   stat, msg, chid, (u64)inst << 12, name,
 			   subc, class, mthd, data);

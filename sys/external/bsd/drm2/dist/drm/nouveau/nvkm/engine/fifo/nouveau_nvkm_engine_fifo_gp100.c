@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2016 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "gk104.h"
 #include "changk104.h"
 
@@ -57,7 +52,7 @@ gp100_fifo_fault_engine[] = {
 
 static const struct gk104_fifo_func
 gp100_fifo = {
-	.init_pbdma_timeout = gk208_fifo_init_pbdma_timeout,
+	.pbdma = &gm200_fifo_pbdma,
 	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gp100_fifo_fault_engine,
 	.fault.reason = gk104_fifo_fault_reason,

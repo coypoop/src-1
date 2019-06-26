@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2008 Advanced Micro Devices, Inc.
  * Copyright 2008 Red Hat Inc.
@@ -25,9 +23,6 @@
  *
  * Authors: Christian König
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/hdmi.h>
 #include <linux/gcd.h>
 #include <drm/drmP.h>

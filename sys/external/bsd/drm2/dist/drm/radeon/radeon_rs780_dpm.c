@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2011 Advanced Micro Devices, Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Alex Deucher
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <drm/drmP.h>
 #include "radeon.h"
@@ -983,7 +978,6 @@ u32 rs780_dpm_get_mclk(struct radeon_device *rdev, bool low)
 	return pi->bootup_uma_clk;
 }
 
-#ifdef CONFIG_DEBUG_FS
 void rs780_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 						       struct seq_file *m)
 {
@@ -1007,7 +1001,6 @@ void rs780_dpm_debugfs_print_current_performance_level(struct radeon_device *rde
 		seq_printf(m, "power level 1    sclk: %u vddc_index: %d\n",
 			   ps->sclk_high, ps->max_voltage);
 }
-#endif
 
 /* get the current sclk in 10 khz units */
 u32 rs780_dpm_get_current_sclk(struct radeon_device *rdev)

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_PMU_H__
 #define __NVKM_PMU_H__
@@ -22,11 +20,7 @@ struct nvkm_pmu {
 		u32 size;
 
 		struct work_struct work;
-#ifdef __NetBSD__
-		drm_waitqueue_t wait;
-#else
 		wait_queue_head_t wait;
-#endif
 		u32 process;
 		u32 message;
 		u32 data[2];

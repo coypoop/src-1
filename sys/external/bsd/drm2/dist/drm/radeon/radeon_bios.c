@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2008 Advanced Micro Devices, Inc.
  * Copyright 2008 Red Hat Inc.
@@ -27,9 +25,6 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/drmP.h>
 #include "radeon_reg.h"
 #include "radeon.h"
@@ -37,7 +32,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/slab.h>
 #include <linux/acpi.h>
-#include <linux/string.h>
 /*
  * BIOS.
  */
@@ -50,39 +44,15 @@ __KERNEL_RCSID(0, "$NetBSD$");
  */
 static bool igp_read_bios_from_vram(struct radeon_device *rdev)
 {
-#ifdef __NetBSD__
-	bus_space_tag_t bst;
-	bus_space_handle_t bsh;
-	bus_size_t size;
-#else
 	uint8_t __iomem *bios;
 	resource_size_t vram_base;
 	resource_size_t size = 256 * 1024; /* ??? */
-#endif
 
 	if (!(rdev->flags & RADEON_IS_IGP))
 		if (!radeon_card_posted(rdev))
 			return false;
 
 	rdev->bios = NULL;
-#ifdef __NetBSD__
-	if (pci_mapreg_map(&rdev->pdev->pd_pa, PCI_BAR(0),
-		/* XXX Dunno what type to expect here; fill me in...  */
-		pci_mapreg_type(rdev->pdev->pd_pa.pa_pc,
-		    rdev->pdev->pd_pa.pa_tag, PCI_BAR(0)),
-		0, &bst, &bsh, NULL, &size))
-		return false;
-	if ((size == 0) ||
-	    (size < 256 * 1024) ||
-	    (bus_space_read_1(bst, bsh, 0) != 0x55) ||
-	    (bus_space_read_1(bst, bsh, 1) != 0xaa) ||
-	    ((rdev->bios = kmalloc(size, GFP_KERNEL)) == NULL)) {
-		bus_space_unmap(bst, bsh, size);
-		return false;
-	}
-	bus_space_read_region_1(bst, bsh, 0, rdev->bios, size);
-	bus_space_unmap(bst, bsh, size);
-#else
 	vram_base = pci_resource_start(rdev->pdev, 0);
 	bios = ioremap(vram_base, size);
 	if (!bios) {
@@ -100,13 +70,8 @@ static bool igp_read_bios_from_vram(struct radeon_device *rdev)
 	}
 	memcpy_fromio(rdev->bios, bios, size);
 	iounmap(bios);
-#endif
 	return true;
 }
-
-#ifdef __NetBSD__
-#define	__iomem	__pci_rom_iomem
-#endif
 
 static bool radeon_read_bios(struct radeon_device *rdev)
 {
@@ -120,16 +85,8 @@ static bool radeon_read_bios(struct radeon_device *rdev)
 		return false;
 	}
 
-#ifdef __NetBSD__
-	const bus_space_tag_t bst = rdev->pdev->pd_rom_bst;
-	const bus_space_handle_t bsh = rdev->pdev->pd_rom_found_bsh;
-
-	val1 = bus_space_read_1(bst, bsh, 0);
-	val2 = bus_space_read_1(bst, bsh, 1);
-#else
 	val1 = readb(&bios[0]);
 	val2 = readb(&bios[1]);
-#endif
 
 	if (size == 0 || val1 != 0x55 || val2 != 0xaa) {
 		pci_unmap_rom(rdev->pdev, bios);
@@ -140,24 +97,13 @@ static bool radeon_read_bios(struct radeon_device *rdev)
 		pci_unmap_rom(rdev->pdev, bios);
 		return false;
 	}
-#ifdef __NetBSD__
-	bus_space_read_region_1(bst, bsh, 0, rdev->bios, size);
-#else
 	memcpy_fromio(rdev->bios, bios, size);
-#endif
 	pci_unmap_rom(rdev->pdev, bios);
 	return true;
 }
 
-#ifdef __NetBSD__
-#undef	__iomem
-#endif
-
 static bool radeon_read_platform_bios(struct radeon_device *rdev)
 {
-#ifdef __NetBSD__		/* XXX radeon platform bios */
-	return false;
-#else
 	uint8_t __iomem *bios;
 	size_t size;
 
@@ -177,10 +123,8 @@ static bool radeon_read_platform_bios(struct radeon_device *rdev)
 	}
 
 	return true;
-#endif
 }
 
-/* XXX radeon acpi */
 #ifdef CONFIG_ACPI
 /* ATRM is used to get the BIOS on the discrete cards in
  * dual-gpu systems.

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2013 Advanced Micro Devices, Inc.
  * All Rights Reserved.
@@ -26,9 +24,6 @@
  *
  * Authors: Christian König <christian.koenig@amd.com>
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/firmware.h>
 #include <drm/drmP.h>

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2017 Red Hat Inc.
  *
@@ -21,12 +19,10 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "nouveau_vmm.h"
 #include "nouveau_drv.h"
 #include "nouveau_bo.h"
+#include "nouveau_svm.h"
 #include "nouveau_mem.h"
 
 void
@@ -124,6 +120,7 @@ done:
 void
 nouveau_vmm_fini(struct nouveau_vmm *vmm)
 {
+	nouveau_svmm_fini(&vmm->svmm);
 	nvif_vmm_fini(&vmm->vmm);
 	vmm->cli = NULL;
 }
@@ -131,7 +128,7 @@ nouveau_vmm_fini(struct nouveau_vmm *vmm)
 int
 nouveau_vmm_init(struct nouveau_cli *cli, s32 oclass, struct nouveau_vmm *vmm)
 {
-	int ret = nvif_vmm_init(&cli->mmu, oclass, PAGE_SIZE, 0, NULL, 0,
+	int ret = nvif_vmm_init(&cli->mmu, oclass, false, PAGE_SIZE, 0, NULL, 0,
 				&vmm->vmm);
 	if (ret)
 		return ret;

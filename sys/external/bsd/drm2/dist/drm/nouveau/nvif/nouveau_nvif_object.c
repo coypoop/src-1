@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2014 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <nvif/object.h>
 #include <nvif/client.h>
@@ -185,35 +180,21 @@ nvif_object_unmap_handle(struct nvif_object *object)
 
 int
 nvif_object_map_handle(struct nvif_object *object, void *argv, u32 argc,
-#ifdef __NetBSD__
-		       bus_space_tag_t *tag,
-#endif
 		       u64 *handle, u64 *length)
 {
 	struct {
 		struct nvif_ioctl_v0 ioctl;
-#ifdef __NetBSD__
-		struct nvif_ioctl_map_netbsd_v0 map;
-#else
 		struct nvif_ioctl_map_v0 map;
-#endif
 	} *args;
 	u32 argn = sizeof(*args) + argc;
 	int ret, maptype;
 
 	if (!(args = kzalloc(argn, GFP_KERNEL)))
 		return -ENOMEM;
-#ifdef __NetBSD__
-	args->ioctl.type = NVIF_IOCTL_V0_MAP_NETBSD,
-#else
 	args->ioctl.type = NVIF_IOCTL_V0_MAP;
-#endif
 	memcpy(args->map.data, argv, argc);
 
 	ret = nvif_object_ioctl(object, args, argn, NULL);
-#ifdef __NetBSD__
-	*tag = args->map.tag;
-#endif
 	*handle = args->map.handle;
 	*length = args->map.length;
 	maptype = args->map.type;
@@ -227,10 +208,7 @@ nvif_object_unmap(struct nvif_object *object)
 	struct nvif_client *client = object->client;
 	if (object->map.ptr) {
 		if (object->map.size) {
-			client->driver->unmap(client, object->map.tag,
-						      object->map.handle,
-						      object->map.addr,
-						      object->map.ptr,
+			client->driver->unmap(client, object->map.ptr,
 						      object->map.size);
 			object->map.size = 0;
 		}
@@ -243,30 +221,13 @@ int
 nvif_object_map(struct nvif_object *object, void *argv, u32 argc)
 {
 	struct nvif_client *client = object->client;
-#ifdef __NetBSD__
-	bus_space_tag_t tag;
-#endif
 	u64 handle, length;
-#ifdef __NetBSD__
-	int ret = nvif_object_map_handle(object, argv, argc, &tag, &handle,
-	    &length);
-#else
 	int ret = nvif_object_map_handle(object, argv, argc, &handle, &length);
-#endif
 	if (ret >= 0) {
 		if (ret) {
-#ifdef __NetBSD__
-			ret = client->driver->map(client, tag, handle, length,
-			    &object->map.handle, &object->map.ptr);
-			if (ret) {
-				nvif_object_unmap_handle(object);
-				return -ENOMEM;
-			}
-#else
 			object->map.ptr = client->driver->map(client,
 							      handle,
 							      length);
-#endif
 			if (ret = -ENOMEM, object->map.ptr) {
 				object->map.size = length;
 				return 0;

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2006 Dave Airlie
  * Copyright 2007 Maarten Maathuis
@@ -23,9 +21,6 @@
  * OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <drm/drmP.h>
 #include "nouveau_drv.h"
@@ -292,12 +287,7 @@ nouveau_hw_fix_bad_vpll(struct drm_device *dev, int head)
  */
 
 static void nouveau_vga_font_io(struct drm_device *dev,
-#ifdef __NetBSD__
-				bus_space_tag_t iovramt,
-				bus_space_handle_t iovramh,
-#else
 				void __iomem *iovram,
-#endif
 				bool save, unsigned plane)
 {
 	unsigned i;
@@ -306,21 +296,11 @@ static void nouveau_vga_font_io(struct drm_device *dev,
 	NVWriteVgaGr(dev, 0, NV_VIO_GX_READ_MAP_INDEX, plane);
 	for (i = 0; i < 16384; i++) {
 		if (save) {
-#ifdef __NetBSD__
-			nv04_display(dev)->saved_vga_font[plane][i] =
-			    bus_space_read_stream_4(iovramt, iovramh, i * 4);
-#else
 			nv04_display(dev)->saved_vga_font[plane][i] =
 					ioread32_native(iovram + i * 4);
-#endif
 		} else {
-#ifdef __NetBSD__
-			bus_space_write_stream_4(iovramt, iovramh, i * 4,
-			    nv04_display(dev)->saved_vga_font[plane][i]);
-#else
 			iowrite32_native(nv04_display(dev)->saved_vga_font[plane][i],
 							iovram + i * 4);
-#endif
 		}
 	}
 }
@@ -332,13 +312,7 @@ nouveau_hw_save_vga_fonts(struct drm_device *dev, bool save)
 	uint8_t misc, gr4, gr5, gr6, seq2, seq4;
 	bool graphicsmode;
 	unsigned plane;
-#ifdef __NetBSD__
-	bus_space_tag_t iovramt;
-	bus_space_handle_t iovramh;
-	bus_size_t iovramsz;
-#else
 	void __iomem *iovram;
-#endif
 
 	if (nv_two_heads(dev))
 		NVSetOwner(dev, 0);
@@ -353,23 +327,12 @@ nouveau_hw_save_vga_fonts(struct drm_device *dev, bool save)
 	NV_INFO(drm, "%sing VGA fonts\n", save ? "Sav" : "Restor");
 
 	/* map first 64KiB of VRAM, holds VGA fonts etc */
-#ifdef __NetBSD__
-	if (pci_mapreg_map(&dev->pdev->pd_pa, PCI_BAR(1),
-		pci_mapreg_type(dev->pdev->pd_pa.pa_pc,
-		    dev->pdev->pd_pa.pa_tag, PCI_BAR(1)),
-		0, &iovramt, &iovramh, NULL, &iovramsz)) {
-		NV_ERROR(drm, "Failed to map VRAM, "
-					"cannot save/restore VGA fonts.\n");
-		return;
-	}
-#else
 	iovram = ioremap(pci_resource_start(dev->pdev, 1), 65536);
 	if (!iovram) {
 		NV_ERROR(drm, "Failed to map VRAM, "
 					"cannot save/restore VGA fonts.\n");
 		return;
 	}
-#endif
 
 	if (nv_two_heads(dev))
 		NVBlankScreen(dev, 1, true);
@@ -390,11 +353,7 @@ nouveau_hw_save_vga_fonts(struct drm_device *dev, bool save)
 
 	/* store font in planes 0..3 */
 	for (plane = 0; plane < 4; plane++)
-#ifdef __NetBSD__
-		nouveau_vga_font_io(dev, iovramt, iovramh, save, plane);
-#else
 		nouveau_vga_font_io(dev, iovram, save, plane);
-#endif
 
 	/* restore control regs */
 	NVWritePRMVIO(dev, 0, NV_PRMVIO_MISC__WRITE, misc);
@@ -408,11 +367,7 @@ nouveau_hw_save_vga_fonts(struct drm_device *dev, bool save)
 		NVBlankScreen(dev, 1, false);
 	NVBlankScreen(dev, 0, false);
 
-#ifdef __NetBSD__
-	bus_space_unmap(iovramt, iovramh, iovramsz);
-#else
 	iounmap(iovram);
-#endif
 }
 
 /*

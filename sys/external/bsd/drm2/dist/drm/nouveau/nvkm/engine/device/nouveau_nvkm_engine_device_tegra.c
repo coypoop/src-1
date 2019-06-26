@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (c) 2014, NVIDIA CORPORATION. All rights reserved.
  *
@@ -21,9 +19,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <core/tegra.h>
 #ifdef CONFIG_NOUVEAU_PLATFORM_DRIVER
 #include "priv.h"
@@ -201,14 +196,6 @@ nvkm_device_tegra_resource(struct nvkm_device *device, unsigned bar)
 	return platform_get_resource(tdev->pdev, IORESOURCE_MEM, bar);
 }
 
-#ifdef __NetBSD__
-static bus_space_tag_t
-nvkm_device_tegra_resource_tag(struct nvkm_device *device, unsigned bar)
-{
-	XXX FIXME!
-}
-#endif
-
 static resource_size_t
 nvkm_device_tegra_resource_addr(struct nvkm_device *device, unsigned bar)
 {
@@ -279,9 +266,6 @@ nvkm_device_tegra_func = {
 	.dtor = nvkm_device_tegra_dtor,
 	.init = nvkm_device_tegra_init,
 	.fini = nvkm_device_tegra_fini,
-#ifdef __NetBSD__
-	.resource_tag = nvkm_device_tegra_resource_tag,
-#endif
 	.resource_addr = nvkm_device_tegra_resource_addr,
 	.resource_size = nvkm_device_tegra_resource_size,
 	.cpu_coherent = false,

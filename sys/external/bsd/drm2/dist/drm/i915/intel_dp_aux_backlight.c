@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2015 Intel Corporation
  *
@@ -23,9 +21,6 @@
  * IN THE SOFTWARE.
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include "intel_drv.h"
 

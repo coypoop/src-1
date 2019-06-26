@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (c) 2014-2016, NVIDIA CORPORATION. All rights reserved.
  *
@@ -24,9 +22,6 @@
  * Shamelessly ripped off from ChromeOS's gk20a/clk_pllg.c
  *
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "priv.h"
 #include "gk20a.h"
 
@@ -93,7 +88,7 @@ gk20a_pllg_write_mnp(struct gk20a_clk *clk, const struct gk20a_pll *pll)
 u32
 gk20a_pllg_calc_rate(struct gk20a_clk *clk, struct gk20a_pll *pll)
 {
-	u64 rate;
+	u32 rate;
 	u32 divider;
 
 	rate = clk->parent_rate * pll->n;

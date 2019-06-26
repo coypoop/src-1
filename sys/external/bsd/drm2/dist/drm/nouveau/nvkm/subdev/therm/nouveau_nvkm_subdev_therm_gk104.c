@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2018 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Lyude Paul
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <core/device.h>
 
 #include "priv.h"

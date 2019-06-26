@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * BIF_4_1 Register documentation
  *

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
  * Copyright 2009 VMware, Inc.
@@ -24,9 +22,6 @@
  *
  * Authors: Michel Dänzer
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/drmP.h>
 #include <drm/radeon_drm.h>
 #include "radeon_reg.h"
@@ -115,7 +110,7 @@ static void radeon_do_test_moves(struct radeon_device *rdev, int flag)
 			goto out_lclean_unpin;
 		}
 
-		for (gtt_start = gtt_map, gtt_end = gtt_start + size;
+		for (gtt_start = gtt_map, gtt_end = gtt_map + size;
 		     gtt_start < gtt_end;
 		     gtt_start++)
 			*gtt_start = gtt_start;
@@ -150,8 +145,8 @@ static void radeon_do_test_moves(struct radeon_device *rdev, int flag)
 			goto out_lclean_unpin;
 		}
 
-		for (gtt_start = gtt_map, gtt_end = gtt_start + size,
-		     vram_start = vram_map, vram_end = vram_start + size;
+		for (gtt_start = gtt_map, gtt_end = gtt_map + size,
+		     vram_start = vram_map, vram_end = vram_map + size;
 		     vram_start < vram_end;
 		     gtt_start++, vram_start++) {
 			if (*vram_start != gtt_start) {
@@ -161,10 +156,10 @@ static void radeon_do_test_moves(struct radeon_device *rdev, int flag)
 					  i, *vram_start, gtt_start,
 					  (unsigned long long)
 					  (gtt_addr - rdev->mc.gtt_start +
-					   (u8*)gtt_start - (u8*)gtt_map),
+					   (void*)gtt_start - gtt_map),
 					  (unsigned long long)
 					  (vram_addr - rdev->mc.vram_start +
-					   (u8*)gtt_start - (u8*)gtt_map));
+					   (void*)gtt_start - gtt_map));
 				radeon_bo_kunmap(vram_obj);
 				goto out_lclean_unpin;
 			}
@@ -201,8 +196,8 @@ static void radeon_do_test_moves(struct radeon_device *rdev, int flag)
 			goto out_lclean_unpin;
 		}
 
-		for (gtt_start = gtt_map, gtt_end = gtt_start + size,
-		     vram_start = vram_map, vram_end = vram_start + size;
+		for (gtt_start = gtt_map, gtt_end = gtt_map + size,
+		     vram_start = vram_map, vram_end = vram_map + size;
 		     gtt_start < gtt_end;
 		     gtt_start++, vram_start++) {
 			if (*gtt_start != vram_start) {
@@ -212,10 +207,10 @@ static void radeon_do_test_moves(struct radeon_device *rdev, int flag)
 					  i, *gtt_start, vram_start,
 					  (unsigned long long)
 					  (vram_addr - rdev->mc.vram_start +
-					   (u8*)vram_start - (u8*)vram_map),
+					   (void*)vram_start - vram_map),
 					  (unsigned long long)
 					  (gtt_addr - rdev->mc.gtt_start +
-					   (u8*)vram_start - (u8*)vram_map));
+					   (void*)vram_start - vram_map));
 				radeon_bo_kunmap(gtt_obj[i]);
 				goto out_lclean_unpin;
 			}
@@ -223,7 +218,7 @@ static void radeon_do_test_moves(struct radeon_device *rdev, int flag)
 
 		radeon_bo_kunmap(gtt_obj[i]);
 
-		DRM_INFO("Tested GTT->VRAM and VRAM->GTT copy for GTT offset 0x%"PRIx64"\n",
+		DRM_INFO("Tested GTT->VRAM and VRAM->GTT copy for GTT offset 0x%llx\n",
 			 gtt_addr - rdev->mc.gtt_start);
 		continue;
 
@@ -353,7 +348,7 @@ void radeon_test_ring_sync(struct radeon_device *rdev,
 	if (r)
 		goto out_cleanup;
 
-	mdelay(1000);
+	msleep(1000);
 
 	if (radeon_fence_signaled(fence1)) {
 		DRM_ERROR("Fence 1 signaled without waiting for semaphore.\n");
@@ -374,7 +369,7 @@ void radeon_test_ring_sync(struct radeon_device *rdev,
 		goto out_cleanup;
 	}
 
-	mdelay(1000);
+	msleep(1000);
 
 	if (radeon_fence_signaled(fence2)) {
 		DRM_ERROR("Fence 2 signaled without waiting for semaphore.\n");
@@ -447,7 +442,7 @@ static void radeon_test_ring_sync2(struct radeon_device *rdev,
 	if (r)
 		goto out_cleanup;
 
-	mdelay(1000);
+	msleep(1000);
 
 	if (radeon_fence_signaled(fenceA)) {
 		DRM_ERROR("Fence A signaled without waiting for semaphore.\n");
@@ -467,7 +462,7 @@ static void radeon_test_ring_sync2(struct radeon_device *rdev,
 	radeon_ring_unlock_commit(rdev, ringC, false);
 
 	for (i = 0; i < 30; ++i) {
-		mdelay(100);
+		msleep(100);
 		sigA = radeon_fence_signaled(fenceA);
 		sigB = radeon_fence_signaled(fenceB);
 		if (sigA || sigB)
@@ -492,7 +487,7 @@ static void radeon_test_ring_sync2(struct radeon_device *rdev,
 	radeon_semaphore_emit_signal(rdev, ringC->idx, semaphore);
 	radeon_ring_unlock_commit(rdev, ringC, false);
 
-	mdelay(1000);
+	msleep(1000);
 
 	r = radeon_fence_wait(fenceA, false);
 	if (r) {

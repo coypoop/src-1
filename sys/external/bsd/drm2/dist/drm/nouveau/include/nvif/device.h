@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVIF_DEVICE_H__
 #define __NVIF_DEVICE_H__

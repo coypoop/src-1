@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2016 Advanced Micro Devices, Inc.
  *
@@ -41,8 +39,6 @@
 #define AMDGPU_GTT_NUM_TRANSFER_WINDOWS	2
 
 struct amdgpu_mman {
-	struct ttm_bo_global_ref        bo_global_ref;
-	struct drm_global_reference	mem_global_ref;
 	struct ttm_bo_device		bdev;
 	bool				mem_global_referenced;
 	bool				initialized;
@@ -101,12 +97,7 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 			struct reservation_object *resv,
 			struct dma_fence **fence);
 
-#ifdef __NetBSD__
-int amdgpu_mmap_object(struct drm_device *, off_t, size_t, vm_prot_t,
-    struct uvm_object **, voff_t *, struct file *);
-#else
 int amdgpu_mmap(struct file *filp, struct vm_area_struct *vma);
-#endif
 int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo);
 int amdgpu_ttm_recover_gart(struct ttm_buffer_object *tbo);
 
@@ -123,6 +114,7 @@ bool amdgpu_ttm_tt_userptr_invalidated(struct ttm_tt *ttm,
 				       int *last_invalidated);
 bool amdgpu_ttm_tt_userptr_needs_pages(struct ttm_tt *ttm);
 bool amdgpu_ttm_tt_is_readonly(struct ttm_tt *ttm);
+uint64_t amdgpu_ttm_tt_pde_flags(struct ttm_tt *ttm, struct ttm_mem_reg *mem);
 uint64_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
 				 struct ttm_mem_reg *mem);
 

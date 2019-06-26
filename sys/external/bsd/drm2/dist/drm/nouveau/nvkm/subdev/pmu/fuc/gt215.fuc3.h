@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 static uint32_t gt215_pmu_data[] = {
 /* 0x0000: proc_kern */

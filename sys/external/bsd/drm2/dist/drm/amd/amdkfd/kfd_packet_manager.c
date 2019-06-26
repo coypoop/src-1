@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2014 Advanced Micro Devices, Inc.
  *
@@ -22,9 +20,6 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/slab.h>
 #include <linux/mutex.h>
@@ -231,9 +226,12 @@ int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm)
 	case CHIP_FIJI:
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
 		pm->pmf = &kfd_vi_pm_funcs;
 		break;
 	case CHIP_VEGA10:
+	case CHIP_VEGA12:
+	case CHIP_VEGA20:
 	case CHIP_RAVEN:
 		pm->pmf = &kfd_v9_pm_funcs;
 		break;

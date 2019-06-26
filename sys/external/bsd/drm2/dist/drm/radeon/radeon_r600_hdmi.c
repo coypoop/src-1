@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2008 Advanced Micro Devices, Inc.
  * Copyright 2008 Red Hat Inc.
@@ -25,9 +23,6 @@
  *
  * Authors: Christian König
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/hdmi.h>
 #include <linux/gcd.h>
 #include <drm/drmP.h>
@@ -253,7 +248,7 @@ static void r600_hdmi_update_audio_infoframe(struct drm_encoder *encoder,
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 	uint32_t offset = dig->afmt->offset;
-	const u8 *frame = (const u8 *)buffer + 3;
+	const u8 *frame = buffer + 3;
 
 	WREG32(HDMI0_AUDIO_INFO0 + offset,
 		frame[0x0] | (frame[0x1] << 8) | (frame[0x2] << 16) | (frame[0x3] << 24));

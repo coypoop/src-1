@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2010 Advanced Micro Devices, Inc.
  *

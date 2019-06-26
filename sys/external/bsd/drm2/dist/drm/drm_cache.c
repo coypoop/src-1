@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /**************************************************************************
  *
  * Copyright (c) 2006-2007 Tungsten Graphics, Inc., Cedar Park, TX., USA
@@ -29,9 +27,6 @@
 /*
  * Authors: Thomas Hellström <thomas-at-tungstengraphics-dot-com>
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/export.h>
 #include <linux/highmem.h>

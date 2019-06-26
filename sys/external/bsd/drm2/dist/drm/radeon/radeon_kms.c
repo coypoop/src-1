@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2008 Advanced Micro Devices, Inc.
  * Copyright 2008 Red Hat Inc.
@@ -27,9 +25,6 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/drmP.h>
 #include <drm/drm_fb_helper.h>
 #include "radeon.h"
@@ -64,14 +59,8 @@ void radeon_driver_unload_kms(struct drm_device *dev)
 	if (rdev == NULL)
 		return;
 
-#ifdef __NetBSD__
-	/* XXX ugh */
-	if (rdev->rmmio_size)
-		goto done_free;
-#else
 	if (rdev->rmmio == NULL)
 		goto done_free;
-#endif
 
 	if (radeon_is_px(dev)) {
 		pm_runtime_get_sync(dev->dev);
@@ -160,7 +149,7 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	 */
 	r = radeon_device_init(rdev, dev, dev->pdev, flags);
 	if (r) {
-		dev_err(dev->dev, "Fatal error during GPU init\n");
+		dev_err(&dev->pdev->dev, "Fatal error during GPU init\n");
 		goto out;
 	}
 
@@ -170,7 +159,7 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	 */
 	r = radeon_modeset_init(rdev);
 	if (r)
-		dev_err(dev->dev, "Fatal error during modeset init\n");
+		dev_err(&dev->pdev->dev, "Fatal error during modeset init\n");
 
 	/* Call ACPI methods: require modeset init
 	 * but failure is not fatal
@@ -178,11 +167,12 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	if (!r) {
 		acpi_status = radeon_acpi_init(rdev);
 		if (acpi_status)
-		dev_dbg(dev->dev,
+		dev_dbg(&dev->pdev->dev,
 				"Error during ACPI methods call\n");
 	}
 
 	if (radeon_is_px(dev)) {
+		dev_pm_set_driver_flags(dev->dev, DPM_FLAG_NEVER_SKIP);
 		pm_runtime_use_autosuspend(dev->dev);
 		pm_runtime_set_autosuspend_delay(dev->dev, 5000);
 		pm_runtime_set_active(dev->dev);
@@ -642,9 +632,7 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 void radeon_driver_lastclose_kms(struct drm_device *dev)
 {
 	drm_fb_helper_lastclose(dev);
-#ifndef __NetBSD__		/* XXX radeon vga */
 	vga_switcheroo_process_delayed_switch();
-#endif
 }
 
 /**

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2010 Advanced Micro Devices, Inc.
  *
@@ -23,10 +21,6 @@
  *
  * Authors: Alex Deucher
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
-#include <linux/bitops.h>
 #include <linux/firmware.h>
 #include <linux/slab.h>
 #include <drm/drmP.h>
@@ -1282,7 +1276,6 @@ int evergreen_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 
 void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev)
 {
-#ifndef __NetBSD__		/* XXX radeon pcie */
 	int readrq;
 	u16 v;
 
@@ -1293,7 +1286,6 @@ void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev)
 	 */
 	if ((v == 0) || (v == 6) || (v == 7))
 		pcie_set_readrq(rdev->pdev, 512);
-#endif
 }
 
 void dce4_program_fmt(struct drm_encoder *encoder)
@@ -3137,7 +3129,7 @@ static int evergreen_cp_resume(struct radeon_device *rdev)
 static void evergreen_gpu_init(struct radeon_device *rdev)
 {
 	u32 gb_addr_config;
-	u32 mc_shared_chmap __unused, mc_arb_ramcfg;
+	u32 mc_shared_chmap, mc_arb_ramcfg;
 	u32 sx_debug_1;
 	u32 smx_dc_ctl0;
 	u32 sq_config;
@@ -4197,7 +4189,7 @@ int sumo_rlc_init(struct radeon_device *rdev)
 			return r;
 		}
 
-		r = radeon_bo_kmap(rdev->rlc.save_restore_obj, (void **)__UNVOLATILE(&rdev->rlc.sr_ptr));
+		r = radeon_bo_kmap(rdev->rlc.save_restore_obj, (void **)&rdev->rlc.sr_ptr);
 		if (r) {
 			dev_warn(rdev->dev, "(%d) map RLC sr bo failed\n", r);
 			sumo_rlc_fini(rdev);
@@ -4276,7 +4268,7 @@ int sumo_rlc_init(struct radeon_device *rdev)
 			return r;
 		}
 
-		r = radeon_bo_kmap(rdev->rlc.clear_state_obj, (void **)__UNVOLATILE(&rdev->rlc.cs_ptr));
+		r = radeon_bo_kmap(rdev->rlc.clear_state_obj, (void **)&rdev->rlc.cs_ptr);
 		if (r) {
 			dev_warn(rdev->dev, "(%d) map RLC c bo failed\n", r);
 			sumo_rlc_fini(rdev);
@@ -4354,7 +4346,7 @@ int sumo_rlc_init(struct radeon_device *rdev)
 			sumo_rlc_fini(rdev);
 			return r;
 		}
-		r = radeon_bo_kmap(rdev->rlc.cp_table_obj, (void **)__UNVOLATILE(&rdev->rlc.cp_table_ptr));
+		r = radeon_bo_kmap(rdev->rlc.cp_table_obj, (void **)&rdev->rlc.cp_table_ptr);
 		if (r) {
 			dev_warn(rdev->dev, "(%d) map RLC cp table bo failed\n", r);
 			sumo_rlc_fini(rdev);
@@ -4760,14 +4752,7 @@ restart_ih:
 				if (rdev->irq.crtc_vblank_int[crtc_idx]) {
 					drm_handle_vblank(rdev->ddev, crtc_idx);
 					rdev->pm.vblank_sync = true;
-#ifdef __NetBSD__
-					spin_lock(&rdev->irq.vblank_lock);
-					rdev->pm.vblank_sync = true;
-					DRM_SPIN_WAKEUP_ONE(&rdev->irq.vblank_queue, &rdev->irq.vblank_lock);
-					spin_unlock(&rdev->irq.vblank_lock);
-#else
 					wake_up(&rdev->irq.vblank_queue);
-#endif
 				}
 				if (atomic_read(&rdev->irq.pflip[crtc_idx])) {
 					radeon_crtc_handle_vblank(rdev,
@@ -5335,7 +5320,6 @@ void evergreen_fini(struct radeon_device *rdev)
 
 void evergreen_pcie_gen2_enable(struct radeon_device *rdev)
 {
-#ifndef __NetBSD__		/* XXX radeon pcie */
 	u32 link_width_cntl, speed_cntl;
 
 	if (radeon_pcie_gen2 == 0)
@@ -5395,7 +5379,6 @@ void evergreen_pcie_gen2_enable(struct radeon_device *rdev)
 			link_width_cntl &= ~LC_UPCONFIGURE_DIS;
 		WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
 	}
-#endif
 }
 
 void evergreen_program_aspm(struct radeon_device *rdev)

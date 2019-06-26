@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2018 Red Hat Inc.
  *
@@ -21,9 +19,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "base.h"
 
 static void
@@ -85,6 +80,7 @@ base907c_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
 	asyw->xlut.i.mode = 7;
 	asyw->xlut.i.enable = 2;
+	asyw->xlut.i.load = head907d_olut_load;
 }
 
 const struct nv50_wndw_func

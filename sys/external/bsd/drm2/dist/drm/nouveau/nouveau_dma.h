@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (C) 2007 Ben Skeggs.
  * All Rights Reserved.

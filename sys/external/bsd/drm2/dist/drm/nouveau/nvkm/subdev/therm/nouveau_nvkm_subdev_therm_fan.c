@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -24,9 +22,6 @@
  * Authors: Ben Skeggs
  * 	    Martin Peres
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "priv.h"
 
 #include <subdev/bios/fan.h>
@@ -50,9 +45,7 @@ nvkm_fan_update(struct nvkm_fan *fan, bool immediate, int target)
 	target = max_t(u8, target, fan->bios.min_duty);
 	target = min_t(u8, target, fan->bios.max_duty);
 	if (fan->percent != target) {
-#if 0 /* XXXMRG one log per second is a little excessive */
 		nvkm_debug(subdev, "FAN target: %d\n", target);
-#endif
 		fan->percent = target;
 	}
 
@@ -77,9 +70,7 @@ nvkm_fan_update(struct nvkm_fan *fan, bool immediate, int target)
 		duty = target;
 	}
 
-#if 0 /* XXXMRG one log per second is a little excessive */
 	nvkm_debug(subdev, "FAN update: %d\n", duty);
-#endif
 	ret = fan->set(therm, duty);
 	if (ret) {
 		spin_unlock_irqrestore(&fan->lock, flags);

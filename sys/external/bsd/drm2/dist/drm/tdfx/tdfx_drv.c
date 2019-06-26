@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* tdfx_drv.c -- tdfx driver -*- linux-c -*-
  * Created: Thu Oct  7 10:38:32 1999 by faith@precisioninsight.com
  *
@@ -32,9 +30,6 @@
  *    Gareth Hughes <gareth@valinux.com>
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/module.h>
 
 #include <drm/drmP.h>
@@ -60,7 +55,6 @@ static const struct file_operations tdfx_driver_fops = {
 
 static struct drm_driver driver = {
 	.driver_features = DRIVER_LEGACY,
-	.set_busid = drm_pci_set_busid,
 	.fops = &tdfx_driver_fops,
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,

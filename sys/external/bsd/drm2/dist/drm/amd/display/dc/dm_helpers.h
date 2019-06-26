@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012-15 Advanced Micro Devices, Inc.
  *
@@ -58,6 +56,13 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 		const struct dc_stream_state *stream,
 		struct dp_mst_stream_allocation_table *proposed_table,
 		bool enable);
+
+/*
+ * poll pending down reply before clear payload allocation table
+ */
+void dm_helpers_dp_mst_poll_pending_down_reply(
+	struct dc_context *ctx,
+	const struct dc_link *link);
 
 /*
  * Clear payload allocation table before enable MST DP link.

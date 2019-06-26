@@ -1,17 +1,11 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NOUVEAU_BO_H__
 #define __NOUVEAU_BO_H__
 
 #include <drm/drm_gem.h>
 
-#include <ttm/ttm_bo_api.h>
-
 struct nouveau_channel;
-struct nouveau_drm;
 struct nouveau_fence;
-struct nvkm_vm;
 struct nvkm_vma;
 
 struct nouveau_bo {
@@ -67,12 +61,14 @@ nouveau_bo_ref(struct nouveau_bo *ref, struct nouveau_bo **pnvbo)
 		return -EINVAL;
 	prev = *pnvbo;
 
-	*pnvbo = ref ? nouveau_bo(ttm_bo_reference(&ref->bo)) : NULL;
-	if (prev) {
-		struct ttm_buffer_object *bo = &prev->bo;
-
-		ttm_bo_unref(&bo);
+	if (ref) {
+		ttm_bo_get(&ref->bo);
+		*pnvbo = nouveau_bo(&ref->bo);
+	} else {
+		*pnvbo = NULL;
 	}
+	if (prev)
+		ttm_bo_put(&prev->bo);
 
 	return 0;
 }
@@ -98,11 +94,6 @@ int  nouveau_bo_validate(struct nouveau_bo *, bool interruptible,
 void nouveau_bo_sync_for_device(struct nouveau_bo *nvbo);
 void nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo);
 
-#ifdef __NetBSD__
-#  define	__iomem	volatile
-#  define	__force
-#endif
-
 /* TODO: submit equivalent to TTM generic API upstream? */
 static inline void __iomem *
 nvbo_kmap_obj_iovirtual(struct nouveau_bo *nvbo)
@@ -113,11 +104,6 @@ nvbo_kmap_obj_iovirtual(struct nouveau_bo *nvbo)
 	WARN_ON_ONCE(ioptr && !is_iomem);
 	return ioptr;
 }
-
-#ifdef __NetBSD__
-#  undef	__iomem
-#  undef	__force
-#endif
 
 static inline void
 nouveau_bo_unmap_unpin_unref(struct nouveau_bo **pnvbo)

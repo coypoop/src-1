@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_OPROXY_H__
 #define __NVKM_OPROXY_H__

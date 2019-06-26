@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2013 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "priv.h"
 
 #include <subdev/bios.h>
@@ -305,12 +300,8 @@ nvkm_pstate_work(struct work_struct *work)
 	struct nvkm_subdev *subdev = &clk->subdev;
 	int pstate;
 
-	spin_lock(&clk->lock);
-	if (!atomic_xchg(&clk->waiting, 0)) {
-		spin_unlock(&clk->lock);
+	if (!atomic_xchg(&clk->waiting, 0))
 		return;
-	}
-
 	clk->pwrsrc = power_supply_is_system_supplied();
 
 	nvkm_trace(subdev, "P %d PWR %d U(AC) %d U(DC) %d A %d T %d°C D %d\n",
@@ -335,12 +326,7 @@ nvkm_pstate_work(struct work_struct *work)
 		}
 	}
 
-#ifdef __NetBSD__
-	DRM_SPIN_WAKEUP_ALL(&clk->wait, &clk->lock);
-#else
 	wake_up_all(&clk->wait);
-#endif
-	spin_unlock(&clk->lock);
 	nvkm_notify_get(&clk->pwrsrc_ntfy);
 }
 
@@ -349,27 +335,8 @@ nvkm_pstate_calc(struct nvkm_clk *clk, bool wait)
 {
 	atomic_set(&clk->waiting, 1);
 	schedule_work(&clk->work);
-	if (wait) {
-#ifdef __NetBSD__
-		if (cold) {
-			unsigned timo = 1000;
-			while (timo --> 0) {
-				if (atomic_read(&clk->waiting))
-					return 0;
-				DELAY(100);
-			}
-			return -ETIMEDOUT;
-		}
-		int ret;
-		spin_lock(&clk->lock);
-		DRM_SPIN_WAIT_NOINTR_UNTIL(ret, &clk->wait, &clk->lock,
-		    !atomic_read(&clk->waiting));
-		spin_unlock(&clk->lock);
-		KASSERT(ret == 0);
-#else
+	if (wait)
 		wait_event(clk->wait, !atomic_read(&clk->waiting));
-#endif
-	}
 	return 0;
 }
 
@@ -533,15 +500,16 @@ nvkm_clk_nstate(struct nvkm_clk *clk, const char *mode, int arglen)
 		return -2;
 
 	if (strncasecmpz(mode, "disabled", arglen)) {
-		char *m = kstrndup(mode, arglen, GFP_KERNEL);
+		char save = mode[arglen];
 		long v;
 
-		if (!kstrtol(m, 0, &v)) {
+		((char *)mode)[arglen] = '\0';
+		if (!kstrtol(mode, 0, &v)) {
 			ret = nvkm_clk_ustate_update(clk, v);
 			if (ret < 0)
 				ret = 1;
 		}
-		kfree(m);
+		((char *)mode)[arglen] = save;
 	}
 
 	return ret - 2;
@@ -668,11 +636,6 @@ nvkm_clk_dtor(struct nvkm_subdev *subdev)
 		nvkm_pstate_del(pstate);
 	}
 
-#ifdef __NetBSD__
-	DRM_DESTROY_WAITQUEUE(&clk->wait);
-	spin_lock_destroy(&clk->lock);
-#endif
-
 	return clk;
 }
 
@@ -711,12 +674,7 @@ nvkm_clk_ctor(const struct nvkm_clk_func *func, struct nvkm_device *device,
 	clk->allow_reclock = allow_reclock;
 
 	INIT_WORK(&clk->work, nvkm_pstate_work);
-#ifdef __NetBSD__
-	spin_lock_init(&clk->lock);
-	DRM_INIT_WAITQUEUE(&clk->wait, "nvclk");
-#else
 	init_waitqueue_head(&clk->wait);
-#endif
 	atomic_set(&clk->waiting, 0);
 
 	/* If no pstates are provided, try and fetch them from the BIOS */

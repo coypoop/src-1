@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2006 Tungsten Graphics Inc., Bismarck, ND., USA.
  * All rights reserved.
@@ -26,9 +24,6 @@
 /*
  * Authors: Thomas Hellström <thomas-at-tungstengraphics-dot-com>
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <drm/drmP.h>
 #include <drm/via_drm.h>
@@ -126,14 +121,12 @@ int via_mem_alloc(struct drm_device *dev, void *data,
 		DRM_ERROR("Unknown memory type allocation\n");
 		return -EINVAL;
 	}
-	idr_preload(GFP_KERNEL);
 	mutex_lock(&dev->struct_mutex);
 	if (0 == ((mem->type == VIA_MEM_VIDEO) ? dev_priv->vram_initialized :
 		      dev_priv->agp_initialized)) {
 		DRM_ERROR
 		    ("Attempt to allocate from uninitialized memory manager.\n");
 		mutex_unlock(&dev->struct_mutex);
-		idr_preload_end();
 		return -EINVAL;
 	}
 
@@ -162,7 +155,6 @@ int via_mem_alloc(struct drm_device *dev, void *data,
 
 	list_add(&item->owner_list, &file_priv->obj_list);
 	mutex_unlock(&dev->struct_mutex);
-	idr_preload_end();
 
 	mem->offset = ((mem->type == VIA_MEM_VIDEO) ?
 		      dev_priv->vram_offset : dev_priv->agp_offset) +
@@ -176,7 +168,6 @@ fail_idr:
 fail_alloc:
 	kfree(item);
 	mutex_unlock(&dev->struct_mutex);
-	idr_preload_end();
 
 	mem->offset = 0;
 	mem->size = 0;

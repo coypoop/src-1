@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2014 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "priv.h"
 
 #include <core/option.h>
@@ -156,7 +151,7 @@ shadow_fw_init(struct nvkm_bios *bios, const char *name)
 	int ret = request_firmware(&fw, name, dev);
 	if (ret)
 		return ERR_PTR(-ENOENT);
-	return __UNCONST(fw);
+	return (void *)fw;
 }
 
 static const struct nvbios_source

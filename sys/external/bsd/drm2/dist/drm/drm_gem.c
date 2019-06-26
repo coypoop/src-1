@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2008 Intel Corporation
  *
@@ -27,9 +25,6 @@
  *
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
@@ -42,18 +37,12 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>
 #include <linux/mem_encrypt.h>
-#include <linux/err.h>
-#include <linux/export.h>
-#include <asm/bug.h>
+#include <linux/pagevec.h>
 #include <drm/drmP.h>
 #include <drm/drm_vma_manager.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_print.h>
 #include "drm_internal.h"
-
-#ifdef __NetBSD__
-#include <uvm/uvm_extern.h>
-#endif
 
 /** @file drm_gem.c
  *
@@ -109,11 +98,7 @@ drm_gem_init(struct drm_device *dev)
 {
 	struct drm_vma_offset_manager *vma_offset_manager;
 
-#ifdef __NetBSD__
-	linux_mutex_init(&dev->object_name_lock);
-#else
 	mutex_init(&dev->object_name_lock);
-#endif
 	idr_init_base(&dev->object_name_idr, 1);
 
 	vma_offset_manager = kzalloc(sizeof(*vma_offset_manager), GFP_KERNEL);
@@ -137,11 +122,6 @@ drm_gem_destroy(struct drm_device *dev)
 	drm_vma_offset_manager_destroy(dev->vma_offset_manager);
 	kfree(dev->vma_offset_manager);
 	dev->vma_offset_manager = NULL;
-
-	idr_destroy(&dev->object_name_idr);
-#ifdef __NetBSD__
-	linux_mutex_destroy(&dev->object_name_lock);
-#endif
 }
 
 /**
@@ -156,32 +136,15 @@ drm_gem_destroy(struct drm_device *dev)
 int drm_gem_object_init(struct drm_device *dev,
 			struct drm_gem_object *obj, size_t size)
 {
-#ifndef __NetBSD__
 	struct file *filp;
-#endif
 
 	drm_gem_private_object_init(dev, obj, size);
 
-#ifdef __NetBSD__
-	/*
-	 * A uao may not have size 0, but a gem object may.  Allocate a
-	 * spurious page so we needn't teach uao how to have size 0.
-	 */
-	obj->filp = uao_create(MAX(size, PAGE_SIZE), 0);
-	/*
-	 * XXX This is gross.  We ought to do it the other way around:
-	 * set the uao to have the main uvm object's lock.  However,
-	 * uvm_obj_setlock is not safe on uvm_aobjs.
-	 */
-	mutex_obj_hold(obj->filp->vmobjlock);
-	uvm_obj_setlock(&obj->gemo_uvmobj, obj->filp->vmobjlock);
-#else
 	filp = shmem_file_setup("drm mm object", size, VM_NORESERVE);
 	if (IS_ERR(filp))
 		return PTR_ERR(filp);
 
 	obj->filp = filp;
-#endif
 
 	return 0;
 }
@@ -203,23 +166,12 @@ void drm_gem_private_object_init(struct drm_device *dev,
 	BUG_ON((size & (PAGE_SIZE - 1)) != 0);
 
 	obj->dev = dev;
-#ifdef __NetBSD__
 	obj->filp = NULL;
-	KASSERT(drm_core_check_feature(dev, DRIVER_GEM));
-	KASSERT(dev->driver->gem_uvm_ops != NULL);
-	uvm_obj_init(&obj->gemo_uvmobj, dev->driver->gem_uvm_ops, true, 1);
-#else
-	obj->filp = NULL;
-#endif
 
 	kref_init(&obj->refcount);
 	obj->handle_count = 0;
 	obj->size = size;
-#ifdef __NetBSD__
-	drm_vma_node_init(&obj->vma_node);
-#else
 	drm_vma_node_reset(&obj->vma_node);
-#endif
 }
 EXPORT_SYMBOL(drm_gem_private_object_init);
 
@@ -261,13 +213,11 @@ static void drm_gem_object_handle_free(struct drm_gem_object *obj)
 
 static void drm_gem_object_exported_dma_buf_free(struct drm_gem_object *obj)
 {
-#ifndef __NetBSD__
 	/* Unbreak the reference cycle if we have an exported dma_buf. */
 	if (obj->dma_buf) {
 		dma_buf_put(obj->dma_buf);
 		obj->dma_buf = NULL;
 	}
-#endif
 }
 
 static void
@@ -308,7 +258,9 @@ drm_gem_object_release_handle(int id, void *ptr, void *data)
 	struct drm_gem_object *obj = ptr;
 	struct drm_device *dev = obj->dev;
 
-	if (dev->driver->gem_close_object)
+	if (obj->funcs && obj->funcs->close)
+		obj->funcs->close(obj, file_priv);
+	else if (dev->driver->gem_close_object)
 		dev->driver->gem_close_object(obj, file_priv);
 
 	if (drm_core_check_feature(dev, DRIVER_PRIME))
@@ -461,7 +413,11 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
 	if (ret)
 		goto err_remove;
 
-	if (dev->driver->gem_open_object) {
+	if (obj->funcs && obj->funcs->open) {
+		ret = obj->funcs->open(obj, file_priv);
+		if (ret)
+			goto err_revoke;
+	} else if (dev->driver->gem_open_object) {
 		ret = dev->driver->gem_open_object(obj, file_priv);
 		if (ret)
 			goto err_revoke;
@@ -571,6 +527,17 @@ int drm_gem_create_mmap_offset(struct drm_gem_object *obj)
 }
 EXPORT_SYMBOL(drm_gem_create_mmap_offset);
 
+/*
+ * Move pages to appropriate lru and release the pagevec, decrementing the
+ * ref count of those pages.
+ */
+static void drm_gem_check_release_pagevec(struct pagevec *pvec)
+{
+	check_move_unevictable_pages(pvec);
+	__pagevec_release(pvec);
+	cond_resched();
+}
+
 /**
  * drm_gem_get_pages - helper to allocate backing pages for a GEM object
  * from shmem
@@ -592,44 +559,11 @@ EXPORT_SYMBOL(drm_gem_create_mmap_offset);
  * after drm_gem_object_init() via mapping_set_gfp_mask(). shmem-core takes care
  * to keep pages in the required zone during swap-in.
  */
-#ifdef __NetBSD__
-struct page **
-drm_gem_get_pages(struct drm_gem_object *obj)
-{
-	struct pglist pglist;
-	struct vm_page *vm_page;
-	struct page **pages;
-	unsigned i;
-	int ret;
-
-	KASSERT((obj->size & (PAGE_SIZE - 1)) != 0);
-
-	pages = drm_malloc_ab(obj->size >> PAGE_SHIFT, sizeof(*pages));
-	if (pages == NULL) {
-		ret = -ENOMEM;
-		goto fail0;
-	}
-
-	TAILQ_INIT(&pglist);
-	/* XXX errno NetBSD->Linux */
-	ret = -uvm_obj_wirepages(obj->filp, 0, obj->size, &pglist);
-	if (ret)
-		goto fail1;
-
-	i = 0;
-	TAILQ_FOREACH(vm_page, &pglist, pageq.queue)
-		pages[i++] = container_of(vm_page, struct page, p_vmp);
-
-	return pages;
-
-fail1:	drm_free_large(pages);
-fail0:	return ERR_PTR(ret);
-}
-#else
 struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 {
 	struct address_space *mapping;
 	struct page *p, **pages;
+	struct pagevec pvec;
 	int i, npages;
 
 	/* This is the shared memory object that backs the GEM resource */
@@ -646,6 +580,8 @@ struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 	pages = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
 	if (pages == NULL)
 		return ERR_PTR(-ENOMEM);
+
+	mapping_set_unevictable(mapping);
 
 	for (i = 0; i < npages; i++) {
 		p = shmem_read_mapping_page(mapping, i);
@@ -665,13 +601,18 @@ struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 	return pages;
 
 fail:
-	while (i--)
-		put_page(pages[i]);
+	mapping_clear_unevictable(mapping);
+	pagevec_init(&pvec);
+	while (i--) {
+		if (!pagevec_add(&pvec, pages[i]))
+			drm_gem_check_release_pagevec(&pvec);
+	}
+	if (pagevec_count(&pvec))
+		drm_gem_check_release_pagevec(&pvec);
 
 	kvfree(pages);
 	return ERR_CAST(p);
 }
-#endif
 EXPORT_SYMBOL(drm_gem_get_pages);
 
 /**
@@ -681,25 +622,15 @@ EXPORT_SYMBOL(drm_gem_get_pages);
  * @dirty: if true, pages will be marked as dirty
  * @accessed: if true, the pages will be marked as accessed
  */
-#ifdef __NetBSD__
-void
-drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages, bool dirty,
-    bool accessed __unused /* XXX */)
-{
-	unsigned i;
-
-	for (i = 0; i < (obj->size >> PAGE_SHIFT); i++) {
-		if (dirty)
-			pages[i]->p_vmp.flags &= ~PG_CLEAN;
-	}
-
-	uvm_obj_unwirepages(obj->filp, 0, obj->size);
-}
-#else
 void drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
 		bool dirty, bool accessed)
 {
 	int i, npages;
+	struct address_space *mapping;
+	struct pagevec pvec;
+
+	mapping = file_inode(obj->filp)->i_mapping;
+	mapping_clear_unevictable(mapping);
 
 	/* We already BUG_ON() for non-page-aligned sizes in
 	 * drm_gem_object_init(), so we should never hit this unless
@@ -709,6 +640,7 @@ void drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
 
 	npages = obj->size >> PAGE_SHIFT;
 
+	pagevec_init(&pvec);
 	for (i = 0; i < npages; i++) {
 		if (dirty)
 			set_page_dirty(pages[i]);
@@ -717,16 +649,18 @@ void drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
 			mark_page_accessed(pages[i]);
 
 		/* Undo the reference we took when populating the table */
-		put_page(pages[i]);
+		if (!pagevec_add(&pvec, pages[i]))
+			drm_gem_check_release_pagevec(&pvec);
 	}
+	if (pagevec_count(&pvec))
+		drm_gem_check_release_pagevec(&pvec);
 
 	kvfree(pages);
 }
-#endif
 EXPORT_SYMBOL(drm_gem_put_pages);
 
 /**
- * drm_gem_object_lookup - look up a GEM object from it's handle
+ * drm_gem_object_lookup - look up a GEM object from its handle
  * @filp: DRM file private date
  * @handle: userspace handle
  *
@@ -769,7 +703,7 @@ drm_gem_close_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_GEM))
-		return -ENODEV;
+		return -EOPNOTSUPP;
 
 	ret = drm_gem_handle_delete(file_priv, args->handle);
 
@@ -796,13 +730,12 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_GEM))
-		return -ENODEV;
+		return -EOPNOTSUPP;
 
 	obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (obj == NULL)
 		return -ENOENT;
 
-	idr_preload(GFP_KERNEL);
 	mutex_lock(&dev->object_name_lock);
 	/* prevent races with concurrent gem_close. */
 	if (obj->handle_count == 0) {
@@ -823,7 +756,6 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 
 err:
 	mutex_unlock(&dev->object_name_lock);
-	idr_preload_end();
 	drm_gem_object_put_unlocked(obj);
 	return ret;
 }
@@ -849,7 +781,7 @@ drm_gem_open_ioctl(struct drm_device *dev, void *data,
 	u32 handle;
 
 	if (!drm_core_check_feature(dev, DRIVER_GEM))
-		return -ENODEV;
+		return -EOPNOTSUPP;
 
 	mutex_lock(&dev->object_name_lock);
 	obj = idr_find(&dev->object_name_idr, (int) args->name);
@@ -902,9 +834,6 @@ drm_gem_release(struct drm_device *dev, struct drm_file *file_private)
 	idr_for_each(&file_private->object_idr,
 		     &drm_gem_object_release_handle, file_private);
 	idr_destroy(&file_private->object_idr);
-#ifdef __NetBSD__
-	spin_lock_destroy(&file_private->table_lock);
-#endif
 }
 
 /**
@@ -917,19 +846,10 @@ drm_gem_release(struct drm_device *dev, struct drm_file *file_private)
 void
 drm_gem_object_release(struct drm_gem_object *obj)
 {
-#ifndef __NetBSD__
 	WARN_ON(obj->dma_buf);
-#endif
 
-#ifdef __NetBSD__
-	drm_vma_node_destroy(&obj->vma_node);
-	if (obj->filp)
-		uao_detach(obj->filp);
-	uvm_obj_destroy(&obj->gemo_uvmobj, true);
-#else
 	if (obj->filp)
 		fput(obj->filp);
-#endif
 
 	drm_gem_free_mmap_offset(obj);
 }
@@ -951,7 +871,9 @@ drm_gem_object_free(struct kref *kref)
 		container_of(kref, struct drm_gem_object, refcount);
 	struct drm_device *dev = obj->dev;
 
-	if (dev->driver->gem_free_object_unlocked) {
+	if (obj->funcs) {
+		obj->funcs->free(obj);
+	} else if (dev->driver->gem_free_object_unlocked) {
 		dev->driver->gem_free_object_unlocked(obj);
 	} else if (dev->driver->gem_free_object) {
 		WARN_ON(!mutex_is_locked(&dev->struct_mutex));
@@ -980,13 +902,13 @@ drm_gem_object_put_unlocked(struct drm_gem_object *obj)
 
 	dev = obj->dev;
 
-	if (dev->driver->gem_free_object_unlocked) {
-		kref_put(&obj->refcount, drm_gem_object_free);
-	} else {
+	if (dev->driver->gem_free_object) {
 		might_lock(&dev->struct_mutex);
 		if (kref_put_mutex(&obj->refcount, drm_gem_object_free,
 				&dev->struct_mutex))
 			mutex_unlock(&dev->struct_mutex);
+	} else {
+		kref_put(&obj->refcount, drm_gem_object_free);
 	}
 }
 EXPORT_SYMBOL(drm_gem_object_put_unlocked);
@@ -1012,8 +934,6 @@ drm_gem_object_put(struct drm_gem_object *obj)
 	}
 }
 EXPORT_SYMBOL(drm_gem_object_put);
-
-#ifndef __NetBSD__
 
 /**
  * drm_gem_vm_open - vma->ops->open implementation for GEM
@@ -1078,11 +998,14 @@ int drm_gem_mmap_obj(struct drm_gem_object *obj, unsigned long obj_size,
 	if (obj_size < vma->vm_end - vma->vm_start)
 		return -EINVAL;
 
-	if (!dev->driver->gem_vm_ops)
+	if (obj->funcs && obj->funcs->vm_ops)
+		vma->vm_ops = obj->funcs->vm_ops;
+	else if (dev->driver->gem_vm_ops)
+		vma->vm_ops = dev->driver->gem_vm_ops;
+	else
 		return -EINVAL;
 
 	vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP;
-	vma->vm_ops = dev->driver->gem_vm_ops;
 	vma->vm_private_data = obj;
 	vma->vm_page_prot = pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
 	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
@@ -1172,8 +1095,6 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 }
 EXPORT_SYMBOL(drm_gem_mmap);
 
-#endif	/* defined(__NetBSD__) */
-
 void drm_gem_print_info(struct drm_printer *p, unsigned int indent,
 			const struct drm_gem_object *obj)
 {
@@ -1186,6 +1107,86 @@ void drm_gem_print_info(struct drm_printer *p, unsigned int indent,
 	drm_printf_indent(p, indent, "imported=%s\n",
 			  obj->import_attach ? "yes" : "no");
 
-	if (obj->dev->driver->gem_print_info)
+	if (obj->funcs && obj->funcs->print_info)
+		obj->funcs->print_info(p, indent, obj);
+	else if (obj->dev->driver->gem_print_info)
 		obj->dev->driver->gem_print_info(p, indent, obj);
 }
+
+/**
+ * drm_gem_pin - Pin backing buffer in memory
+ * @obj: GEM object
+ *
+ * Make sure the backing buffer is pinned in memory.
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
+ */
+int drm_gem_pin(struct drm_gem_object *obj)
+{
+	if (obj->funcs && obj->funcs->pin)
+		return obj->funcs->pin(obj);
+	else if (obj->dev->driver->gem_prime_pin)
+		return obj->dev->driver->gem_prime_pin(obj);
+	else
+		return 0;
+}
+EXPORT_SYMBOL(drm_gem_pin);
+
+/**
+ * drm_gem_unpin - Unpin backing buffer from memory
+ * @obj: GEM object
+ *
+ * Relax the requirement that the backing buffer is pinned in memory.
+ */
+void drm_gem_unpin(struct drm_gem_object *obj)
+{
+	if (obj->funcs && obj->funcs->unpin)
+		obj->funcs->unpin(obj);
+	else if (obj->dev->driver->gem_prime_unpin)
+		obj->dev->driver->gem_prime_unpin(obj);
+}
+EXPORT_SYMBOL(drm_gem_unpin);
+
+/**
+ * drm_gem_vmap - Map buffer into kernel virtual address space
+ * @obj: GEM object
+ *
+ * Returns:
+ * A virtual pointer to a newly created GEM object or an ERR_PTR-encoded negative
+ * error code on failure.
+ */
+void *drm_gem_vmap(struct drm_gem_object *obj)
+{
+	void *vaddr;
+
+	if (obj->funcs && obj->funcs->vmap)
+		vaddr = obj->funcs->vmap(obj);
+	else if (obj->dev->driver->gem_prime_vmap)
+		vaddr = obj->dev->driver->gem_prime_vmap(obj);
+	else
+		vaddr = ERR_PTR(-EOPNOTSUPP);
+
+	if (!vaddr)
+		vaddr = ERR_PTR(-ENOMEM);
+
+	return vaddr;
+}
+EXPORT_SYMBOL(drm_gem_vmap);
+
+/**
+ * drm_gem_vunmap - Remove buffer mapping from kernel virtual address space
+ * @obj: GEM object
+ * @vaddr: Virtual address (can be NULL)
+ */
+void drm_gem_vunmap(struct drm_gem_object *obj, void *vaddr)
+{
+	if (!vaddr)
+		return;
+
+	if (obj->funcs && obj->funcs->vunmap)
+		obj->funcs->vunmap(obj, vaddr);
+	else if (obj->dev->driver->gem_prime_vunmap)
+		obj->dev->driver->gem_prime_vunmap(obj, vaddr);
+}
+EXPORT_SYMBOL(drm_gem_vunmap);

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
@@ -31,9 +29,6 @@
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/ttm/ttm_module.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
@@ -41,7 +36,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
-#include <linux/export.h>
 
 /**
  * Currently we use a spinlock for the lock, but a mutex *may* be

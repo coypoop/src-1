@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * DCE_11_2 Register documentation
  *

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2017 Intel Corporation
  *
@@ -23,9 +21,6 @@
  * IN THE SOFTWARE.
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include "i915_drv.h"
 #include "i915_gem_object.h"

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2014 Intel Corporation
  *
@@ -26,9 +24,6 @@
  *    Mika Kuoppala <mika.kuoppala@intel.com>
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include "i915_drv.h"
 #include "i915_gem_render_state.h"
@@ -163,11 +158,7 @@ static int render_state_setup(struct intel_render_state *so,
 	 * Since we are sending length, we need to strictly conform to
 	 * all requirements. For Gen2 this must be a multiple of 8.
 	 */
-#ifdef __NetBSD__		/* XXX ALIGN means something else.  */
-	so->aux_size = round_up(so->aux_size, 8);
-#else
 	so->aux_size = ALIGN(so->aux_size, 8);
-#endif
 
 	if (needs_clflush)
 		drm_clflush_virt_range(d, i * sizeof(u32));

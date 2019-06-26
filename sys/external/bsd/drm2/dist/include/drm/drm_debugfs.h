@@ -34,8 +34,6 @@
 #ifndef _DRM_DEBUGFS_H_
 #define _DRM_DEBUGFS_H_
 
-struct seq_file;
-
 /**
  * struct drm_info_list - debugfs info list entry
  *

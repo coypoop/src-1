@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright(c) 2011-2017 Intel Corporation. All rights reserved.
  *
@@ -22,9 +20,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "i915_drv.h"
 #include "gvt.h"
 
@@ -46,6 +41,8 @@ struct intel_vgpu_page_track *intel_vgpu_find_page_track(
  * intel_vgpu_register_page_track - register a guest page to be tacked
  * @vgpu: a vGPU
  * @gfn: the gfn of guest page
+ * @handler: page track handler
+ * @priv: tracker private
  *
  * Returns:
  * zero on success, negative error code if failed.

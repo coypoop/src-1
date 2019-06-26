@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2018 Advanced Micro Devices, Inc.
  *
@@ -48,6 +46,18 @@ struct watermarks {
 	struct watermark_row_generic_t WatermarkRow[2][4];
 	uint32_t     padding[7];
 };
+
+int phm_copy_clock_limits_array(
+	struct pp_hwmgr *hwmgr,
+	uint32_t **pptable_info_array,
+	const uint32_t *pptable_array,
+	uint32_t power_saving_clock_count);
+
+int phm_copy_overdrive_settings_limits_array(
+	struct pp_hwmgr *hwmgr,
+	uint32_t **pptable_info_array,
+	const uint32_t *pptable_array,
+	uint32_t od_setting_count);
 
 extern int phm_wait_for_register_unequal(struct pp_hwmgr *hwmgr,
 					uint32_t index,

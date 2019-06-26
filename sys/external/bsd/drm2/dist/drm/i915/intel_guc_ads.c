@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2014-2017 Intel Corporation
  *
@@ -23,9 +21,6 @@
  * IN THE SOFTWARE.
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include "intel_guc_ads.h"
 #include "intel_uc.h"
@@ -153,5 +148,5 @@ int intel_guc_ads_create(struct intel_guc *guc)
 
 void intel_guc_ads_destroy(struct intel_guc *guc)
 {
-	i915_vma_unpin_and_release(&guc->ads_vma);
+	i915_vma_unpin_and_release(&guc->ads_vma, 0);
 }

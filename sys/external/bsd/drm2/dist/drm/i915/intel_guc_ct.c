@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2016-2017 Intel Corporation
  *
@@ -22,9 +20,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include "i915_drv.h"
 #include "intel_guc_ct.h"
@@ -209,7 +204,7 @@ static int ctch_init(struct intel_guc *guc,
 	return 0;
 
 err_vma:
-	i915_vma_unpin_and_release(&ctch->vma);
+	i915_vma_unpin_and_release(&ctch->vma, 0);
 err_out:
 	CT_DEBUG_DRIVER("CT: channel %d initialization failed; err=%d\n",
 			ctch->owner, err);
@@ -219,10 +214,7 @@ err_out:
 static void ctch_fini(struct intel_guc *guc,
 		      struct intel_guc_ct_channel *ctch)
 {
-	GEM_BUG_ON(!ctch->vma);
-
-	i915_gem_object_unpin_map(ctch->vma->obj);
-	i915_vma_unpin_and_release(&ctch->vma);
+	i915_vma_unpin_and_release(&ctch->vma, I915_VMA_RELEASE_MAP);
 }
 
 static int ctch_open(struct intel_guc *guc,

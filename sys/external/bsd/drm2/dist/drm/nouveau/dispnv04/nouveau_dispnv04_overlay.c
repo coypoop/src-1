@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2013 Ilia Mirkin
  *
@@ -24,9 +22,6 @@
  * Implementation based on the pre-KMS implementation in xf86-video-nouveau,
  * written by Arthur Huillet.
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
@@ -63,7 +58,7 @@ struct nouveau_plane {
 	void (*set_params)(struct nouveau_plane *);
 };
 
-static const uint32_t formats[] = {
+static uint32_t formats[] = {
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_NV12,

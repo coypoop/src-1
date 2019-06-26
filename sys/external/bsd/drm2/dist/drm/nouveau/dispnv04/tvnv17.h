@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (C) 2009 Francisco Jerez.
  * All Rights Reserved.
@@ -89,7 +87,7 @@ struct nv17_tv_encoder {
 
 extern const char * const nv17_tv_norm_names[NUM_TV_NORMS];
 
-extern const struct nv17_tv_norm_params {
+extern struct nv17_tv_norm_params {
 	enum {
 		TV_ENC_MODE,
 		CTV_ENC_MODE,

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Maarten Lankhorst
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Maarten Lankhorst
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "priv.h"
 
 #include <nvif/class.h>

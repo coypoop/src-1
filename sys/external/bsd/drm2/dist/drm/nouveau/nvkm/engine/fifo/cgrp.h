@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 #ifndef __NVKM_FIFO_CGRP_H__
 #define __NVKM_FIFO_CGRP_H__
 #include "priv.h"

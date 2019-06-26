@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2017 Red Hat Inc.
  *
@@ -21,9 +19,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <nvif/vmm.h>
 #include <nvif/mem.h>
 
@@ -117,8 +112,8 @@ nvif_vmm_fini(struct nvif_vmm *vmm)
 }
 
 int
-nvif_vmm_init(struct nvif_mmu *mmu, s32 oclass, u64 addr, u64 size,
-	      void *argv, u32 argc, struct nvif_vmm *vmm)
+nvif_vmm_init(struct nvif_mmu *mmu, s32 oclass, bool managed, u64 addr,
+	      u64 size, void *argv, u32 argc, struct nvif_vmm *vmm)
 {
 	struct nvif_vmm_v0 *args;
 	u32 argn = sizeof(*args) + argc;
@@ -130,6 +125,7 @@ nvif_vmm_init(struct nvif_mmu *mmu, s32 oclass, u64 addr, u64 size,
 	if (!(args = kmalloc(argn, GFP_KERNEL)))
 		return -ENOMEM;
 	args->version = 0;
+	args->managed = managed;
 	args->addr = addr;
 	args->size = size;
 	memcpy(args->data, argv, argc);

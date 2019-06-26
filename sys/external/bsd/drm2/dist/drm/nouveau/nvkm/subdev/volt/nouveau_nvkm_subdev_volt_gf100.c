@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2016 Karol Herbst
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Karol Herbst
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "priv.h"
 
 #include <subdev/fuse.h>

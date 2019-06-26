@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 #ifndef __NVIF_IFB00D_H__
 #define __NVIF_IFB00D_H__
 #include "if000c.h"

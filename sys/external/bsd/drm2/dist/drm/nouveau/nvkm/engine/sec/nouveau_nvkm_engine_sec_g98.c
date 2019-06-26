@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <engine/sec.h>
 #include <engine/fifo.h>
 #include "fuc/g98.fuc0s.h"
@@ -57,7 +52,7 @@ g98_sec_intr(struct nvkm_falcon *sec, struct nvkm_fifo_chan *chan)
 	const struct nvkm_enum *en =
 		nvkm_enum_find(g98_sec_isr_error_name, ssta);
 
-	nvkm_error(subdev, "DISPATCH_ERROR %04x [%s] ch %d [%010"PRIx64" %s] "
+	nvkm_error(subdev, "DISPATCH_ERROR %04x [%s] ch %d [%010llx %s] "
 			   "subc %d mthd %04x data %08x\n", ssta,
 		   en ? en->name : "UNKNOWN", chan ? chan->chid : -1,
 		   chan ? chan->inst->addr : 0,

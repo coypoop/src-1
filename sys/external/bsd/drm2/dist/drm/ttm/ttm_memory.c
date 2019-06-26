@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
@@ -28,12 +26,8 @@
  *
  **************************************************************************/
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #define pr_fmt(fmt) "[TTM] " fmt
 
-#include <drm/drmP.h>
 #include <drm/ttm/ttm_memory.h>
 #include <drm/ttm/ttm_module.h>
 #include <drm/ttm/ttm_page_alloc.h>
@@ -43,16 +37,15 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/printk.h>
-#include <linux/export.h>
 #include <linux/swap.h>
 
 #define TTM_MEMORY_ALLOC_RETRIES 4
 
+struct ttm_mem_global ttm_mem_glob;
+EXPORT_SYMBOL(ttm_mem_glob);
+
 struct ttm_mem_zone {
-#ifndef __NetBSD__
 	struct kobject kobj;
-#endif
 	struct ttm_mem_global *glob;
 	const char *name;
 	uint64_t zone_mem;
@@ -62,7 +55,6 @@ struct ttm_mem_zone {
 	uint64_t used_mem;
 };
 
-#ifndef __NetBSD__
 static struct attribute ttm_mem_sys = {
 	.name = "zone_memory",
 	.mode = S_IRUGO
@@ -227,14 +219,6 @@ static ssize_t ttm_mem_global_store(struct kobject *kobj,
 	return size;
 }
 
-static void ttm_mem_global_kobj_release(struct kobject *kobj)
-{
-	struct ttm_mem_global *glob =
-		container_of(kobj, struct ttm_mem_global, kobj);
-
-	kfree(glob);
-}
-
 static struct attribute *ttm_mem_global_attrs[] = {
 	&ttm_mem_global_lower_mem_limit,
 	NULL
@@ -246,11 +230,9 @@ static const struct sysfs_ops ttm_mem_global_ops = {
 };
 
 static struct kobj_type ttm_mem_glob_kobj_type = {
-	.release = &ttm_mem_global_kobj_release,
 	.sysfs_ops = &ttm_mem_global_ops,
 	.default_attrs = ttm_mem_global_attrs,
 };
-#endif
 
 static bool ttm_zones_above_swap_target(struct ttm_mem_global *glob,
 					bool from_wq, uint64_t extra)
@@ -264,11 +246,7 @@ static bool ttm_zones_above_swap_target(struct ttm_mem_global *glob,
 
 		if (from_wq)
 			target = zone->swap_limit;
-#ifdef __NetBSD__
-		else if (DRM_SUSER())
-#else
 		else if (capable(CAP_SYS_ADMIN))
-#endif
 			target = zone->emer_mem;
 		else
 			target = zone->max_mem;
@@ -323,9 +301,7 @@ static int ttm_mem_init_kernel_zone(struct ttm_mem_global *glob,
 {
 	struct ttm_mem_zone *zone = kzalloc(sizeof(*zone), GFP_KERNEL);
 	uint64_t mem;
-#ifndef __NetBSD__
 	int ret;
-#endif
 
 	if (unlikely(!zone))
 		return -ENOMEM;
@@ -341,14 +317,12 @@ static int ttm_mem_init_kernel_zone(struct ttm_mem_global *glob,
 	zone->used_mem = 0;
 	zone->glob = glob;
 	glob->zone_kernel = zone;
-#ifndef __NetBSD__
 	ret = kobject_init_and_add(
 		&zone->kobj, &ttm_mem_zone_kobj_type, &glob->kobj, zone->name);
 	if (unlikely(ret != 0)) {
 		kobject_put(&zone->kobj);
 		return ret;
 	}
-#endif
 	glob->zones[glob->num_zones++] = zone;
 	return 0;
 }
@@ -359,9 +333,7 @@ static int ttm_mem_init_highmem_zone(struct ttm_mem_global *glob,
 {
 	struct ttm_mem_zone *zone;
 	uint64_t mem;
-#ifndef __NetBSD__
 	int ret;
-#endif
 
 	if (si->totalhigh == 0)
 		return 0;
@@ -381,7 +353,6 @@ static int ttm_mem_init_highmem_zone(struct ttm_mem_global *glob,
 	zone->used_mem = 0;
 	zone->glob = glob;
 	glob->zone_highmem = zone;
-#ifndef __NetBSD__
 	ret = kobject_init_and_add(
 		&zone->kobj, &ttm_mem_zone_kobj_type, &glob->kobj, "%s",
 		zone->name);
@@ -389,7 +360,6 @@ static int ttm_mem_init_highmem_zone(struct ttm_mem_global *glob,
 		kobject_put(&zone->kobj);
 		return ret;
 	}
-#endif
 	glob->zones[glob->num_zones++] = zone;
 	return 0;
 }
@@ -399,9 +369,7 @@ static int ttm_mem_init_dma32_zone(struct ttm_mem_global *glob,
 {
 	struct ttm_mem_zone *zone = kzalloc(sizeof(*zone), GFP_KERNEL);
 	uint64_t mem;
-#ifndef __NetBSD__
 	int ret;
-#endif
 
 	if (unlikely(!zone))
 		return -ENOMEM;
@@ -433,14 +401,12 @@ static int ttm_mem_init_dma32_zone(struct ttm_mem_global *glob,
 	zone->used_mem = 0;
 	zone->glob = glob;
 	glob->zone_dma32 = zone;
-#ifndef __NetBSD__
 	ret = kobject_init_and_add(
 		&zone->kobj, &ttm_mem_zone_kobj_type, &glob->kobj, zone->name);
 	if (unlikely(ret != 0)) {
 		kobject_put(&zone->kobj);
 		return ret;
 	}
-#endif
 	glob->zones[glob->num_zones++] = zone;
 	return 0;
 }
@@ -456,14 +422,12 @@ int ttm_mem_global_init(struct ttm_mem_global *glob)
 	spin_lock_init(&glob->lock);
 	glob->swap_queue = create_singlethread_workqueue("ttm_swap");
 	INIT_WORK(&glob->work, ttm_shrink_work);
-#ifndef __NetBSD__
 	ret = kobject_init_and_add(
 		&glob->kobj, &ttm_mem_glob_kobj_type, ttm_get_kobj(), "memory_accounting");
 	if (unlikely(ret != 0)) {
 		kobject_put(&glob->kobj);
 		return ret;
 	}
-#endif
 
 	si_meminfo(&si);
 
@@ -494,12 +458,11 @@ out_no_zone:
 	ttm_mem_global_release(glob);
 	return ret;
 }
-EXPORT_SYMBOL(ttm_mem_global_init);
 
 void ttm_mem_global_release(struct ttm_mem_global *glob)
 {
-	unsigned int i;
 	struct ttm_mem_zone *zone;
+	unsigned int i;
 
 	/* let the page allocator first stop the shrink work. */
 	ttm_page_alloc_fini();
@@ -510,22 +473,13 @@ void ttm_mem_global_release(struct ttm_mem_global *glob)
 	glob->swap_queue = NULL;
 	for (i = 0; i < glob->num_zones; ++i) {
 		zone = glob->zones[i];
-#ifdef __NetBSD__
-		kfree(zone);
-#else
 		kobject_del(&zone->kobj);
 		kobject_put(&zone->kobj);
-#endif
-			}
-	spin_lock_destroy(&glob->lock);
-#ifdef __NetBSD__
-	kfree(glob);
-#else
+	}
 	kobject_del(&glob->kobj);
 	kobject_put(&glob->kobj);
-#endif
+	memset(glob, 0, sizeof(*glob));
 }
-EXPORT_SYMBOL(ttm_mem_global_release);
 
 static void ttm_check_swapping(struct ttm_mem_global *glob)
 {
@@ -617,13 +571,8 @@ static int ttm_mem_global_reserve(struct ttm_mem_global *glob,
 		if (single_zone && zone != single_zone)
 			continue;
 
-#ifdef __NetBSD__
-		limit = DRM_SUSER() ?
-			zone->emer_mem : zone->max_mem;
-#else
 		limit = (capable(CAP_SYS_ADMIN)) ?
 			zone->emer_mem : zone->max_mem;
-#endif
 
 		if (zone->used_mem > limit)
 			goto out_unlock;

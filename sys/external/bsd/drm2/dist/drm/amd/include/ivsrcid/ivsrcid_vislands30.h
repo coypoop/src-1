@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Volcanic Islands IV SRC Register documentation
  *

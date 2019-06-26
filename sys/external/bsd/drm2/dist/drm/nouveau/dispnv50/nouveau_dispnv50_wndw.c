@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2018 Red Hat Inc.
  *
@@ -21,9 +19,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "wndw.h"
 #include "wimm.h"
 
@@ -144,10 +139,8 @@ nv50_wndw_flush_set(struct nv50_wndw *wndw, u32 *interlock,
 	if (asyw->set.xlut ) {
 		if (asyw->ilut) {
 			asyw->xlut.i.offset =
-				nv50_lut_load(&wndw->ilut,
-					      asyw->xlut.i.mode <= 1,
-					      asyw->xlut.i.buffer,
-					      asyw->ilut);
+				nv50_lut_load(&wndw->ilut, asyw->xlut.i.buffer,
+					      asyw->ilut, asyw->xlut.i.load);
 		}
 		wndw->func->xlut_set(wndw, asyw);
 	}
@@ -156,7 +149,7 @@ nv50_wndw_flush_set(struct nv50_wndw *wndw, u32 *interlock,
 	if (asyw->set.point) {
 		if (asyw->set.point = false, asyw->set.mask)
 			interlock[wndw->interlock.type] |= wndw->interlock.data;
-		interlock[NV50_DISP_INTERLOCK_WIMM] |= wndw->interlock.data;
+		interlock[NV50_DISP_INTERLOCK_WIMM] |= wndw->interlock.wimm;
 
 		wndw->immd->point(wndw, asyw);
 		wndw->immd->update(wndw, interlock);
@@ -325,6 +318,11 @@ nv50_wndw_atomic_check_lut(struct nv50_wndw *wndw,
 			asyh->wndw.olut |= BIT(wndw->id);
 	} else {
 		asyh->wndw.olut &= ~BIT(wndw->id);
+	}
+
+	if (!ilut && wndw->func->ilut_identity) {
+		static struct drm_property_blob dummy = {};
+		ilut = &dummy;
 	}
 
 	/* Recalculate LUT state. */
@@ -628,6 +626,7 @@ nv50_wndw_new(struct nouveau_drm *drm, enum drm_plane_type type, int index,
 		int (*new)(struct nouveau_drm *, enum drm_plane_type,
 			   int, s32, struct nv50_wndw **);
 	} wndws[] = {
+		{ TU102_DISP_WINDOW_CHANNEL_DMA, 0, wndwc57e_new },
 		{ GV100_DISP_WINDOW_CHANNEL_DMA, 0, wndwc37e_new },
 		{}
 	};

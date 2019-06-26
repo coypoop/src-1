@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2009 Red Hat Inc.
  *
@@ -55,9 +53,6 @@
  * - The ctxprogs for some cards save 0x400a00 again during the cleanup
  *   path for auto-loadctx.
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #define CP_FLAG_CLEAR                 0
 #define CP_FLAG_SET                   1

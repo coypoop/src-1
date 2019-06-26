@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* mga_irq.c -- IRQ handling for radeon -*- linux-c -*-
  */
 /*
@@ -32,9 +30,6 @@
  *    Keith Whitwell <keith@tungstengraphics.com>
  *    Eric Anholt <anholt@FreeBSD.org>
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <drm/drmP.h>
 #include <drm/mga_drm.h>

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -23,16 +21,9 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "priv.h"
 
 #include <subdev/bar.h>
-
-#ifdef __NetBSD__
-#  define	__iomem	__nvkm_memory_iomem
-#endif
 
 /******************************************************************************
  * instmem object base implementation

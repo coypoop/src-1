@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2013 Advanced Micro Devices, Inc.
  *
@@ -23,9 +21,6 @@
  *
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/drmP.h>
 #include "radeon.h"
 #include "radeon_asic.h"
@@ -35,7 +30,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "atom.h"
 #include <linux/math64.h>
 #include <linux/seq_file.h>
-#include <linux/bitops.h>
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
@@ -2535,7 +2529,7 @@ static int si_initialize_smc_dte_tables(struct radeon_device *rdev)
 }
 
 static int si_get_cac_std_voltage_max_min(struct radeon_device *rdev,
-					  u16 *vmax, u16 *vmin)
+					  u16 *max, u16 *min)
 {
 	struct si_power_info *si_pi = si_get_pi(rdev);
 	struct radeon_cac_leakage_table *table =
@@ -2547,35 +2541,35 @@ static int si_get_cac_std_voltage_max_min(struct radeon_device *rdev,
 	if (table == NULL)
 		return -EINVAL;
 
-	*vmax = 0;
-	*vmin = 0xFFFF;
+	*max = 0;
+	*min = 0xFFFF;
 
 	for (i = 0; i < table->count; i++) {
-		if (table->entries[i].vddc > *vmax)
-			*vmax = table->entries[i].vddc;
-		if (table->entries[i].vddc < *vmin)
-			*vmin = table->entries[i].vddc;
+		if (table->entries[i].vddc > *max)
+			*max = table->entries[i].vddc;
+		if (table->entries[i].vddc < *min)
+			*min = table->entries[i].vddc;
 	}
 
 	if (si_pi->powertune_data->lkge_lut_v0_percent > 100)
 		return -EINVAL;
 
-	v0_loadline = (*vmin) * (100 - si_pi->powertune_data->lkge_lut_v0_percent) / 100;
+	v0_loadline = (*min) * (100 - si_pi->powertune_data->lkge_lut_v0_percent) / 100;
 
 	if (v0_loadline > 0xFFFFUL)
 		return -EINVAL;
 
-	*vmin = (u16)v0_loadline;
+	*min = (u16)v0_loadline;
 
-	if ((*vmin > *vmax) || (*vmax == 0) || (*vmin == 0))
+	if ((*min > *max) || (*max == 0) || (*min == 0))
 		return -EINVAL;
 
 	return 0;
 }
 
-static u16 si_get_cac_std_voltage_step(u16 vmax, u16 vmin)
+static u16 si_get_cac_std_voltage_step(u16 max, u16 min)
 {
-	return ((vmax - vmin) + (SMC_SISLANDS_LKGE_LUT_NUM_OF_VOLT_ENTRIES - 1)) /
+	return ((max - min) + (SMC_SISLANDS_LKGE_LUT_NUM_OF_VOLT_ENTRIES - 1)) /
 		SMC_SISLANDS_LKGE_LUT_NUM_OF_VOLT_ENTRIES;
 }
 
@@ -3643,7 +3637,7 @@ static int si_notify_smc_display_change(struct radeon_device *rdev,
 
 static void si_program_response_times(struct radeon_device *rdev)
 {
-	u32 voltage_response_time, backbias_response_time __unused, acpi_delay_time, vbi_time_out;
+	u32 voltage_response_time, backbias_response_time, acpi_delay_time, vbi_time_out;
 	u32 vddc_dly, acpi_dly, vbi_dly;
 	u32 reference_clock;
 
@@ -5768,10 +5762,12 @@ static void si_request_link_speed_change_before_state_change(struct radeon_devic
 			si_pi->force_pcie_gen = RADEON_PCIE_GEN2;
 			if (current_link_speed == RADEON_PCIE_GEN2)
 				break;
+			/* fall through */
 		case RADEON_PCIE_GEN2:
 			if (radeon_acpi_pcie_performance_request(rdev, PCIE_PERF_REQ_PECI_GEN2, false) == 0)
 				break;
 #endif
+			/* fall through */
 		default:
 			si_pi->force_pcie_gen = si_get_current_pcie_speed(rdev);
 			break;
@@ -6905,9 +6901,7 @@ int si_dpm_init(struct radeon_device *rdev)
 	struct ni_power_info *ni_pi;
 	struct si_power_info *si_pi;
 	struct atom_clock_dividers dividers;
-#ifndef __NetBSD__		/* XXX radeon pcie */
-	enum pci_bus_speed speed_cap;
-#endif
+	enum pci_bus_speed speed_cap = PCI_SPEED_UNKNOWN;
 	struct pci_dev *root = rdev->pdev->bus->self;
 	int ret;
 
@@ -6919,8 +6913,8 @@ int si_dpm_init(struct radeon_device *rdev)
 	eg_pi = &ni_pi->eg;
 	pi = &eg_pi->rv7xx;
 
-#ifndef __NetBSD__		/* XXX radeon pcie */
-	speed_cap = pcie_get_speed_cap(root);
+	if (!pci_is_root_bus(rdev->pdev->bus))
+		speed_cap = pcie_get_speed_cap(root);
 	if (speed_cap == PCI_SPEED_UNKNOWN) {
 		si_pi->sys_pcie_mask = 0;
 	} else {
@@ -6934,7 +6928,6 @@ int si_dpm_init(struct radeon_device *rdev)
 		else
 			si_pi->sys_pcie_mask = RADEON_PCIE_SPEED_25;
 	}
-#endif
 	si_pi->force_pcie_gen = RADEON_PCIE_GEN_INVALID;
 	si_pi->boot_pcie_gen = si_get_current_pcie_speed(rdev);
 
@@ -7093,7 +7086,6 @@ void si_dpm_fini(struct radeon_device *rdev)
 	r600_free_extended_power_table(rdev);
 }
 
-#ifdef CONFIG_DEBUG_FS
 void si_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 						    struct seq_file *m)
 {
@@ -7114,7 +7106,6 @@ void si_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 			   current_index, pl->sclk, pl->mclk, pl->vddc, pl->vddci, pl->pcie_gen + 1);
 	}
 }
-#endif
 
 u32 si_dpm_get_current_sclk(struct radeon_device *rdev)
 {

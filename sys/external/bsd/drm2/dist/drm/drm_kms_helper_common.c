@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2015 Intel Corporation
  *
@@ -26,9 +24,6 @@
  *    Rafael Antognolli <rafael.antognolli@intel.com>
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/module.h>
 #include <drm/drmP.h>

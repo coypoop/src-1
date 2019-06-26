@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2018 Red Hat Inc.
  *
@@ -21,9 +19,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "core.h"
 
 #include <nvif/class.h>
@@ -47,6 +42,7 @@ nv50_core_new(struct nouveau_drm *drm, struct nv50_core **pcore)
 		int version;
 		int (*new)(struct nouveau_drm *, s32, struct nv50_core **);
 	} cores[] = {
+		{ TU102_DISP_CORE_CHANNEL_DMA, 0, corec57d_new },
 		{ GV100_DISP_CORE_CHANNEL_DMA, 0, corec37d_new },
 		{ GP102_DISP_CORE_CHANNEL_DMA, 0, core917d_new },
 		{ GP100_DISP_CORE_CHANNEL_DMA, 0, core917d_new },

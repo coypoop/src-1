@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012-15 Advanced Micro Devices, Inc.
  *
@@ -70,6 +68,11 @@ static inline bool dc_is_embedded_signal(enum signal_type signal)
 	return (signal == SIGNAL_TYPE_EDP || signal == SIGNAL_TYPE_LVDS);
 }
 
+static inline bool dc_is_lvds_signal(enum signal_type signal)
+{
+	return (signal == SIGNAL_TYPE_LVDS);
+}
+
 static inline bool dc_is_dvi_signal(enum signal_type signal)
 {
 	switch (signal) {
@@ -97,6 +100,11 @@ static inline bool dc_is_audio_capable_signal(enum signal_type signal)
 	return (signal == SIGNAL_TYPE_DISPLAY_PORT ||
 		signal == SIGNAL_TYPE_DISPLAY_PORT_MST ||
 		dc_is_hdmi_signal(signal));
+}
+
+static inline bool dc_is_virtual_signal(enum signal_type signal)
+{
+	return (signal == SIGNAL_TYPE_VIRTUAL);
 }
 
 #endif

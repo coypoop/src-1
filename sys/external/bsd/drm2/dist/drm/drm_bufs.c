@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Legacy: Generic DRM Buffer Management
  *
@@ -30,20 +28,15 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
 #include <linux/log2.h>
 #include <linux/export.h>
-#include <linux/mm.h>
-#include <asm/bug.h>
-#include <asm/io.h>
 #include <asm/shmparam.h>
 #include <drm/drmP.h>
 #include "drm_legacy.h"
+
+#include <linux/nospec.h>
 
 static struct drm_map_list *drm_find_matching_map(struct drm_device *dev,
 						  struct drm_local_map *map)
@@ -88,7 +81,14 @@ static int drm_map_handle(struct drm_device *dev, struct drm_hash_item *hash,
 	int use_hashed_handle, shift;
 	unsigned long add;
 
-	use_hashed_handle = (user_token &~ 0xffffffffUL) || hashed_handle;
+#if (BITS_PER_LONG == 64)
+	use_hashed_handle = ((user_token & 0xFFFFFFFF00000000UL) || hashed_handle);
+#elif (BITS_PER_LONG == 32)
+	use_hashed_handle = hashed_handle;
+#else
+#error Unsupported long size. Neither 64 nor 32 bits.
+#endif
+
 	if (!use_hashed_handle) {
 		int ret;
 		hash->key = user_token >> PAGE_SHIFT;
@@ -179,14 +179,12 @@ static int drm_addmap_core(struct drm_device *dev, resource_size_t offset,
 	switch (map->type) {
 	case _DRM_REGISTERS:
 	case _DRM_FRAME_BUFFER:
-#ifndef __NetBSD__		/* XXX No idea what this is for...  */
 #if !defined(__sparc__) && !defined(__alpha__) && !defined(__ia64__) && !defined(__powerpc64__) && !defined(__x86_64__) && !defined(__arm__)
 		if (map->offset + (map->size-1) < map->offset ||
 		    map->offset < virt_to_phys(high_memory)) {
 			kfree(map);
 			return -EINVAL;
 		}
-#endif
 #endif
 		/* Some drivers preinitialize some maps, without the X Server
 		 * needing to be aware of it.  Therefore, we just return success
@@ -213,15 +211,11 @@ static int drm_addmap_core(struct drm_device *dev, resource_size_t offset,
 				arch_phys_wc_add(map->offset, map->size);
 		}
 		if (map->type == _DRM_REGISTERS) {
-#ifdef __NetBSD__
-			drm_legacy_ioremap(map, dev);
-#else
 			if (map->flags & _DRM_WRITE_COMBINING)
 				map->handle = ioremap_wc(map->offset,
 							 map->size);
 			else
 				map->handle = ioremap(map->offset, map->size);
-#endif
 			if (!map->handle) {
 				kfree(map);
 				return -ENOMEM;
@@ -253,15 +247,12 @@ static int drm_addmap_core(struct drm_device *dev, resource_size_t offset,
 		map->offset = (unsigned long)map->handle;
 		if (map->flags & _DRM_CONTAINS_LOCK) {
 			/* Prevent a 2nd X Server from creating a 2nd lock */
-			spin_lock(&dev->master->lock.spinlock);
 			if (dev->master->lock.hw_lock != NULL) {
 				vfree(map->handle);
 				kfree(map);
-				spin_unlock(&dev->primary->master->lock.spinlock);
 				return -EBUSY;
 			}
 			dev->sigdata.lock = dev->master->lock.hw_lock = map->handle;	/* Pointer to lock */
-			spin_unlock(&dev->master->lock.spinlock);
 		}
 		break;
 	case _DRM_AGP: {
@@ -281,19 +272,11 @@ static int drm_addmap_core(struct drm_device *dev, resource_size_t offset,
 		 * address if the map's offset isn't already within the
 		 * aperture.
 		 */
-#ifdef __NetBSD__
-		if (map->offset < dev->agp->base ||
-		    map->offset > dev->agp->base +
-		    dev->agp->agp_info.aki_info.ai_aperture_size - 1) {
-			map->offset += dev->agp->base;
-		}
-#else
 		if (map->offset < dev->agp->base ||
 		    map->offset > dev->agp->base +
 		    dev->agp->agp_info.aper_size * 1024 * 1024 - 1) {
 			map->offset += dev->agp->base;
 		}
-#endif
 		map->mtrr = dev->agp->agp_mtrr;	/* for getmap */
 
 		/* This assumes the DRM is in total control of AGP space.
@@ -337,11 +320,7 @@ static int drm_addmap_core(struct drm_device *dev, resource_size_t offset,
 		}
 		map->handle = dmah->vaddr;
 		map->offset = (unsigned long)dmah->busaddr;
-#ifdef __NetBSD__
-		map->lm_data.dmah = dmah;
-#else
 		kfree(dmah);
-#endif
 		break;
 	default:
 		kfree(map);
@@ -351,11 +330,7 @@ static int drm_addmap_core(struct drm_device *dev, resource_size_t offset,
 	list = kzalloc(sizeof(*list), GFP_KERNEL);
 	if (!list) {
 		if (map->type == _DRM_REGISTERS)
-#ifdef __NetBSD__
-			drm_legacy_ioremapfree(map, dev);
-#else
 			iounmap(map->handle);
-#endif
 		kfree(map);
 		return -EINVAL;
 	}
@@ -372,11 +347,7 @@ static int drm_addmap_core(struct drm_device *dev, resource_size_t offset,
 			     (map->type == _DRM_SHM));
 	if (ret) {
 		if (map->type == _DRM_REGISTERS)
-#ifdef __NetBSD__		/* XXX What about other map types...?  */
-			drm_legacy_ioremapfree(map, dev);
-#else
 			iounmap(map->handle);
-#endif
 		kfree(map);
 		kfree(list);
 		mutex_unlock(&dev->struct_mutex);
@@ -406,6 +377,17 @@ int drm_legacy_addmap(struct drm_device *dev, resource_size_t offset,
 }
 EXPORT_SYMBOL(drm_legacy_addmap);
 
+struct drm_local_map *drm_legacy_findmap(struct drm_device *dev,
+					 unsigned int token)
+{
+	struct drm_map_list *_entry;
+	list_for_each_entry(_entry, &dev->maplist, head)
+		if (_entry->user_token == token)
+			return _entry->map;
+	return NULL;
+}
+EXPORT_SYMBOL(drm_legacy_findmap);
+
 /**
  * Ioctl to specify a range of memory that is available for mapping by a
  * non-root process.
@@ -424,21 +406,12 @@ int drm_legacy_addmap_ioctl(struct drm_device *dev, void *data,
 	struct drm_map_list *maplist;
 	int err;
 
-#ifdef __NetBSD__
-#  if 0				/* XXX Old drm did this.  */
-	if (!(dev->flags & (FREAD | FWRITE)))
-		return -EACCES;
-#  endif
-	if (!(DRM_SUSER() || map->type == _DRM_AGP || map->type == _DRM_SHM))
-		return -EACCES;	/* XXX */
-#else
 	if (!(capable(CAP_SYS_ADMIN) || map->type == _DRM_AGP || map->type == _DRM_SHM))
 		return -EPERM;
-#endif
 
 	if (!drm_core_check_feature(dev, DRIVER_KMS_LEGACY_CONTEXT) &&
 	    !drm_core_check_feature(dev, DRIVER_LEGACY))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	err = drm_addmap_core(dev, map->offset, map->size, map->type,
 			      map->flags, &maplist);
@@ -484,7 +457,7 @@ int drm_legacy_getmap_ioctl(struct drm_device *dev, void *data,
 
 	if (!drm_core_check_feature(dev, DRIVER_KMS_LEGACY_CONTEXT) &&
 	    !drm_core_check_feature(dev, DRIVER_LEGACY))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	idx = map->offset;
 	if (idx < 0)
@@ -521,7 +494,7 @@ int drm_legacy_getmap_ioctl(struct drm_device *dev, void *data,
  * isn't in use.
  *
  * Searches the map on drm_device::maplist, removes it from the list, see if
- * its being used, and free any associate resource (such as MTRR's) if it's not
+ * it's being used, and free any associated resource (such as MTRR's) if it's not
  * being on use.
  *
  * \sa drm_legacy_addmap
@@ -529,9 +502,7 @@ int drm_legacy_getmap_ioctl(struct drm_device *dev, void *data,
 int drm_legacy_rmmap_locked(struct drm_device *dev, struct drm_local_map *map)
 {
 	struct drm_map_list *r_list = NULL, *list_t;
-#ifndef __NetBSD__
 	drm_dma_handle_t dmah;
-#endif
 	int found = 0;
 	struct drm_master *master;
 
@@ -553,59 +524,29 @@ int drm_legacy_rmmap_locked(struct drm_device *dev, struct drm_local_map *map)
 
 	switch (map->type) {
 	case _DRM_REGISTERS:
-#ifdef __NetBSD__
-		drm_legacy_ioremapfree(map, dev);
-#else
 		iounmap(map->handle);
-#endif
 		/* FALLTHROUGH */
 	case _DRM_FRAME_BUFFER:
 		arch_phys_wc_del(map->mtrr);
 		break;
 	case _DRM_SHM:
-		if (master && (map->flags & _DRM_CONTAINS_LOCK)) {
-			spin_lock(&master->lock.spinlock);
-			/*
-			 * If we successfully removed this mapping,
-			 * then the mapping must have been there in the
-			 * first place, and we must have had a
-			 * heavyweight lock, so we assert here instead
-			 * of just checking and failing.
-			 *
-			 * XXX What about the _DRM_CONTAINS_LOCK flag?
-			 * Where is that supposed to be set?  Is it
-			 * equivalent to having a master set?
-			 *
-			 * XXX There is copypasta of this in
-			 * drm_fops.c.
-			 */
-			BUG_ON(master->lock.hw_lock == NULL);
+		vfree(map->handle);
+		if (master) {
 			if (dev->sigdata.lock == master->lock.hw_lock)
 				dev->sigdata.lock = NULL;
 			master->lock.hw_lock = NULL;   /* SHM removed */
 			master->lock.file_priv = NULL;
-#ifdef __NetBSD__
-			DRM_SPIN_WAKEUP_ALL(&master->lock.lock_queue,
-			    &master->lock.spinlock);
-#else
 			wake_up_interruptible_all(&master->lock.lock_queue);
-#endif
-			spin_unlock(&master->lock.spinlock);
 		}
-		vfree(map->handle);
 		break;
 	case _DRM_AGP:
 	case _DRM_SCATTER_GATHER:
 		break;
 	case _DRM_CONSISTENT:
-#ifdef __NetBSD__
-		drm_pci_free(dev, map->lm_data.dmah);
-#else
 		dmah.vaddr = map->handle;
 		dmah.busaddr = map->offset;
 		dmah.size = map->size;
 		__drm_legacy_pci_free(dev, &dmah);
-#endif
 		break;
 	}
 	kfree(map);
@@ -668,7 +609,7 @@ int drm_legacy_rmmap_ioctl(struct drm_device *dev, void *data,
 
 	if (!drm_core_check_feature(dev, DRIVER_KMS_LEGACY_CONTEXT) &&
 	    !drm_core_check_feature(dev, DRIVER_LEGACY))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	mutex_lock(&dev->struct_mutex);
 	list_for_each_entry(r_list, &dev->maplist, head) {
@@ -680,7 +621,7 @@ int drm_legacy_rmmap_ioctl(struct drm_device *dev, void *data,
 		}
 	}
 
-	/* List has wrapped around to the head pointer, or its empty we didn't
+	/* List has wrapped around to the head pointer, or it's empty we didn't
 	 * find anything.
 	 */
 	if (list_empty(&dev->maplist) || !map) {
@@ -932,18 +873,13 @@ int drm_legacy_addbufs_pci(struct drm_device *dev,
 	struct drm_buf **temp_buflist;
 
 	if (!drm_core_check_feature(dev, DRIVER_PCI_DMA))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (!dma)
 		return -EINVAL;
 
-#ifdef __NetBSD__
-	if (!DRM_SUSER())
-		return -EACCES;	/* XXX */
-#else
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-#endif
 
 	count = request->count;
 	order = order_base_2(request->size);
@@ -1051,7 +987,7 @@ int drm_legacy_addbufs_pci(struct drm_device *dev,
 			buf->order = order;
 			buf->used = 0;
 			buf->offset = (dma->byte_count + byte_count + offset);
-			buf->address = (void *)((char *)dmah->vaddr + offset);
+			buf->address = (void *)(dmah->vaddr + offset);
 			buf->bus_address = dmah->busaddr + offset;
 			buf->next = NULL;
 			buf->waiting = 0;
@@ -1141,18 +1077,13 @@ static int drm_legacy_addbufs_sg(struct drm_device *dev,
 	struct drm_buf **temp_buflist;
 
 	if (!drm_core_check_feature(dev, DRIVER_SG))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (!dma)
 		return -EINVAL;
 
-#ifdef __NetBSD__
-	if (!DRM_SUSER())
-		return -EACCES;	/* XXX */
-#else
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-#endif
 
 	count = request->count;
 	order = order_base_2(request->size);
@@ -1303,10 +1234,10 @@ int drm_legacy_addbufs(struct drm_device *dev, void *data,
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_LEGACY))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_DMA))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 #if IS_ENABLED(CONFIG_AGP)
 	if (request->flags & _DRM_AGP_BUFFER)
@@ -1349,10 +1280,10 @@ int __drm_legacy_infobufs(struct drm_device *dev,
 	int count;
 
 	if (!drm_core_check_feature(dev, DRIVER_LEGACY))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_DMA))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (!dma)
 		return -EINVAL;
@@ -1434,10 +1365,10 @@ int drm_legacy_markbufs(struct drm_device *dev, void *data,
 	struct drm_buf_entry *entry;
 
 	if (!drm_core_check_feature(dev, DRIVER_LEGACY))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_DMA))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (!dma)
 		return -EINVAL;
@@ -1482,10 +1413,10 @@ int drm_legacy_freebufs(struct drm_device *dev, void *data,
 	struct drm_buf *buf;
 
 	if (!drm_core_check_feature(dev, DRIVER_LEGACY))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_DMA))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (!dma)
 		return -EINVAL;
@@ -1499,6 +1430,7 @@ int drm_legacy_freebufs(struct drm_device *dev, void *data,
 				  idx, dma->buf_count - 1);
 			return -EINVAL;
 		}
+		idx = array_index_nospec(idx, dma->buf_count);
 		buf = dma->buflist[idx];
 		if (buf->file_priv != file_priv) {
 			DRM_ERROR("Process %d freeing buffer not owned\n",
@@ -1537,10 +1469,10 @@ int __drm_legacy_mapbufs(struct drm_device *dev, void *data, int *p,
 	int i;
 
 	if (!drm_core_check_feature(dev, DRIVER_LEGACY))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_DMA))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (!dma)
 		return -EINVAL;
@@ -1627,7 +1559,7 @@ int drm_legacy_dma_ioctl(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)
 {
 	if (!drm_core_check_feature(dev, DRIVER_LEGACY))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (dev->driver->dma_ioctl)
 		return dev->driver->dma_ioctl(dev, data, file_priv);

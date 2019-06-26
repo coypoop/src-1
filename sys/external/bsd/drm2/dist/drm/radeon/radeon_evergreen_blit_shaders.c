@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2010 Advanced Micro Devices, Inc.
  *
@@ -25,9 +23,6 @@
  * Authors:
  *     Alex Deucher <alexander.deucher@amd.com>
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/bug.h>
 #include <linux/types.h>

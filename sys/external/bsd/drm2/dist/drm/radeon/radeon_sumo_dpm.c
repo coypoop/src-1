@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Advanced Micro Devices, Inc.
  *
@@ -22,9 +20,6 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <drm/drmP.h>
 #include "radeon.h"
@@ -1013,10 +1008,10 @@ u32 sumo_get_sleep_divider_id_from_clock(struct radeon_device *rdev,
 	struct sumo_power_info *pi = sumo_get_pi(rdev);
 	u32 i;
 	u32 temp;
-	u32 vmin = (min_sclk_in_sr > SUMO_MINIMUM_ENGINE_CLOCK) ?
+	u32 min = (min_sclk_in_sr > SUMO_MINIMUM_ENGINE_CLOCK) ?
 		min_sclk_in_sr : SUMO_MINIMUM_ENGINE_CLOCK;
 
-	if (sclk < vmin)
+	if (sclk < min)
 		return 0;
 
 	if (!pi->enable_sclk_ds)
@@ -1025,7 +1020,7 @@ u32 sumo_get_sleep_divider_id_from_clock(struct radeon_device *rdev,
 	for (i = SUMO_MAX_DEEPSLEEP_DIVIDER_ID;  ; i--) {
 		temp = sclk / sumo_get_sleep_divider_from_id(i);
 
-		if (temp >= vmin || i == 0)
+		if (temp >= min || i == 0)
 			break;
 	}
 	return i;
@@ -1815,7 +1810,6 @@ void sumo_dpm_print_power_state(struct radeon_device *rdev,
 	r600_dpm_print_ps_status(rdev, rps);
 }
 
-#ifdef CONFIG_DEBUG_FS
 void sumo_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 						      struct seq_file *m)
 {
@@ -1843,7 +1837,6 @@ void sumo_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev
 			   sumo_convert_voltage_index_to_value(rdev, pl->vddc_index));
 	}
 }
-#endif
 
 u32 sumo_dpm_get_current_sclk(struct radeon_device *rdev)
 {

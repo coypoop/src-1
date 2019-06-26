@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_NVDEC_H__
 #define __NVKM_NVDEC_H__
@@ -8,6 +6,8 @@
 
 struct nvkm_nvdec {
 	struct nvkm_engine engine;
+	u32 addr;
+
 	struct nvkm_falcon *falcon;
 };
 

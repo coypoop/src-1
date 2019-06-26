@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (c) 2016, NVIDIA CORPORATION. All rights reserved.
  *
@@ -21,9 +19,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include "acr_r352.h"
 #include "hs_ucode.h"
@@ -806,6 +801,7 @@ acr_r352_load(struct nvkm_acr *_acr, struct nvkm_falcon *falcon,
 		bl = acr->hsbl_unload_blob;
 	} else {
 		nvkm_error(_acr->subdev, "invalid secure boot blob!\n");
+		kfree(bl_desc);
 		return -EINVAL;
 	}
 
@@ -857,7 +853,7 @@ acr_r352_shutdown(struct acr_r352 *acr, struct nvkm_secboot *sb)
 		 * and the expected behavior on RM as well
 		 */
 		if (ret && ret != 0x1d) {
-			nvkm_error(subdev, "HS unload failed, ret 0x%08x", ret);
+			nvkm_error(subdev, "HS unload failed, ret 0x%08x\n", ret);
 			return -EINVAL;
 		}
 		nvkm_debug(subdev, "HS unload blob completed\n");
@@ -926,7 +922,7 @@ acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 	if (ret < 0) {
 		return ret;
 	} else if (ret > 0) {
-		nvkm_error(subdev, "HS load failed, ret 0x%08x", ret);
+		nvkm_error(subdev, "HS load failed, ret 0x%08x\n", ret);
 		return -EINVAL;
 	}
 	nvkm_debug(subdev, "HS load blob completed\n");

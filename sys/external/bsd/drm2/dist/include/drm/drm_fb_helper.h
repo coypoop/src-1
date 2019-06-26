@@ -38,10 +38,7 @@ struct drm_fb_helper;
 #include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
 #include <linux/kgdb.h>
-
-#ifdef __NetBSD__
-#include <sys/device_if.h>
-#endif
+#include <linux/vgaarb.h>
 
 enum mode_set_atomic {
 	LEAVE_ATOMIC_MODE_SET,
@@ -196,11 +193,7 @@ struct drm_fb_helper {
 	 */
 	struct drm_fb_helper_connector **connector_info;
 	const struct drm_fb_helper_funcs *funcs;
-#ifdef __NetBSD__		/* XXX fb info */
-	device_t fbdev;
-#else
 	struct fb_info *fbdev;
-#endif
 	u32 pseudo_palette[17];
 	struct drm_clip_rect dirty_clip;
 	spinlock_t dirty_lock;
@@ -287,18 +280,15 @@ void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
 int drm_fb_helper_init(struct drm_device *dev,
 		       struct drm_fb_helper *helper, int max_conn);
 void drm_fb_helper_fini(struct drm_fb_helper *helper);
-#ifndef __NetBSD__		/* XXX fb info */
 int drm_fb_helper_blank(int blank, struct fb_info *info);
 int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 			      struct fb_info *info);
 int drm_fb_helper_set_par(struct fb_info *info);
 int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 			    struct fb_info *info);
-#endif
 
 int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper);
 
-#ifndef __NetBSD__		/* XXX fb info */
 struct fb_info *drm_fb_helper_alloc_fbi(struct drm_fb_helper *fb_helper);
 void drm_fb_helper_unregister_fbi(struct drm_fb_helper *fb_helper);
 void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helper,
@@ -330,15 +320,12 @@ void drm_fb_helper_cfb_copyarea(struct fb_info *info,
 				const struct fb_copyarea *area);
 void drm_fb_helper_cfb_imageblit(struct fb_info *info,
 				 const struct fb_image *image);
-#endif
 
 void drm_fb_helper_set_suspend(struct drm_fb_helper *fb_helper, bool suspend);
 void drm_fb_helper_set_suspend_unlocked(struct drm_fb_helper *fb_helper,
 					bool suspend);
 
-#ifndef __NetBSD__		/* XXX fb cmap */
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info);
-#endif
 
 int drm_fb_helper_ioctl(struct fb_info *info, unsigned int cmd,
 			unsigned long arg);
@@ -346,12 +333,8 @@ int drm_fb_helper_ioctl(struct fb_info *info, unsigned int cmd,
 int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper);
 int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel);
 int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper);
-#ifndef __NetBSD__		/* XXX fb info */
 int drm_fb_helper_debug_enter(struct fb_info *info);
 int drm_fb_helper_debug_leave(struct fb_info *info);
-#endif
-int drm_fb_helper_debug_enter_fb(struct drm_fb_helper *fb_helper);
-int drm_fb_helper_debug_leave_fb(struct drm_fb_helper *fb_helper);
 struct drm_display_mode *
 drm_has_preferred_mode(struct drm_fb_helper_connector *fb_connector,
 			int width, int height);
@@ -624,6 +607,16 @@ drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp)
 
 #endif
 
+/**
+ * drm_fb_helper_remove_conflicting_framebuffers - remove firmware-configured framebuffers
+ * @a: memory range, users of which are to be removed
+ * @name: requesting driver name
+ * @primary: also kick vga16fb if present
+ *
+ * This function removes framebuffer devices (initialized by firmware/bootloader)
+ * which use memory range described by @a. If @a is NULL all such devices are
+ * removed.
+ */
 static inline int
 drm_fb_helper_remove_conflicting_framebuffers(struct apertures_struct *a,
 					      const char *name, bool primary)
@@ -633,6 +626,37 @@ drm_fb_helper_remove_conflicting_framebuffers(struct apertures_struct *a,
 #else
 	return 0;
 #endif
+}
+
+/**
+ * drm_fb_helper_remove_conflicting_pci_framebuffers - remove firmware-configured framebuffers for PCI devices
+ * @pdev: PCI device
+ * @resource_id: index of PCI BAR configuring framebuffer memory
+ * @name: requesting driver name
+ *
+ * This function removes framebuffer devices (eg. initialized by firmware)
+ * using memory range configured for @pdev's BAR @resource_id.
+ *
+ * The function assumes that PCI device with shadowed ROM drives a primary
+ * display and so kicks out vga16fb.
+ */
+static inline int
+drm_fb_helper_remove_conflicting_pci_framebuffers(struct pci_dev *pdev,
+						  int resource_id,
+						  const char *name)
+{
+	int ret = 0;
+
+	/*
+	 * WARNING: Apparently we must kick fbdev drivers before vgacon,
+	 * otherwise the vga fbdev driver falls over.
+	 */
+#if IS_REACHABLE(CONFIG_FB)
+	ret = remove_conflicting_pci_framebuffers(pdev, resource_id, name);
+#endif
+	if (ret == 0)
+		ret = vga_remove_vgacon(pdev);
+	return ret;
 }
 
 #endif

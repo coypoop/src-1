@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * GFX_7_2 Register documentation
  *

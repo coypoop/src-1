@@ -1,9 +1,6 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_DEVICE_H__
 #define __NVKM_DEVICE_H__
-#include <linux/notifier.h>	/* XXX */
 #include <core/oclass.h>
 #include <core/event.h>
 
@@ -31,6 +28,7 @@ enum nvkm_devidx {
 	NVKM_SUBDEV_ICCSENSE,
 	NVKM_SUBDEV_THERM,
 	NVKM_SUBDEV_CLK,
+	NVKM_SUBDEV_GSP,
 	NVKM_SUBDEV_SECBOOT,
 
 	NVKM_ENGINE_BSP,
@@ -64,7 +62,11 @@ enum nvkm_devidx {
 	NVKM_ENGINE_NVENC2,
 	NVKM_ENGINE_NVENC_LAST = NVKM_ENGINE_NVENC2,
 
-	NVKM_ENGINE_NVDEC,
+	NVKM_ENGINE_NVDEC0,
+	NVKM_ENGINE_NVDEC1,
+	NVKM_ENGINE_NVDEC2,
+	NVKM_ENGINE_NVDEC_LAST = NVKM_ENGINE_NVDEC2,
+
 	NVKM_ENGINE_PM,
 	NVKM_ENGINE_SEC,
 	NVKM_ENGINE_SEC2,
@@ -96,14 +98,7 @@ struct nvkm_device {
 	struct mutex mutex;
 	int refcount;
 
-#ifdef __NetBSD__
-	bus_space_tag_t mmiot;
-	bus_space_handle_t mmioh;
-	bus_addr_t mmioaddr;
-	bus_size_t mmiosz;
-#else
 	void __iomem *pri;
-#endif
 
 	struct nvkm_event event;
 
@@ -124,6 +119,7 @@ struct nvkm_device {
 		GM100    = 0x110,
 		GP100    = 0x130,
 		GV100    = 0x140,
+		TU100    = 0x160,
 	} card_type;
 	u32 chipset;
 	u8  chiprev;
@@ -142,6 +138,7 @@ struct nvkm_device {
 	struct nvkm_fb *fb;
 	struct nvkm_fuse *fuse;
 	struct nvkm_gpio *gpio;
+	struct nvkm_gsp *gsp;
 	struct nvkm_i2c *i2c;
 	struct nvkm_subdev *ibus;
 	struct nvkm_iccsense *iccsense;
@@ -173,7 +170,7 @@ struct nvkm_device {
 	struct nvkm_engine *msppp;
 	struct nvkm_engine *msvld;
 	struct nvkm_engine *nvenc[3];
-	struct nvkm_nvdec *nvdec;
+	struct nvkm_nvdec *nvdec[3];
 	struct nvkm_pm *pm;
 	struct nvkm_engine *sec;
 	struct nvkm_sec2 *sec2;
@@ -192,10 +189,6 @@ struct nvkm_device_func {
 	int (*preinit)(struct nvkm_device *);
 	int (*init)(struct nvkm_device *);
 	void (*fini)(struct nvkm_device *, bool suspend);
-#ifdef __NetBSD__
-	bus_dma_tag_t (*dma_tag)(struct nvkm_device *);
-	bus_space_tag_t (*resource_tag)(struct nvkm_device *, unsigned bar);
-#endif
 	resource_size_t (*resource_addr)(struct nvkm_device *, unsigned bar);
 	resource_size_t (*resource_size)(struct nvkm_device *, unsigned bar);
 	bool cpu_coherent;
@@ -218,6 +211,7 @@ struct nvkm_device_chip {
 	int (*fb      )(struct nvkm_device *, int idx, struct nvkm_fb **);
 	int (*fuse    )(struct nvkm_device *, int idx, struct nvkm_fuse **);
 	int (*gpio    )(struct nvkm_device *, int idx, struct nvkm_gpio **);
+	int (*gsp     )(struct nvkm_device *, int idx, struct nvkm_gsp **);
 	int (*i2c     )(struct nvkm_device *, int idx, struct nvkm_i2c **);
 	int (*ibus    )(struct nvkm_device *, int idx, struct nvkm_subdev **);
 	int (*iccsense)(struct nvkm_device *, int idx, struct nvkm_iccsense **);
@@ -249,7 +243,7 @@ struct nvkm_device_chip {
 	int (*msppp   )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*msvld   )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*nvenc[3])(struct nvkm_device *, int idx, struct nvkm_engine **);
-	int (*nvdec   )(struct nvkm_device *, int idx, struct nvkm_nvdec **);
+	int (*nvdec[3])(struct nvkm_device *, int idx, struct nvkm_nvdec **);
 	int (*pm      )(struct nvkm_device *, int idx, struct nvkm_pm **);
 	int (*sec     )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*sec2    )(struct nvkm_device *, int idx, struct nvkm_sec2 **);
@@ -261,51 +255,13 @@ struct nvkm_device_chip {
 struct nvkm_device *nvkm_device_find(u64 name);
 int nvkm_device_list(u64 *name, int size);
 
-#ifdef __NetBSD__
-void	nvkm_devices_init(void);
-void	nvkm_devices_fini(void);
-#endif
-
 /* privileged register interface accessor macros */
-#ifdef __NetBSD__
-static inline uint8_t
-nvkm_rd08(struct nvkm_device *d, bus_size_t a)
-{
-	return bus_space_read_1(d->mmiot, d->mmioh, a);
-}
-static inline uint16_t
-nvkm_rd16(struct nvkm_device *d, bus_size_t a)
-{
-	return bus_space_read_stream_2(d->mmiot, d->mmioh, a);
-}
-static inline uint32_t
-nvkm_rd32(struct nvkm_device *d, bus_size_t a)
-{
-	return bus_space_read_stream_4(d->mmiot, d->mmioh, a);
-}
-static inline void
-nvkm_wr08(struct nvkm_device *d, bus_size_t a, uint8_t v)
-{
-	bus_space_write_1(d->mmiot, d->mmioh, a, v);
-}
-static inline void
-nvkm_wr16(struct nvkm_device *d, bus_size_t a, uint16_t v)
-{
-	bus_space_write_stream_2(d->mmiot, d->mmioh, a, v);
-}
-static inline void
-nvkm_wr32(struct nvkm_device *d, bus_size_t a, uint32_t v)
-{
-	bus_space_write_stream_4(d->mmiot, d->mmioh, a, v);
-}
-#else
 #define nvkm_rd08(d,a) ioread8((d)->pri + (a))
 #define nvkm_rd16(d,a) ioread16_native((d)->pri + (a))
 #define nvkm_rd32(d,a) ioread32_native((d)->pri + (a))
 #define nvkm_wr08(d,a,v) iowrite8((v), (d)->pri + (a))
 #define nvkm_wr16(d,a,v) iowrite16_native((v), (d)->pri + (a))
 #define nvkm_wr32(d,a,v) iowrite32_native((v), (d)->pri + (a))
-#endif
 #define nvkm_mask(d,a,m,v) ({                                                  \
 	struct nvkm_device *_device = (d);                                     \
 	u32 _addr = (a), _temp = nvkm_rd32(_device, _addr);                    \

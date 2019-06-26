@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NV50_DISP_ROOT_H__
 #define __NV50_DISP_ROOT_H__
@@ -39,4 +37,5 @@ extern const struct nvkm_disp_oclass gm200_disp_root_oclass;
 extern const struct nvkm_disp_oclass gp100_disp_root_oclass;
 extern const struct nvkm_disp_oclass gp102_disp_root_oclass;
 extern const struct nvkm_disp_oclass gv100_disp_root_oclass;
+extern const struct nvkm_disp_oclass tu102_disp_root_oclass;
 #endif

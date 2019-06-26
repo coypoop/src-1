@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 #ifndef __DRM_LEGACY_H__
 #define __DRM_LEGACY_H__
 

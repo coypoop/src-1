@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (C) 2009 Francisco Jerez.
  * All Rights Reserved.
@@ -25,9 +23,6 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/module.h>
 
@@ -364,10 +359,10 @@ static int ch7006_encoder_set_property(struct drm_encoder *encoder,
 	if (modes_changed) {
 		drm_helper_probe_single_connector_modes(connector, 0, 0);
 
-		/* Disable the crtc to ensure a full modeset is
-		 * performed whenever it's turned on again. */
 		if (crtc)
-			drm_crtc_force_disable(crtc);
+			drm_crtc_helper_set_mode(crtc, &crtc->mode,
+						 crtc->x, crtc->y,
+						 crtc->primary->fb);
 	}
 
 	return 0;

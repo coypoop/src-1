@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2007-8 Advanced Micro Devices, Inc.
  * Copyright 2008 Red Hat Inc.
@@ -25,14 +23,12 @@
  * Authors: Dave Airlie
  *          Alex Deucher
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_dp_mst_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "radeon_audio.h"
@@ -1086,8 +1082,7 @@ radeon_vga_detect(struct drm_connector *connector, bool force)
 		}
 	}
 
-	/* XXX Can encoder be null if the connector is connected here?  */
-	if (ret == connector_status_connected && encoder)
+	if (ret == connector_status_connected)
 		ret = radeon_connector_analog_encoder_conflict_solve(connector, encoder, ret, true);
 
 	/* RN50 and some RV100 asics in servers often have a hardcoded EDID in the
@@ -2504,7 +2499,7 @@ void radeon_setup_mst_connector(struct drm_device *dev)
 		return;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		int ret __unused;
+		int ret;
 
 		radeon_connector = to_radeon_connector(connector);
 

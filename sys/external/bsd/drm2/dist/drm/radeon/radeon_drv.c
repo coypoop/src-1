@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /**
  * \file radeon_drv.c
  * ATI Radeon driver
@@ -31,9 +29,6 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/drmP.h>
 #include <drm/radeon_drm.h>
 #include "radeon_drv.h"
@@ -41,7 +36,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <drm/drm_pciids.h>
 #include <linux/console.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/pm_runtime.h>
 #include <linux/vga_switcheroo.h>
 #include <linux/compat.h>
@@ -49,6 +43,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <drm/drm_fb_helper.h>
 
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 
 /*
  * KMS wrapper.
@@ -124,7 +119,7 @@ void radeon_disable_vblank_kms(struct drm_device *dev, unsigned int pipe);
 void radeon_driver_irq_preinstall_kms(struct drm_device *dev);
 int radeon_driver_irq_postinstall_kms(struct drm_device *dev);
 void radeon_driver_irq_uninstall_kms(struct drm_device *dev);
-irqreturn_t radeon_driver_irq_handler_kms(DRM_IRQ_ARGS);
+irqreturn_t radeon_driver_irq_handler_kms(int irq, void *arg);
 void radeon_gem_object_free(struct drm_gem_object *obj);
 int radeon_gem_object_open(struct drm_gem_object *obj,
 				struct drm_file *file_priv);
@@ -140,12 +135,7 @@ extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, unsigned int crtc,
 extern bool radeon_is_px(struct drm_device *dev);
 extern const struct drm_ioctl_desc radeon_ioctls_kms[];
 extern int radeon_max_kms_ioctl;
-#ifdef __NetBSD__
-int radeon_mmap_object(struct drm_device *, off_t, size_t, vm_prot_t,
-    struct uvm_object **, voff_t *, struct file *);
-#else
 int radeon_mmap(struct file *filp, struct vm_area_struct *vma);
-#endif
 int radeon_mode_dumb_mmap(struct drm_file *filp,
 			  struct drm_device *dev,
 			  uint32_t handle, uint64_t *offset_p);
@@ -169,12 +159,10 @@ void radeon_unregister_atpx_handler(void);
 bool radeon_has_atpx_dgpu_power_cntl(void);
 bool radeon_is_atpx_hybrid(void);
 #else
-#ifndef __NetBSD__
 static inline void radeon_register_atpx_handler(void) {}
 static inline void radeon_unregister_atpx_handler(void) {}
 static inline bool radeon_has_atpx_dgpu_power_cntl(void) { return false; }
 static inline bool radeon_is_atpx_hybrid(void) { return false; }
-#endif
 #endif
 
 int radeon_no_wb;
@@ -327,39 +315,7 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 
 static struct drm_driver kms_driver;
 
-#ifdef __NetBSD__
-
-struct drm_driver *const radeon_drm_driver = &kms_driver;
-const struct pci_device_id *const radeon_device_ids = pciidlist;
-const size_t radeon_n_device_ids = __arraycount(pciidlist);
-
-/* XXX Kludge for the non-GEM GEM that radeon uses.  */
-static const struct uvm_pagerops radeon_gem_uvm_ops;
-
-#else
-
 bool radeon_device_is_virtual(void);
-
-static int radeon_kick_out_firmware_fb(struct pci_dev *pdev)
-{
-	struct apertures_struct *ap;
-	bool primary = false;
-
-	ap = alloc_apertures(1);
-	if (!ap)
-		return -ENOMEM;
-
-	ap->ranges[0].base = pci_resource_start(pdev, 0);
-	ap->ranges[0].size = pci_resource_len(pdev, 0);
-
-#ifdef CONFIG_X86
-	primary = pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
-#endif
-	drm_fb_helper_remove_conflicting_framebuffers(ap, "radeondrmfb", primary);
-	kfree(ap);
-
-	return 0;
-}
 
 static int radeon_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
@@ -370,7 +326,7 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 		return -EPROBE_DEFER;
 
 	/* Get rid of things like offb */
-	ret = radeon_kick_out_firmware_fb(pdev);
+	ret = drm_fb_helper_remove_conflicting_pci_framebuffers(pdev, 0, "radeondrmfb");
 	if (ret)
 		return ret;
 
@@ -565,7 +521,6 @@ static const struct file_operations radeon_driver_kms_fops = {
 	.compat_ioctl = radeon_kms_compat_ioctl,
 #endif
 };
-#endif	/* __NetBSD__ */
 
 static bool
 radeon_get_crtc_scanout_position(struct drm_device *dev, unsigned int pipe,
@@ -579,9 +534,7 @@ radeon_get_crtc_scanout_position(struct drm_device *dev, unsigned int pipe,
 
 static struct drm_driver kms_driver = {
 	.driver_features =
-	    DRIVER_USE_AGP |
-	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM |
-	    DRIVER_PRIME | DRIVER_RENDER,
+	    DRIVER_USE_AGP | DRIVER_GEM | DRIVER_PRIME | DRIVER_RENDER,
 	.load = radeon_driver_load_kms,
 	.open = radeon_driver_open_kms,
 	.postclose = radeon_driver_postclose_kms,
@@ -596,23 +549,13 @@ static struct drm_driver kms_driver = {
 	.irq_postinstall = radeon_driver_irq_postinstall_kms,
 	.irq_uninstall = radeon_driver_irq_uninstall_kms,
 	.irq_handler = radeon_driver_irq_handler_kms,
-#ifdef __NetBSD__
-	.request_irq = drm_pci_request_irq,
-	.free_irq = drm_pci_free_irq,
-#endif
 	.ioctls = radeon_ioctls_kms,
 	.gem_free_object_unlocked = radeon_gem_object_free,
 	.gem_open_object = radeon_gem_object_open,
 	.gem_close_object = radeon_gem_object_close,
 	.dumb_create = radeon_mode_dumb_create,
 	.dumb_map_offset = radeon_mode_dumb_mmap,
-#ifdef __NetBSD__
-	.fops = NULL,
-	.mmap_object = &radeon_mmap_object,
-	.gem_uvm_ops = &radeon_gem_uvm_ops,
-#else
 	.fops = &radeon_driver_kms_fops,
-#endif
 
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
@@ -633,8 +576,6 @@ static struct drm_driver kms_driver = {
 	.minor = KMS_DRIVER_MINOR,
 	.patchlevel = KMS_DRIVER_PATCHLEVEL,
 };
-
-#ifndef __NetBSD__
 
 static struct drm_driver *driver;
 static struct pci_driver *pdriver;
@@ -679,8 +620,6 @@ static void __exit radeon_exit(void)
 	pci_unregister_driver(pdriver);
 	radeon_unregister_atpx_handler();
 }
-
-#endif
 
 module_init(radeon_init);
 module_exit(radeon_exit);

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* r128_state.c -- State support for r128 -*- linux-c -*-
  * Created: Thu Jan 27 02:53:43 2000 by gareth@valinux.com
  */
@@ -29,9 +27,6 @@
  * Authors:
  *    Gareth Hughes <gareth@valinux.com>
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <drm/drmP.h>
 #include <drm/r128_drm.h>

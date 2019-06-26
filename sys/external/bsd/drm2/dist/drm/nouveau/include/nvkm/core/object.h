@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_OBJECT_H__
 #define __NVKM_OBJECT_H__
@@ -20,9 +18,6 @@ struct nvkm_object {
 	u64 token;
 	u64 object;
 	struct rb_node node;
-#ifdef __NetBSD__
-	bool on_tree;
-#endif
 };
 
 enum nvkm_object_map {
@@ -36,14 +31,8 @@ struct nvkm_object_func {
 	int (*fini)(struct nvkm_object *, bool suspend);
 	int (*mthd)(struct nvkm_object *, u32 mthd, void *data, u32 size);
 	int (*ntfy)(struct nvkm_object *, u32 mthd, struct nvkm_event **);
-#ifdef __NetBSD__
-	int (*map)(struct nvkm_object *, void *argv, u32 argc,
-		   enum nvkm_object_map *, bus_space_tag_t *tag, u64 *addr,
-		   u64 *size);
-#else
 	int (*map)(struct nvkm_object *, void *argv, u32 argc,
 		   enum nvkm_object_map *, u64 *addr, u64 *size);
-#endif
 	int (*unmap)(struct nvkm_object *);
 	int (*rd08)(struct nvkm_object *, u64 addr, u8 *data);
 	int (*rd16)(struct nvkm_object *, u64 addr, u16 *data);
@@ -69,13 +58,8 @@ int nvkm_object_init(struct nvkm_object *);
 int nvkm_object_fini(struct nvkm_object *, bool suspend);
 int nvkm_object_mthd(struct nvkm_object *, u32 mthd, void *data, u32 size);
 int nvkm_object_ntfy(struct nvkm_object *, u32 mthd, struct nvkm_event **);
-#ifdef __NetBSD__
-int nvkm_object_map(struct nvkm_object *, void *argv, u32 argc,
-    enum nvkm_object_map, bus_space_tag_t *, u64 *addr, u64 *size);
-#else
 int nvkm_object_map(struct nvkm_object *, void *argv, u32 argc,
 		    enum nvkm_object_map *, u64 *addr, u64 *size);
-#endif
 int nvkm_object_unmap(struct nvkm_object *);
 int nvkm_object_rd08(struct nvkm_object *, u64 addr, u8  *data);
 int nvkm_object_rd16(struct nvkm_object *, u64 addr, u16 *data);

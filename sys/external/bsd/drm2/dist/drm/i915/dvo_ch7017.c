@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2006 Intel Corporation
  *
@@ -26,9 +24,6 @@
  *    Eric Anholt <eric@anholt.net>
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include "dvo.h"
 

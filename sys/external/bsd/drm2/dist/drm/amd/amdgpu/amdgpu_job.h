@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2018 Advanced Micro Devices, Inc.
  *
@@ -34,6 +32,8 @@
 
 #define to_amdgpu_job(sched_job)		\
 		container_of((sched_job), struct amdgpu_job, base)
+
+#define AMDGPU_JOB_GET_VMID(job) ((job) ? (job)->vmid : 0)
 
 struct amdgpu_fence;
 

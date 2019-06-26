@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_FB_NV50_H__
 #define __NVKM_FB_NV50_H__
@@ -9,13 +7,7 @@
 struct nv50_fb {
 	const struct nv50_fb_func *func;
 	struct nvkm_fb base;
-#ifdef __NetBSD__
-	bus_dma_segment_t r100c08_seg;
-	bus_dmamap_t r100c08_page;
-	void *r100c08_kva;
-#else
 	struct page *r100c08_page;
-#endif
 	dma_addr_t r100c08;
 };
 

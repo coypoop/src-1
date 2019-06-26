@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * GMC_8_1 Register documentation
  *

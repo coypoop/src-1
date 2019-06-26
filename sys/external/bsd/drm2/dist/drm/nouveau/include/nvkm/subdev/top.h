@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_TOP_H__
 #define __NVKM_TOP_H__
@@ -11,6 +9,7 @@ struct nvkm_top {
 	struct list_head device;
 };
 
+u32 nvkm_top_addr(struct nvkm_device *, enum nvkm_devidx);
 u32 nvkm_top_reset(struct nvkm_device *, enum nvkm_devidx);
 u32 nvkm_top_intr(struct nvkm_device *, u32 intr, u64 *subdevs);
 u32 nvkm_top_intr_mask(struct nvkm_device *, enum nvkm_devidx);

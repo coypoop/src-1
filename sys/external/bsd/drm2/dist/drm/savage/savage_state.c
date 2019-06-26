@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* savage_state.c -- State and drawing support for Savage
  *
  * Copyright 2004  Felix Kuehling
@@ -24,9 +22,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/drmP.h>
 #include <drm/savage_drm.h>
 #include "savage_drv.h"
@@ -304,6 +299,7 @@ static int savage_dispatch_dma_prim(drm_savage_private_t * dev_priv,
 	case SAVAGE_PRIM_TRILIST_201:
 		reorder = 1;
 		prim = SAVAGE_PRIM_TRILIST;
+		/* fall through */
 	case SAVAGE_PRIM_TRILIST:
 		if (n % 3 != 0) {
 			DRM_ERROR("wrong number of vertices %u in TRILIST\n",
@@ -441,6 +437,7 @@ static int savage_dispatch_vb_prim(drm_savage_private_t * dev_priv,
 	case SAVAGE_PRIM_TRILIST_201:
 		reorder = 1;
 		prim = SAVAGE_PRIM_TRILIST;
+		/* fall through */
 	case SAVAGE_PRIM_TRILIST:
 		if (n % 3 != 0) {
 			DRM_ERROR("wrong number of vertices %u in TRILIST\n",
@@ -562,6 +559,7 @@ static int savage_dispatch_dma_idx(drm_savage_private_t * dev_priv,
 	case SAVAGE_PRIM_TRILIST_201:
 		reorder = 1;
 		prim = SAVAGE_PRIM_TRILIST;
+		/* fall through */
 	case SAVAGE_PRIM_TRILIST:
 		if (n % 3 != 0) {
 			DRM_ERROR("wrong number of indices %u in TRILIST\n", n);
@@ -700,6 +698,7 @@ static int savage_dispatch_vb_idx(drm_savage_private_t * dev_priv,
 	case SAVAGE_PRIM_TRILIST_201:
 		reorder = 1;
 		prim = SAVAGE_PRIM_TRILIST;
+		/* fall through */
 	case SAVAGE_PRIM_TRILIST:
 		if (n % 3 != 0) {
 			DRM_ERROR("wrong number of indices %u in TRILIST\n", n);

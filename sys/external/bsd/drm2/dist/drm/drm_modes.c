@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 1997-2003 by The XFree86 Project, Inc.
  * Copyright © 2007 Dave Airlie
@@ -32,20 +30,13 @@
  * authorization from the copyright holder(s) and author(s).
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/list.h>
 #include <linux/list_sort.h>
 #include <linux/export.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
-#ifdef CONFIG_VIDEOMODE_HELPERS
-#ifdef CONFIG_OF
 #include <video/of_videomode.h>
-#endif
 #include <video/videomode.h>
-#endif
 #include <drm/drm_modes.h>
 
 #include "drm_crtc_internal.h"
@@ -80,11 +71,6 @@ struct drm_display_mode *drm_mode_create(struct drm_device *dev)
 	if (!nmode)
 		return NULL;
 
-	if (drm_mode_object_add(dev, &nmode->base, DRM_MODE_OBJECT_MODE)) {
-		kfree(nmode);
-		return NULL;
-	}
-
 	return nmode;
 }
 EXPORT_SYMBOL(drm_mode_create);
@@ -100,8 +86,6 @@ void drm_mode_destroy(struct drm_device *dev, struct drm_display_mode *mode)
 {
 	if (!mode)
 		return;
-
-	drm_mode_object_unregister(dev, &mode->base);
 
 	kfree(mode);
 }
@@ -242,7 +226,7 @@ struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 		/* 3) Nominal HSync width (% of line period) - default 8 */
 #define CVT_HSYNC_PERCENTAGE	8
 		unsigned int hblank_percentage;
-		int vsyncandback_porch, vback_porch __unused, hblank;
+		int vsyncandback_porch, vback_porch, hblank;
 
 		/* estimated the horizontal period */
 		tmp1 = HV_FACTOR * 1000000  -
@@ -395,9 +379,9 @@ drm_gtf_mode_complex(struct drm_device *dev, int hdisplay, int vdisplay,
 	int top_margin, bottom_margin;
 	int interlace;
 	unsigned int hfreq_est;
-	int vsync_plus_bp, vback_porch __unused;
-	unsigned int vtotal_lines, vfieldrate_est __unused, hperiod __unused;
-	unsigned int vfield_rate, vframe_rate __unused;
+	int vsync_plus_bp, vback_porch;
+	unsigned int vtotal_lines, vfieldrate_est, hperiod;
+	unsigned int vfield_rate, vframe_rate;
 	int left_margin, right_margin;
 	unsigned int total_active_pixels, ideal_duty_cycle;
 	unsigned int hblank, total_pixels, pixel_freq;
@@ -725,8 +709,8 @@ int of_get_drm_display_mode(struct device_node *np,
 	if (bus_flags)
 		drm_bus_flags_from_videomode(&vm, bus_flags);
 
-	pr_debug("%pOF: got %dx%d display mode from %s\n",
-		np, vm.hactive, vm.vactive, np->name);
+	pr_debug("%pOF: got %dx%d display mode\n",
+		np, vm.hactive, vm.vactive);
 	drm_mode_debug_printmodeline(dmode);
 
 	return 0;
@@ -767,7 +751,7 @@ int drm_mode_hsync(const struct drm_display_mode *mode)
 	if (mode->hsync)
 		return mode->hsync;
 
-	if (mode->htotal < 0)
+	if (mode->htotal <= 0)
 		return 0;
 
 	calc_val = (mode->clock * 1000) / mode->htotal; /* hsync in Hz */
@@ -920,11 +904,9 @@ EXPORT_SYMBOL(drm_mode_set_crtcinfo);
  */
 void drm_mode_copy(struct drm_display_mode *dst, const struct drm_display_mode *src)
 {
-	int id = dst->base.id;
 	struct list_head head = dst->head;
 
 	*dst = *src;
-	dst->base.id = id;
 	dst->head = head;
 }
 EXPORT_SYMBOL(drm_mode_copy);
@@ -1290,7 +1272,7 @@ const char *drm_get_mode_status_name(enum drm_mode_status status)
  * @verbose: be verbose about it
  *
  * This helper function can be used to prune a display mode list after
- * validation has been completed. All modes who's status is not MODE_OK will be
+ * validation has been completed. All modes whose status is not MODE_OK will be
  * removed from the list, and if @verbose the status code and mode name is also
  * printed to dmesg.
  */
@@ -1451,17 +1433,15 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 	const char *name;
 	unsigned int namelen;
 	bool res_specified = false, bpp_specified = false, refresh_specified = false;
-	long xres = 0, yres = 0, bpp = 32, refresh = 0;
+	unsigned int xres = 0, yres = 0, bpp = 32, refresh = 0;
 	bool yres_specified = false, cvt = false, rb = false;
 	bool interlace = false, margins = false, was_digit = false;
 	int i;
 	enum drm_connector_force force = DRM_FORCE_UNSPECIFIED;
 
-#if !defined(__NetBSD__)
 #ifdef CONFIG_FB
 	if (!mode_option)
 		mode_option = fb_mode_option;
-#endif
 #endif
 
 	if (!mode_option) {
@@ -1476,35 +1456,26 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 		case '@':
 			if (!refresh_specified && !bpp_specified &&
 			    !yres_specified && !cvt && !rb && was_digit) {
-				if (kstrtol(&name[i+1], 10, &refresh) == 0) {
-					refresh_specified = true;
-					was_digit = false;
-				} else {
-					goto done;
-				}
+				refresh = simple_strtol(&name[i+1], NULL, 10);
+				refresh_specified = true;
+				was_digit = false;
 			} else
 				goto done;
 			break;
 		case '-':
 			if (!bpp_specified && !yres_specified && !cvt &&
 			    !rb && was_digit) {
-				if (kstrtol(&name[i+1], 10, &bpp) == 0) {
-					bpp_specified = true;
-					was_digit = false;
-				} else {
-					goto done;
-				}
+				bpp = simple_strtol(&name[i+1], NULL, 10);
+				bpp_specified = true;
+				was_digit = false;
 			} else
 				goto done;
 			break;
 		case 'x':
 			if (!yres_specified && was_digit) {
-				if (kstrtol(&name[i+1], 10, &yres) == 0) {
-					yres_specified = true;
-					was_digit = false;
-				} else {
-					goto done;
-				}
+				yres = simple_strtol(&name[i+1], NULL, 10);
+				yres_specified = true;
+				was_digit = false;
 			} else
 				goto done;
 			break;
@@ -1562,8 +1533,8 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 	}
 
 	if (i < 0 && yres_specified) {
-		char *ch = NULL;
-		xres = strtoll(name, &ch, 10);
+		char *ch;
+		xres = simple_strtol(name, &ch, 10);
 		if ((ch != NULL) && (*ch == 'x'))
 			res_specified = true;
 		else

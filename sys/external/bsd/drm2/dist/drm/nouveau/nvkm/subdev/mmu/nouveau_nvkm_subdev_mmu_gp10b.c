@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2017 Red Hat Inc.
  *
@@ -21,9 +19,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "mem.h"
 #include "vmm.h"
 
@@ -36,7 +31,7 @@ gp10b_mmu = {
 	.dma_bits = 47,
 	.mmu = {{ -1, -1, NVIF_CLASS_MMU_GF100}},
 	.mem = {{ -1, -1, NVIF_CLASS_MEM_GF100}, .umap = gf100_mem_map },
-	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GP100}, gp10b_vmm_new },
+	.vmm = {{ -1,  0, NVIF_CLASS_VMM_GP100}, gp10b_vmm_new },
 	.kind = gm200_mmu_kind,
 	.kind_sys = true,
 };

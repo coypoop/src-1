@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
@@ -23,9 +21,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/module.h>
 
@@ -58,7 +53,6 @@ static void via_driver_postclose(struct drm_device *dev, struct drm_file *file)
 	kfree(file_priv);
 }
 
-#ifndef __NetBSD__
 static struct pci_device_id pciidlist[] = {
 	viadrv_PCI_IDS
 };
@@ -73,18 +67,15 @@ static const struct file_operations via_driver_fops = {
 	.compat_ioctl = drm_compat_ioctl,
 	.llseek = noop_llseek,
 };
-#endif
 
 static struct drm_driver driver = {
 	.driver_features =
-	    DRIVER_USE_AGP | DRIVER_HAVE_IRQ | DRIVER_LEGACY |
-	    DRIVER_IRQ_SHARED,
+	    DRIVER_USE_AGP | DRIVER_HAVE_IRQ | DRIVER_LEGACY,
 	.load = via_driver_load,
 	.unload = via_driver_unload,
 	.open = via_driver_open,
 	.preclose = via_reclaim_buffers_locked,
 	.postclose = via_driver_postclose,
-	.set_busid = drm_pci_set_busid,
 	.context_dtor = via_final_context,
 	.get_vblank_counter = via_get_vblank_counter,
 	.enable_vblank = via_enable_vblank,
@@ -93,18 +84,10 @@ static struct drm_driver driver = {
 	.irq_postinstall = via_driver_irq_postinstall,
 	.irq_uninstall = via_driver_irq_uninstall,
 	.irq_handler = via_driver_irq_handler,
-#ifdef __NetBSD__
-	.request_irq = drm_pci_request_irq,
-	.free_irq = drm_pci_free_irq,
-#endif
 	.dma_quiescent = via_driver_dma_quiescent,
 	.lastclose = via_lastclose,
 	.ioctls = via_ioctls,
-#ifndef __NetBSD__
 	.fops = &via_driver_fops,
-#else
-	.mmap_object = drm_legacy_mmap_object,
-#endif
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
@@ -113,14 +96,9 @@ static struct drm_driver driver = {
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
-#ifdef __NetBSD__
-struct drm_driver *const via_drm_driver = &driver;
-#endif
-
-#ifndef __NetBSD__
 static struct pci_driver via_pci_driver = {
 	.name = DRIVER_NAME,
-	.id_table = viadrm_pciidlist,
+	.id_table = pciidlist,
 };
 
 static int __init via_init(void)
@@ -134,7 +112,6 @@ static void __exit via_exit(void)
 {
 	drm_legacy_pci_exit(&driver, &via_pci_driver);
 }
-#endif	/* __NetBSD__ */
 
 module_init(via_init);
 module_exit(via_exit);

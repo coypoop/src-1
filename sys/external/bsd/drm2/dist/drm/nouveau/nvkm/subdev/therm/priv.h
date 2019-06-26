@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 #ifndef __NVTHERM_PRIV_H__
 #define __NVTHERM_PRIV_H__
 #define nvkm_therm(p) container_of((p), struct nvkm_therm, subdev)

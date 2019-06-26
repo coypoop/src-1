@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2007 Dave Airlied
  * All Rights Reserved.
@@ -28,9 +26,6 @@
  *	    Ben Skeggs   <darktama@iinet.net.au>
  *	    Jeremy Kolb  <jkolb@brandeis.edu>
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/dma-mapping.h>
 #include <linux/swiotlb.h>
@@ -199,7 +194,7 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 	struct nouveau_drm *drm = cli->drm;
 	struct nouveau_bo *nvbo;
 	struct nvif_mmu *mmu = &cli->mmu;
-	struct nvif_vmm *vmm = &cli->vmm.vmm;
+	struct nvif_vmm *vmm = cli->svm.cli ? &cli->svm.vmm : &cli->vmm.vmm;
 	size_t acc_size;
 	int type = ttm_bo_type_device;
 	int ret, i, pi = -1;
@@ -515,9 +510,7 @@ nouveau_bo_sync_for_device(struct nouveau_bo *nvbo)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	struct ttm_dma_tt *ttm_dma = (struct ttm_dma_tt *)nvbo->bo.ttm;
-#ifndef __NetBSD__
 	int i;
-#endif
 
 	if (!ttm_dma)
 		return;
@@ -526,17 +519,10 @@ nouveau_bo_sync_for_device(struct nouveau_bo *nvbo)
 	if (nvbo->force_coherent)
 		return;
 
-#ifdef __NetBSD__
-	bus_dma_tag_t dmat = device->func->dma_tag(device);
-	bus_dmamap_sync(dmat, ttm_dma->dma_address, 0,
-	    PAGE_SIZE*ttm_dma->ttm.num_pages,
-	    BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE);
-#else
 	for (i = 0; i < ttm_dma->ttm.num_pages; i++)
 		dma_sync_single_for_device(drm->dev->dev,
 					   ttm_dma->dma_address[i],
 					   PAGE_SIZE, DMA_TO_DEVICE);
-#endif
 }
 
 void
@@ -544,9 +530,7 @@ nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	struct ttm_dma_tt *ttm_dma = (struct ttm_dma_tt *)nvbo->bo.ttm;
-#ifndef __NetBSD__
 	int i;
-#endif
 
 	if (!ttm_dma)
 		return;
@@ -555,16 +539,9 @@ nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo)
 	if (nvbo->force_coherent)
 		return;
 
-#ifdef __NetBSD__
-	bus_dma_tag_t dmat = device->func->dma_tag(device);
-	bus_dmamap_sync(dmat, ttm_dma->dma_address, 0,
-	    PAGE_SIZE*ttm_dma->ttm.num_pages,
-	    BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE);
-#else
 	for (i = 0; i < ttm_dma->ttm.num_pages; i++)
 		dma_sync_single_for_cpu(drm->dev->dev, ttm_dma->dma_address[i],
 					PAGE_SIZE, DMA_FROM_DEVICE);
-#endif
 }
 
 int
@@ -582,59 +559,6 @@ nouveau_bo_validate(struct nouveau_bo *nvbo, bool interruptible,
 
 	return 0;
 }
-
-#ifdef __NetBSD__
-/*
- * XXX Can't use bus_space here because this is all mapped through the
- * radeon_bo abstraction.  Can't assume we're x86 because this is
- * Nouveau, not Intel.
- */
-
-#  define	__iomem			volatile
-#  define	__force
-#  define	ioread16_native		fake_ioread16_native
-#  define	ioread32_native		fake_ioread32_native
-#  define	iowrite16_native	fake_iowrite16_native
-#  define	iowrite32_native	fake_iowrite32_native
-
-static inline uint16_t
-ioread16_native(const void __iomem *ptr)
-{
-	uint16_t v;
-
-	v = *(const uint16_t __iomem *)ptr;
-	membar_consumer();
-
-	return v;
-}
-
-static inline uint32_t
-ioread32_native(const void __iomem *ptr)
-{
-	uint32_t v;
-
-	v = *(const uint32_t __iomem *)ptr;
-	membar_consumer();
-
-	return v;
-}
-
-static inline void
-iowrite16_native(uint16_t v, void __iomem *ptr)
-{
-
-	membar_producer();
-	*(uint16_t __iomem *)ptr = v;
-}
-
-static inline void
-iowrite32_native(uint32_t v, void __iomem *ptr)
-{
-
-	membar_producer();
-	*(uint32_t __iomem *)ptr = v;
-}
-#endif
 
 void
 nouveau_bo_wr16(struct nouveau_bo *nvbo, unsigned index, u16 val)
@@ -677,15 +601,6 @@ nouveau_bo_wr32(struct nouveau_bo *nvbo, unsigned index, u32 val)
 	else
 		*mem = val;
 }
-
-#ifdef __NetBSD__
-#  undef	__iomem
-#  undef	__force
-#  undef	ioread16_native
-#  undef	ioread32_native
-#  undef	iowrite16_native
-#  undef	iowrite32_native
-#endif
 
 static struct ttm_tt *
 nouveau_ttm_tt_create(struct ttm_buffer_object *bo, uint32_t page_flags)
@@ -1226,6 +1141,8 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 			    struct ttm_mem_reg *, struct ttm_mem_reg *);
 		int (*init)(struct nouveau_channel *, u32 handle);
 	} _methods[] = {
+		{  "COPY", 4, 0xc5b5, nve0_bo_move_copy, nve0_bo_move_init },
+		{  "GRCE", 0, 0xc5b5, nve0_bo_move_copy, nvc0_bo_move_init },
 		{  "COPY", 4, 0xc3b5, nve0_bo_move_copy, nve0_bo_move_init },
 		{  "GRCE", 0, 0xc3b5, nve0_bo_move_copy, nvc0_bo_move_init },
 		{  "COPY", 4, 0xc1b5, nve0_bo_move_copy, nve0_bo_move_init },
@@ -1517,7 +1434,7 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *reg)
 		if (drm->client.mem->oclass < NVIF_CLASS_MEM_NV50 || !mem->kind)
 			/* untiled */
 			break;
-		/* fallthrough, tiled memory */
+		/* fall through - tiled memory */
 	case TTM_PL_VRAM:
 		reg->bus.offset = reg->start << PAGE_SHIFT;
 		reg->bus.base = device->func->resource_addr(device, 1);
@@ -1638,10 +1555,8 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 {
 	struct ttm_dma_tt *ttm_dma = (void *)ttm;
 	struct nouveau_drm *drm;
-#ifndef __NetBSD__
 	struct device *dev;
 	unsigned i;
-#endif
 	int r;
 	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
 
@@ -1650,23 +1565,14 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 
 	if (slave && ttm->sg) {
 		/* make userspace faulting work */
-#ifdef __NetBSD__
-		r = drm_prime_bus_dmamap_load_sgt(ttm->bdev->dmat,
-		    ttm_dma->dma_address, ttm->sg);
-		if (r)
-			return r;
-#else
 		drm_prime_sg_to_page_addr_arrays(ttm->sg, ttm->pages,
 						 ttm_dma->dma_address, ttm->num_pages);
-#endif
 		ttm->state = tt_unbound;
 		return 0;
 	}
 
 	drm = nouveau_bdev(ttm->bdev);
-#ifndef __NetBSD__
 	dev = drm->dev->dev;
-#endif
 
 #if IS_ENABLED(CONFIG_AGP)
 	if (drm->agp.bridge) {
@@ -1674,9 +1580,6 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 	}
 #endif
 
-#ifdef __NetBSD__
-	return ttm_bus_dma_populate(ttm_dma);
-#else
 #if IS_ENABLED(CONFIG_SWIOTLB) && IS_ENABLED(CONFIG_X86)
 	if (swiotlb_nr_tbl()) {
 		return ttm_dma_populate((void *)ttm, dev, ctx);
@@ -1707,7 +1610,6 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 		ttm_dma->dma_address[i] = addr;
 	}
 	return 0;
-#endif
 }
 
 static void
@@ -1715,19 +1617,15 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 {
 	struct ttm_dma_tt *ttm_dma = (void *)ttm;
 	struct nouveau_drm *drm;
-#ifndef __NetBSD__
 	struct device *dev;
 	unsigned i;
-#endif
 	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
 
 	if (slave)
 		return;
 
 	drm = nouveau_bdev(ttm->bdev);
-#ifndef __NetBSD__
 	dev = drm->dev->dev;
-#endif
 
 #if IS_ENABLED(CONFIG_AGP)
 	if (drm->agp.bridge) {
@@ -1736,9 +1634,6 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 	}
 #endif
 
-#ifdef __NetBSD__
-	ttm_bus_dma_unpopulate(ttm_dma);
-#else
 #if IS_ENABLED(CONFIG_SWIOTLB) && IS_ENABLED(CONFIG_X86)
 	if (swiotlb_nr_tbl()) {
 		ttm_dma_unpopulate((void *)ttm, dev);
@@ -1754,18 +1649,7 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 	}
 
 	ttm_pool_unpopulate(ttm);
-#endif
 }
-
-#ifdef __NetBSD__
-static void
-nouveau_ttm_tt_swapout(struct ttm_tt *ttm)
-{
-	struct ttm_dma_tt *ttm_dma = container_of(ttm, struct ttm_dma_tt, ttm);
-
-	ttm_bus_dma_swapout(ttm_dma);
-}
-#endif
 
 void
 nouveau_bo_fence(struct nouveau_bo *nvbo, struct nouveau_fence *fence, bool exclusive)
@@ -1778,22 +1662,10 @@ nouveau_bo_fence(struct nouveau_bo *nvbo, struct nouveau_fence *fence, bool excl
 		reservation_object_add_shared_fence(resv, &fence->base);
 }
 
-#ifdef __NetBSD__
-static const struct uvm_pagerops nouveau_uvm_ops = {
-	.pgo_reference = &ttm_bo_uvm_reference,
-	.pgo_detach = &ttm_bo_uvm_detach,
-	.pgo_fault = &ttm_bo_uvm_fault,
-};
-#endif
-
 struct ttm_bo_driver nouveau_bo_driver = {
 	.ttm_tt_create = &nouveau_ttm_tt_create,
 	.ttm_tt_populate = &nouveau_ttm_tt_populate,
 	.ttm_tt_unpopulate = &nouveau_ttm_tt_unpopulate,
-#ifdef __NetBSD__
-	.ttm_tt_swapout = &nouveau_ttm_tt_swapout,
-	.ttm_uvm_ops = &nouveau_uvm_ops,
-#endif
 	.invalidate_caches = nouveau_bo_invalidate_caches,
 	.init_mem_type = nouveau_bo_init_mem_type,
 	.eviction_valuable = ttm_bo_eviction_valuable,

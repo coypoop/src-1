@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright(c) 2011-2017 Intel Corporation. All rights reserved.
  *
@@ -22,9 +20,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/debugfs.h>
 #include <linux/list_sort.h>
 #include "i915_drv.h"

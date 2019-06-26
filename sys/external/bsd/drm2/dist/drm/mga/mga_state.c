@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* mga_state.c -- State support for MGA G200/G400 -*- linux-c -*-
  * Created: Thu Jan 27 02:53:43 2000 by jhartmann@precisioninsight.com
  *
@@ -33,9 +31,6 @@
  * Rewritten by:
  *    Gareth Hughes <gareth@valinux.com>
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <drm/drmP.h>
 #include <drm/mga_drm.h>

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 #ifndef __NVKM_UMMU_H__
 #define __NVKM_UMMU_H__
 #define nvkm_ummu(p) container_of((p), struct nvkm_ummu, object)

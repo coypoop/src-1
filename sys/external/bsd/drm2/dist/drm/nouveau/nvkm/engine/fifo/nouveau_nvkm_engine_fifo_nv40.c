@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "nv04.h"
 #include "channv04.h"
 #include "regsnv04.h"
@@ -86,7 +81,6 @@ nv40_fifo_init(struct nvkm_fifo *base)
 	case 0x49:
 	case 0x4b:
 		nvkm_wr32(device, 0x002230, 0x00000001);
-		/*FALLTHROUGH*/
 	case 0x40:
 	case 0x41:
 	case 0x42:

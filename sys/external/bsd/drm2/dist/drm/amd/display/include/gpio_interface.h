@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012-15 Advanced Micro Devices, Inc.
  *
@@ -60,6 +58,14 @@ enum gpio_mode dal_gpio_get_mode(
 enum gpio_result dal_gpio_change_mode(
 	struct gpio *gpio,
 	enum gpio_mode mode);
+
+/* Lock Pin */
+enum gpio_result dal_gpio_lock_pin(
+	struct gpio *gpio);
+
+/* Unlock Pin */
+enum gpio_result dal_gpio_unlock_pin(
+	struct gpio *gpio);
 
 /* Get the GPIO id */
 enum gpio_id dal_gpio_get_id(

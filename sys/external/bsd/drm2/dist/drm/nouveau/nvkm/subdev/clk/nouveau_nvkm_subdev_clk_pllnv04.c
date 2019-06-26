@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 1993-2003 NVIDIA, Corporation
  * Copyright 2007-2009 Stuart Bennett
@@ -22,9 +20,6 @@
  * OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "pll.h"
 
 #include <subdev/bios.h>

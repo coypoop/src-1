@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2008 Advanced Micro Devices, Inc.
  * Copyright 2008 Red Hat Inc.
@@ -30,7 +28,6 @@
 #ifndef __AMDGPU_OBJECT_H__
 #define __AMDGPU_OBJECT_H__
 
-#include <linux/device.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 
@@ -92,8 +89,8 @@ struct amdgpu_bo {
 	void				*metadata;
 	u32				metadata_size;
 	unsigned			prime_shared_count;
-	/* list of all virtual address to which this bo is associated to */
-	struct list_head		va;
+	/* per VM structure for page tables and with virtual addresses */
+	struct amdgpu_vm_bo_base	*vm_bo;
 	/* Constant after initialization */
 	struct drm_gem_object		gem_base;
 	struct amdgpu_bo		*parent;
@@ -197,19 +194,6 @@ static inline u64 amdgpu_bo_mmap_offset(struct amdgpu_bo *bo)
 }
 
 /**
- * amdgpu_bo_gpu_accessible - return whether the bo is currently in memory that
- * is accessible to the GPU.
- */
-static inline bool amdgpu_bo_gpu_accessible(struct amdgpu_bo *bo)
-{
-	switch (bo->tbo.mem.mem_type) {
-	case TTM_PL_TT: return amdgpu_gtt_mgr_has_gart_addr(&bo->tbo.mem);
-	case TTM_PL_VRAM: return true;
-	default: return false;
-	}
-}
-
-/**
  * amdgpu_bo_in_cpu_visible_vram - check if BO is (partly) in visible VRAM
  */
 static inline bool amdgpu_bo_in_cpu_visible_vram(struct amdgpu_bo *bo)
@@ -267,10 +251,8 @@ int amdgpu_bo_evict_vram(struct amdgpu_device *adev);
 int amdgpu_bo_init(struct amdgpu_device *adev);
 int amdgpu_bo_late_init(struct amdgpu_device *adev);
 void amdgpu_bo_fini(struct amdgpu_device *adev);
-#ifndef __NetBSD__
 int amdgpu_bo_fbdev_mmap(struct amdgpu_bo *bo,
 				struct vm_area_struct *vma);
-#endif
 int amdgpu_bo_set_tiling_flags(struct amdgpu_bo *bo, u64 tiling_flags);
 void amdgpu_bo_get_tiling_flags(struct amdgpu_bo *bo, u64 *tiling_flags);
 int amdgpu_bo_set_metadata (struct amdgpu_bo *bo, void *metadata,
@@ -284,19 +266,11 @@ void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
 int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo);
 void amdgpu_bo_fence(struct amdgpu_bo *bo, struct dma_fence *fence,
 		     bool shared);
+int amdgpu_bo_sync_wait(struct amdgpu_bo *bo, void *owner, bool intr);
 u64 amdgpu_bo_gpu_offset(struct amdgpu_bo *bo);
-int amdgpu_bo_backup_to_shadow(struct amdgpu_device *adev,
-			       struct amdgpu_ring *ring,
-			       struct amdgpu_bo *bo,
-			       struct reservation_object *resv,
-			       struct dma_fence **fence, bool direct);
 int amdgpu_bo_validate(struct amdgpu_bo *bo);
-int amdgpu_bo_restore_from_shadow(struct amdgpu_device *adev,
-				  struct amdgpu_ring *ring,
-				  struct amdgpu_bo *bo,
-				  struct reservation_object *resv,
-				  struct dma_fence **fence,
-				  bool direct);
+int amdgpu_bo_restore_shadow(struct amdgpu_bo *shadow,
+			     struct dma_fence **fence);
 uint32_t amdgpu_bo_get_preferred_pin_domain(struct amdgpu_device *adev,
 					    uint32_t domain);
 
@@ -311,7 +285,7 @@ static inline uint64_t amdgpu_sa_bo_gpu_addr(struct amdgpu_sa_bo *sa_bo)
 
 static inline void * amdgpu_sa_bo_cpu_addr(struct amdgpu_sa_bo *sa_bo)
 {
-	return (char *)sa_bo->manager->cpu_ptr + sa_bo->soffset;
+	return sa_bo->manager->cpu_ptr + sa_bo->soffset;
 }
 
 int amdgpu_sa_bo_manager_init(struct amdgpu_device *adev,

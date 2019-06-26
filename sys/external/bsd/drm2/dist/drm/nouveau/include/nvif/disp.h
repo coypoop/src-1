@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 #ifndef __NVIF_DISP_H__
 #define __NVIF_DISP_H__
 #include <nvif/object.h>

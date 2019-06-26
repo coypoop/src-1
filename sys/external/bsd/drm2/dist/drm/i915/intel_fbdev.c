@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2007 David Airlie
  *
@@ -26,9 +24,6 @@
  *     David Airlie
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/async.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -41,19 +36,15 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/vga_switcheroo.h>
-#include <linux/err.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
+
 #include "intel_drv.h"
 #include "intel_frontbuffer.h"
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
-
-#ifdef __NetBSD__
-#include "intelfb.h"
-#endif
 
 static void intel_fbdev_invalidate(struct intel_fbdev *ifbdev)
 {
@@ -64,7 +55,6 @@ static void intel_fbdev_invalidate(struct intel_fbdev *ifbdev)
 	intel_fb_obj_invalidate(obj, origin);
 }
 
-#ifndef __NetBSD__		/* XXX fb info */
 static int intel_fbdev_set_par(struct fb_info *info)
 {
 	struct drm_fb_helper *fb_helper = info->par;
@@ -118,7 +108,6 @@ static struct fb_ops intelfb_ops = {
 	.fb_pan_display = intel_fbdev_pan_display,
 	.fb_blank = intel_fbdev_blank,
 };
-#endif
 
 static int intelfb_alloc(struct drm_fb_helper *helper,
 			 struct drm_fb_helper_surface_size *sizes)
@@ -139,13 +128,8 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
 
-#ifdef __NetBSD__
-	mode_cmd.pitches[0] = round_up(mode_cmd.width *
-				    DIV_ROUND_UP(sizes->surface_bpp, 8), 64);
-#else
 	mode_cmd.pitches[0] = ALIGN(mode_cmd.width *
 				    DIV_ROUND_UP(sizes->surface_bpp, 8), 64);
-#endif
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
 							  sizes->surface_depth);
 
@@ -192,10 +176,12 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-#ifndef __NetBSD__
-	struct fb_info *info;
-#endif
+	const struct i915_ggtt_view view = {
+		.type = I915_GGTT_VIEW_NORMAL,
+	};
 	struct drm_framebuffer *fb;
+	intel_wakeref_t wakeref;
+	struct fb_info *info;
 	struct i915_vma *vma;
 	unsigned long flags = 0;
 	bool prealloc = false;
@@ -226,15 +212,14 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	}
 
 	mutex_lock(&dev->struct_mutex);
-	intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(dev_priv);
 
 	/* Pin the GGTT vma for our access via info->screen_base.
 	 * This also validates that any existing fb inherited from the
 	 * BIOS is suitable for own access.
 	 */
 	vma = intel_pin_and_fence_fb_obj(&ifbdev->fb->base,
-					 DRM_MODE_ROTATE_0,
-					 false, &flags);
+					 &view, false, &flags);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto out_unlock;
@@ -243,34 +228,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	fb = &ifbdev->fb->base;
 	intel_fb_obj_flush(intel_fb_obj(fb), ORIGIN_DIRTYFB);
 
-#ifdef __NetBSD__
-    {
-	static const struct intelfb_attach_args zero_ifa;
-	struct intelfb_attach_args ifa = zero_ifa;
-
-	ifa.ifa_drm_dev = dev;
-	ifa.ifa_fb_helper = helper;
-	ifa.ifa_fb_sizes = *sizes;
-	ifa.ifa_fb_bst = dev->pdev->pd_pa.pa_memt;
-	ifa.ifa_fb_addr = (dev_priv->gtt.mappable_base +
-	    i915_gem_obj_ggtt_offset(obj));
-	ifa.ifa_fb_size = size;
-	ifa.ifa_fb_zero = (ifbdev->fb->obj->stolen && !prealloc);
-
-	/*
-	 * XXX Should do this asynchronously, since we hold
-	 * dev->struct_mutex.
-	 */
-	helper->fbdev = config_found_ia(dev->dev, "intelfbbus", &ifa, NULL);
-	if (helper->fbdev == NULL) {
-		DRM_ERROR("unable to attach intelfb\n");
-		ret = -ENXIO;
-		goto out_unpin;
-	}
-	fb = &ifbdev->fb->base;
-	ifbdev->helper.fb = fb;
-    }
-#else
 	info = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(info)) {
 		DRM_ERROR("Failed to allocate fb_info\n");
@@ -314,26 +271,23 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	 */
 	if (intel_fb_obj(fb)->stolen && !prealloc)
 		memset_io(info->screen_base, 0, info->screen_size);
-#endif
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
-	DRM_DEBUG_KMS("allocated %dx%d fb: 0x%08"PRIx32"\n",
+	DRM_DEBUG_KMS("allocated %dx%d fb: 0x%08x\n",
 		      fb->width, fb->height, i915_ggtt_offset(vma));
 	ifbdev->vma = vma;
 	ifbdev->vma_flags = flags;
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put(dev_priv, wakeref);
 	mutex_unlock(&dev->struct_mutex);
-#ifndef __NetBSD__
 	vga_switcheroo_client_fb_set(pdev, info);
-#endif
 	return 0;
 
 out_unpin:
 	intel_unpin_fb_vma(vma, flags);
 out_unlock:
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put(dev_priv, wakeref);
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
@@ -564,19 +518,8 @@ static void intel_fbdev_destroy(struct intel_fbdev *ifbdev)
 	 * the info->screen_base mmaping. Leaking the VMA is simpler than
 	 * trying to rectify all the possible error paths leading here.
 	 */
-#ifdef __NetBSD__
-	int ret;
-#endif
 
-#ifdef __NetBSD__
-	/* XXX errno NetBSD->Linux */
-	ret = -config_detach(ifbdev->helper.fbdev, DETACH_FORCE);
-	if (ret)
-		DRM_ERROR("failed to detach intelfb: %d\n", ret);
-	ifbdev->helper.fbdev = NULL;
-#else
 	drm_fb_helper_fini(&ifbdev->helper);
-#endif
 
 	if (ifbdev->vma) {
 		mutex_lock(&ifbdev->helper.dev->struct_mutex);
@@ -652,7 +595,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 		 * pipe.  Note we need to use the selected fb's pitch and bpp
 		 * rather than the current pipe's, since they differ.
 		 */
-		cur_size = intel_crtc->config->base.adjusted_mode.crtc_hdisplay;
+		cur_size = crtc->state->adjusted_mode.crtc_hdisplay;
 		cur_size = cur_size * fb->base.format->cpp[0];
 		if (fb->base.pitches[0] < cur_size) {
 			DRM_DEBUG_KMS("fb not wide enough for plane %c (%d vs %d)\n",
@@ -662,13 +605,13 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 			break;
 		}
 
-		cur_size = intel_crtc->config->base.adjusted_mode.crtc_vdisplay;
+		cur_size = crtc->state->adjusted_mode.crtc_vdisplay;
 		cur_size = intel_fb_align_height(&fb->base, 0, cur_size);
 		cur_size *= fb->base.pitches[0];
 		DRM_DEBUG_KMS("pipe %c area: %dx%d, bpp: %d, size: %d\n",
 			      pipe_name(intel_crtc->pipe),
-			      intel_crtc->config->base.adjusted_mode.crtc_hdisplay,
-			      intel_crtc->config->base.adjusted_mode.crtc_vdisplay,
+			      crtc->state->adjusted_mode.crtc_hdisplay,
+			      crtc->state->adjusted_mode.crtc_vdisplay,
 			      fb->base.format->cpp[0] * 8,
 			      cur_size);
 
@@ -718,13 +661,11 @@ out:
 
 static void intel_fbdev_suspend_worker(struct work_struct *work)
 {
-#ifndef __NetBSD__		/* XXX fb suspend */
 	intel_fbdev_set_suspend(&container_of(work,
 					      struct drm_i915_private,
 					      fbdev_suspend_work)->drm,
 				FBINFO_STATE_RUNNING,
 				true);
-#endif
 }
 
 int intel_fbdev_init(struct drm_device *dev)
@@ -733,13 +674,14 @@ int intel_fbdev_init(struct drm_device *dev)
 	struct intel_fbdev *ifbdev;
 	int ret;
 
-	if (WARN_ON(INTEL_INFO(dev_priv)->num_pipes == 0))
+	if (WARN_ON(!HAS_DISPLAY(dev_priv)))
 		return -ENODEV;
 
 	ifbdev = kzalloc(sizeof(struct intel_fbdev), GFP_KERNEL);
 	if (ifbdev == NULL)
 		return -ENOMEM;
 
+	mutex_init(&ifbdev->hpd_lock);
 	drm_fb_helper_prepare(dev, &ifbdev->helper, &intel_fb_helper_funcs);
 
 	if (!intel_fbdev_init_bios(dev, ifbdev))
@@ -813,7 +755,26 @@ void intel_fbdev_fini(struct drm_i915_private *dev_priv)
 	intel_fbdev_destroy(ifbdev);
 }
 
-#ifndef __NetBSD__		/* XXX fb suspend */
+/* Suspends/resumes fbdev processing of incoming HPD events. When resuming HPD
+ * processing, fbdev will perform a full connector reprobe if a hotplug event
+ * was received while HPD was suspended.
+ */
+static void intel_fbdev_hpd_set_suspend(struct intel_fbdev *ifbdev, int state)
+{
+	bool send_hpd = false;
+
+	mutex_lock(&ifbdev->hpd_lock);
+	ifbdev->hpd_suspended = state == FBINFO_STATE_SUSPENDED;
+	send_hpd = !ifbdev->hpd_suspended && ifbdev->hpd_waiting;
+	ifbdev->hpd_waiting = false;
+	mutex_unlock(&ifbdev->hpd_lock);
+
+	if (send_hpd) {
+		DRM_DEBUG_KMS("Handling delayed fbcon HPD event\n");
+		drm_fb_helper_hotplug_event(&ifbdev->helper);
+	}
+}
+
 void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -835,6 +796,7 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 		 */
 		if (state != FBINFO_STATE_RUNNING)
 			flush_work(&dev_priv->fbdev_suspend_work);
+
 		console_lock();
 	} else {
 		/*
@@ -862,18 +824,26 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 
 	drm_fb_helper_set_suspend(&ifbdev->helper, state);
 	console_unlock();
+
+	intel_fbdev_hpd_set_suspend(ifbdev, state);
 }
-#endif
 
 void intel_fbdev_output_poll_changed(struct drm_device *dev)
 {
 	struct intel_fbdev *ifbdev = to_i915(dev)->fbdev;
+	bool send_hpd;
 
 	if (!ifbdev)
 		return;
 
 	intel_fbdev_sync(ifbdev);
-	if (ifbdev->vma || ifbdev->helper.deferred_setup)
+
+	mutex_lock(&ifbdev->hpd_lock);
+	send_hpd = !ifbdev->hpd_suspended;
+	ifbdev->hpd_waiting = true;
+	mutex_unlock(&ifbdev->hpd_lock);
+
+	if (send_hpd && (ifbdev->vma || ifbdev->helper.deferred_setup))
 		drm_fb_helper_hotplug_event(&ifbdev->helper);
 }
 

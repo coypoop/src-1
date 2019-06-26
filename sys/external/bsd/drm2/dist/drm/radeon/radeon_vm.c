@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2008 Advanced Micro Devices, Inc.
  * Copyright 2008 Red Hat Inc.
@@ -27,9 +25,6 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/drmP.h>
 #include <drm/radeon_drm.h>
 #include "radeon.h"
@@ -147,7 +142,7 @@ struct radeon_bo_list *radeon_vm_get_bos(struct radeon_device *rdev,
 	list[0].preferred_domains = RADEON_GEM_DOMAIN_VRAM;
 	list[0].allowed_domains = RADEON_GEM_DOMAIN_VRAM;
 	list[0].tv.bo = &vm->page_directory->tbo;
-	list[0].tv.shared = true;
+	list[0].tv.num_shared = 1;
 	list[0].tiling_flags = 0;
 	list_add(&list[0].tv.head, head);
 
@@ -159,7 +154,7 @@ struct radeon_bo_list *radeon_vm_get_bos(struct radeon_device *rdev,
 		list[idx].preferred_domains = RADEON_GEM_DOMAIN_VRAM;
 		list[idx].allowed_domains = RADEON_GEM_DOMAIN_VRAM;
 		list[idx].tv.bo = &list[idx].robj->tbo;
-		list[idx].tv.shared = true;
+		list[idx].tv.num_shared = 1;
 		list[idx].tiling_flags = 0;
 		list_add(&list[idx++].tv.head, head);
 	}
@@ -489,7 +484,7 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 			struct radeon_bo_va *tmp;
 			tmp = container_of(it, struct radeon_bo_va, it);
 			/* bo and tmp overlap, invalid offset */
-			dev_err(rdev->dev, "bo %p va 0x%010"PRIx64" conflict with "
+			dev_err(rdev->dev, "bo %p va 0x%010Lx conflict with "
 				"(bo %p 0x%010lx 0x%010lx)\n", bo_va->bo,
 				soffset, tmp->bo, tmp->it.start, tmp->it.last);
 			mutex_unlock(&vm->mutex);
@@ -765,11 +760,7 @@ static void radeon_vm_frag_ptes(struct radeon_device *rdev,
 	uint64_t frag_align = ((rdev->family == CHIP_CAYMAN) ||
 			       (rdev->family == CHIP_ARUBA)) ? 0x200 : 0x80;
 
-#ifdef __NetBSD__		/* XXX ALIGN means something else */
-	uint64_t frag_start = round_up(pe_start, frag_align);
-#else
 	uint64_t frag_start = ALIGN(pe_start, frag_align);
-#endif
 	uint64_t frag_end = pe_end & ~(frag_align - 1);
 
 	unsigned count;
@@ -840,7 +831,7 @@ static int radeon_vm_update_ptes(struct radeon_device *rdev,
 		int r;
 
 		radeon_sync_resv(rdev, &ib->sync, pt->tbo.resv, true);
-		r = reservation_object_reserve_shared(pt->tbo.resv);
+		r = reservation_object_reserve_shared(pt->tbo.resv, 1);
 		if (r)
 			return r;
 
@@ -955,7 +946,7 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 		bo_va->flags &= ~RADEON_VM_PAGE_WRITEABLE;
 
 	if (mem) {
-		addr = mem->start << PAGE_SHIFT;
+		addr = (u64)mem->start << PAGE_SHIFT;
 		if (mem->mem_type != TTM_PL_SYSTEM) {
 			bo_va->flags |= RADEON_VM_PAGE_VALID;
 		}
@@ -1194,16 +1185,8 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 		vm->ids[i].flushed_updates = NULL;
 		vm->ids[i].last_id_use = NULL;
 	}
-#ifdef __NetBSD__
-	linux_mutex_init(&vm->mutex);
-#else
 	mutex_init(&vm->mutex);
-#endif
-#ifdef __NetBSD__
-	interval_tree_init(&vm->va);
-#else
 	vm->va = RB_ROOT_CACHED;
-#endif
 	spin_lock_init(&vm->status_lock);
 	INIT_LIST_HEAD(&vm->invalidated);
 	INIT_LIST_HEAD(&vm->freed);
@@ -1281,10 +1264,5 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 		radeon_fence_unref(&vm->ids[i].last_id_use);
 	}
 
-#ifdef __NetBSD__
-	spin_lock_destroy(&vm->status_lock);
-	linux_mutex_destroy(&vm->mutex);
-#else
 	mutex_destroy(&vm->mutex);
-#endif
 }

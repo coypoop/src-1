@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2017 Rhys Kidd
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Rhys Kidd
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "priv.h"
 
 static int

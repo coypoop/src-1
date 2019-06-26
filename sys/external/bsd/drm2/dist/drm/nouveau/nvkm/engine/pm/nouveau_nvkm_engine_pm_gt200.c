@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2015 Nouveau project
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Samuel Pitoiset
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "nv40.h"
 
 const struct nvkm_specsrc

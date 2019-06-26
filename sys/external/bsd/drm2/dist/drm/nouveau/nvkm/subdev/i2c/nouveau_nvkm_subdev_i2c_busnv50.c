@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2015 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #define nv50_i2c_bus(p) container_of((p), struct nv50_i2c_bus, base)
 #include "bus.h"
 

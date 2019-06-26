@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2008 Advanced Micro Devices, Inc.
  * Copyright 2008 Red Hat Inc.
@@ -27,9 +25,6 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/ktime.h>
 #include <linux/pagemap.h>
 #include <drm/drmP.h>
@@ -59,10 +54,6 @@ int amdgpu_gem_object_create(struct amdgpu_device *adev, unsigned long size,
 
 	memset(&bp, 0, sizeof(bp));
 	*obj = NULL;
-	/* At least align on page size */
-	if (alignment < PAGE_SIZE) {
-		alignment = PAGE_SIZE;
-	}
 
 	bp.size = size;
 	bp.byte_align = alignment;
@@ -174,7 +165,7 @@ void amdgpu_gem_object_close(struct drm_gem_object *obj,
 	INIT_LIST_HEAD(&duplicates);
 
 	tv.bo = &bo->tbo;
-	tv.shared = true;
+	tv.num_shared = 1;
 	list_add(&tv.head, &list);
 
 	amdgpu_vm_get_pd_bo(vm, &list, &vm_pd);
@@ -249,16 +240,7 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 			return -EINVAL;
 		}
 		flags |= AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
-		if (args->in.domains == AMDGPU_GEM_DOMAIN_GDS)
-			size = size << AMDGPU_GDS_SHIFT;
-		else if (args->in.domains == AMDGPU_GEM_DOMAIN_GWS)
-			size = size << AMDGPU_GWS_SHIFT;
-		else if (args->in.domains == AMDGPU_GEM_DOMAIN_OA)
-			size = size << AMDGPU_OA_SHIFT;
-		else
-			return -EINVAL;
 	}
-	size = roundup(size, PAGE_SIZE);
 
 	if (flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID) {
 		r = amdgpu_bo_reserve(vm->root.base.bo, false);
@@ -296,15 +278,6 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *filp)
 {
-#ifdef __NetBSD__
-	/*
-	 * XXX Too painful to contemplate for now.  If you add this,
-	 * make sure to update amdgpu_cs.c amdgpu_cs_parser_relocs
-	 * (need_mmap_lock), and anything else using
-	 * amdgpu_ttm_tt_has_userptr.
-	 */
-	return -ENODEV;
-#else
 	struct ttm_operation_ctx ctx = { true, false };
 	struct amdgpu_device *adev = dev->dev_private;
 	struct drm_amdgpu_gem_userptr *args = data;
@@ -381,7 +354,6 @@ release_object:
 	drm_gem_object_put_unlocked(gobj);
 
 	return r;
-#endif
 }
 
 int amdgpu_mode_dumb_mmap(struct drm_file *filp,
@@ -581,25 +553,25 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	int r = 0;
 
 	if (args->va_address < AMDGPU_VA_RESERVED_SIZE) {
-		dev_dbg(pci_dev_dev(dev->pdev),
+		dev_dbg(&dev->pdev->dev,
 			"va_address 0x%LX is in reserved area 0x%LX\n",
 			args->va_address, AMDGPU_VA_RESERVED_SIZE);
 		return -EINVAL;
 	}
 
-	if (args->va_address >= AMDGPU_VA_HOLE_START &&
-	    args->va_address < AMDGPU_VA_HOLE_END) {
-		dev_dbg(pci_dev_dev(dev->pdev),
+	if (args->va_address >= AMDGPU_GMC_HOLE_START &&
+	    args->va_address < AMDGPU_GMC_HOLE_END) {
+		dev_dbg(&dev->pdev->dev,
 			"va_address 0x%LX is in VA hole 0x%LX-0x%LX\n",
-			args->va_address, AMDGPU_VA_HOLE_START,
-			AMDGPU_VA_HOLE_END);
+			args->va_address, AMDGPU_GMC_HOLE_START,
+			AMDGPU_GMC_HOLE_END);
 		return -EINVAL;
 	}
 
-	args->va_address &= AMDGPU_VA_HOLE_MASK;
+	args->va_address &= AMDGPU_GMC_HOLE_MASK;
 
 	if ((args->flags & ~valid_flags) && (args->flags & ~prt_flags)) {
-		dev_dbg(pci_dev_dev(dev->pdev), "invalid flags combination 0x%08X\n",
+		dev_dbg(&dev->pdev->dev, "invalid flags combination 0x%08X\n",
 			args->flags);
 		return -EINVAL;
 	}
@@ -611,7 +583,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	case AMDGPU_VA_OP_REPLACE:
 		break;
 	default:
-		dev_dbg(pci_dev_dev(dev->pdev), "unsupported operation %d\n",
+		dev_dbg(&dev->pdev->dev, "unsupported operation %d\n",
 			args->operation);
 		return -EINVAL;
 	}
@@ -625,7 +597,10 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 			return -ENOENT;
 		abo = gem_to_amdgpu_bo(gobj);
 		tv.bo = &abo->tbo;
-		tv.shared = !!(abo->flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID);
+		if (abo->flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID)
+			tv.num_shared = 1;
+		else
+			tv.num_shared = 0;
 		list_add(&tv.head, &list);
 	} else {
 		gobj = NULL;
@@ -776,11 +751,7 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
 	args->pitch = amdgpu_align_pitch(adev, args->width,
 					 DIV_ROUND_UP(args->bpp, 8), 0);
 	args->size = (u64)args->pitch * args->height;
-#ifdef __NetBSD__		/* XXX ALIGN means something else.  */
-	args->size = round_up(args->size, PAGE_SIZE);
-#else
 	args->size = ALIGN(args->size, PAGE_SIZE);
-#endif
 	domain = amdgpu_bo_get_preferred_pin_domain(adev,
 				amdgpu_display_supported_domains(adev));
 	r = amdgpu_gem_object_create(adev, args->size, 0, domain,

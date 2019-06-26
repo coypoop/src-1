@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Nouveau Community
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Martin Peres
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
 #include <subdev/bios/therm.h>

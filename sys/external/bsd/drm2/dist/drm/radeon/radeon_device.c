@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2008 Advanced Micro Devices, Inc.
  * Copyright 2008 Red Hat Inc.
@@ -27,20 +25,17 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/console.h>
 #include <linux/slab.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_cache.h>
 #include <drm/radeon_drm.h>
 #include <linux/pm_runtime.h>
 #include <linux/vgaarb.h>
 #include <linux/vga_switcheroo.h>
 #include <linux/efi.h>
-#include <linux/bitops.h>
 #include "radeon_reg.h"
 #include "radeon.h"
 #include "atom.h"
@@ -335,10 +330,6 @@ void radeon_scratch_free(struct radeon_device *rdev, uint32_t reg)
  */
 static int radeon_doorbell_init(struct radeon_device *rdev)
 {
-#ifdef __NetBSD__
-	int r;
-#endif
-
 	/* doorbell bar mapping */
 	rdev->doorbell.base = pci_resource_start(rdev->pdev, 2);
 	rdev->doorbell.size = pci_resource_len(rdev->pdev, 2);
@@ -347,20 +338,10 @@ static int radeon_doorbell_init(struct radeon_device *rdev)
 	if (rdev->doorbell.num_doorbells == 0)
 		return -EINVAL;
 
-#ifdef __NetBSD__
-	/* XXX errno NetBSD->Linux */
-	rdev->doorbell.bst = rdev->pdev->pd_pa.pa_memt;
-	r = -bus_space_map(rdev->doorbell.bst, rdev->doorbell.base,
-	    (rdev->doorbell.num_doorbells * sizeof(uint32_t)),
-	    0, &rdev->doorbell.bsh);
-	if (r)
-		return r;
-#else
 	rdev->doorbell.ptr = ioremap(rdev->doorbell.base, rdev->doorbell.num_doorbells * sizeof(u32));
 	if (rdev->doorbell.ptr == NULL) {
 		return -ENOMEM;
 	}
-#endif
 	DRM_INFO("doorbell mmio base: 0x%08X\n", (uint32_t)rdev->doorbell.base);
 	DRM_INFO("doorbell mmio size: %u\n", (unsigned)rdev->doorbell.size);
 
@@ -378,13 +359,8 @@ static int radeon_doorbell_init(struct radeon_device *rdev)
  */
 static void radeon_doorbell_fini(struct radeon_device *rdev)
 {
-#ifdef __NetBSD__
-	bus_space_unmap(rdev->doorbell.bst, rdev->doorbell.bsh,
-	    (rdev->doorbell.num_doorbells * sizeof(uint32_t)));
-#else
 	iounmap(rdev->doorbell.ptr);
 	rdev->doorbell.ptr = NULL;
-#endif
 }
 
 /**
@@ -498,7 +474,7 @@ int radeon_wb_init(struct radeon_device *rdev)
 			radeon_wb_fini(rdev);
 			return r;
 		}
-		r = radeon_bo_kmap(rdev->wb.wb_obj, (void **)__UNVOLATILE(&rdev->wb.wb));
+		r = radeon_bo_kmap(rdev->wb.wb_obj, (void **)&rdev->wb.wb);
 		radeon_bo_unreserve(rdev->wb.wb_obj);
 		if (r) {
 			dev_warn(rdev->dev, "(%d) map WB bo failed\n", r);
@@ -508,7 +484,7 @@ int radeon_wb_init(struct radeon_device *rdev)
 	}
 
 	/* clear wb memory */
-	memset(__UNVOLATILE(rdev->wb.wb), 0, RADEON_GPU_PAGE_SIZE);
+	memset((char *)rdev->wb.wb, 0, RADEON_GPU_PAGE_SIZE);
 	/* disable event_write fences */
 	rdev->wb.use_event = false;
 	/* disabled via module param */
@@ -600,7 +576,7 @@ void radeon_vram_location(struct radeon_device *rdev, struct radeon_mc *mc, u64 
 	mc->vram_end = mc->vram_start + mc->mc_vram_size - 1;
 	if (limit && limit < mc->real_vram_size)
 		mc->real_vram_size = limit;
-	dev_info(rdev->dev, "VRAM: %"PRIu64"M 0x%016"PRIX64" - 0x%016"PRIX64" (%"PRIu64"M used)\n",
+	dev_info(rdev->dev, "VRAM: %lluM 0x%016llX - 0x%016llX (%lluM used)\n",
 			mc->mc_vram_size >> 20, mc->vram_start,
 			mc->vram_end, mc->real_vram_size >> 20);
 }
@@ -637,7 +613,7 @@ void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
 		mc->gtt_start = (mc->vram_end + 1 + mc->gtt_base_align) & ~mc->gtt_base_align;
 	}
 	mc->gtt_end = mc->gtt_start + mc->gtt_size - 1;
-	dev_info(rdev->dev, "GTT: %"PRIu64"M 0x%016"PRIX64" - 0x%016"PRIX64"\n",
+	dev_info(rdev->dev, "GTT: %lluM 0x%016llX - 0x%016llX\n",
 			mc->gtt_size >> 20, mc->gtt_start, mc->gtt_end);
 }
 
@@ -655,11 +631,7 @@ void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
 bool radeon_device_is_virtual(void)
 {
 #ifdef CONFIG_X86
-#ifdef __NetBSD__		/* XXX virtualization */
-	return false;
-#else
 	return boot_cpu_has(X86_FEATURE_HYPERVISOR);
-#endif
 #else
 	return false;
 #endif
@@ -683,13 +655,11 @@ bool radeon_card_posted(struct radeon_device *rdev)
 	    radeon_device_is_virtual())
 		return false;
 
-#ifndef __NetBSD__		/* XXX radeon efi */
 	/* required for EFI mode on macbook2,1 which uses an r5xx asic */
 	if (efi_enabled(EFI_BOOT) &&
 	    (rdev->pdev->subsystem_vendor == PCI_VENDOR_ID_APPLE) &&
 	    (rdev->family < CHIP_R600))
 		return false;
-#endif
 
 	if (ASIC_IS_NODCE(rdev))
 		goto check_memsize;
@@ -803,43 +773,6 @@ bool radeon_boot_test_post_card(struct radeon_device *rdev)
  */
 int radeon_dummy_page_init(struct radeon_device *rdev)
 {
-#ifdef __NetBSD__
-	int rsegs;
-	int error;
-
-	/* XXX Can this be called more than once??  */
-	if (rdev->dummy_page.rdp_map != NULL)
-		return 0;
-
-	error = bus_dmamem_alloc(rdev->ddev->dmat, PAGE_SIZE, PAGE_SIZE, 0,
-	    &rdev->dummy_page.rdp_seg, 1, &rsegs, BUS_DMA_WAITOK);
-	if (error)
-		goto fail0;
-	KASSERT(rsegs == 1);
-	error = bus_dmamap_create(rdev->ddev->dmat, PAGE_SIZE, 1, PAGE_SIZE, 0,
-	    BUS_DMA_WAITOK, &rdev->dummy_page.rdp_map);
-	if (error)
-		goto fail1;
-	error = bus_dmamap_load_raw(rdev->ddev->dmat, rdev->dummy_page.rdp_map,
-	    &rdev->dummy_page.rdp_seg, 1, PAGE_SIZE, BUS_DMA_WAITOK);
-	if (error)
-		goto fail2;
-
-	/* Success!  */
-	rdev->dummy_page.addr = rdev->dummy_page.rdp_map->dm_segs[0].ds_addr;
-	rdev->dummy_page.entry = radeon_gart_get_page_entry(
-		rdev->dummy_page.addr, RADEON_GART_PAGE_DUMMY);
-	return 0;
-
-fail3: __unused
-	bus_dmamap_unload(rdev->ddev->dmat, rdev->dummy_page.rdp_map);
-fail2:	bus_dmamap_destroy(rdev->ddev->dmat, rdev->dummy_page.rdp_map);
-fail1:	bus_dmamem_free(rdev->ddev->dmat, &rdev->dummy_page.rdp_seg, 1);
-fail0:	KASSERT(error);
-	rdev->dummy_page.rdp_map = NULL;
-	/* XXX errno NetBSD->Linux */
-	return -error;
-#else
 	if (rdev->dummy_page.page)
 		return 0;
 	rdev->dummy_page.page = alloc_page(GFP_DMA32 | GFP_KERNEL | __GFP_ZERO);
@@ -856,7 +789,6 @@ fail0:	KASSERT(error);
 	rdev->dummy_page.entry = radeon_gart_get_page_entry(rdev->dummy_page.addr,
 							    RADEON_GART_PAGE_DUMMY);
 	return 0;
-#endif
 }
 
 /**
@@ -868,22 +800,12 @@ fail0:	KASSERT(error);
  */
 void radeon_dummy_page_fini(struct radeon_device *rdev)
 {
-#ifdef __NetBSD__
-
-	if (rdev->dummy_page.rdp_map == NULL)
-		return;
-	bus_dmamap_unload(rdev->ddev->dmat, rdev->dummy_page.rdp_map);
-	bus_dmamap_destroy(rdev->ddev->dmat, rdev->dummy_page.rdp_map);
-	bus_dmamem_free(rdev->ddev->dmat, &rdev->dummy_page.rdp_seg, 1);
-	rdev->dummy_page.rdp_map = NULL;
-#else
 	if (rdev->dummy_page.page == NULL)
 		return;
 	pci_unmap_page(rdev->pdev, rdev->dummy_page.addr,
 			PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
 	__free_page(rdev->dummy_page.page);
 	rdev->dummy_page.page = NULL;
-#endif
 }
 
 
@@ -1055,12 +977,7 @@ int radeon_atombios_init(struct radeon_device *rdev)
 	atom_card_info->reg_read = cail_reg_read;
 	atom_card_info->reg_write = cail_reg_write;
 	/* needed for iio ops */
-#ifdef __NetBSD__
-	if (rdev->rio_mem_size)
-#else
-	if (rdev->rio_mem)
-#endif
-	{
+	if (rdev->rio_mem) {
 		atom_card_info->ioreg_read = cail_ioreg_read;
 		atom_card_info->ioreg_write = cail_ioreg_write;
 	} else {
@@ -1079,13 +996,8 @@ int radeon_atombios_init(struct radeon_device *rdev)
 		return -ENOMEM;
 	}
 
-#ifdef __NetBSD__
-	linux_mutex_init(&rdev->mode_info.atom_context->mutex);
-	linux_mutex_init(&rdev->mode_info.atom_context->scratch_mutex);
-#else
 	mutex_init(&rdev->mode_info.atom_context->mutex);
 	mutex_init(&rdev->mode_info.atom_context->scratch_mutex);
-#endif
 	radeon_atom_initialize_bios_scratch_regs(rdev->ddev);
 	atom_allocate_fb_scratch(rdev->mode_info.atom_context);
 	return 0;
@@ -1103,13 +1015,6 @@ int radeon_atombios_init(struct radeon_device *rdev)
 void radeon_atombios_fini(struct radeon_device *rdev)
 {
 	if (rdev->mode_info.atom_context) {
-#ifdef __NetBSD__
-		linux_mutex_destroy(&rdev->mode_info.atom_context->scratch_mutex);
-		linux_mutex_destroy(&rdev->mode_info.atom_context->mutex);
-#else
-		mutex_destroy(&rdev->mode_info.atom_context->scratch_mutex);
-		mutex_destroy(&rdev->mode_info.atom_context->mutex);
-#endif
 		kfree(rdev->mode_info.atom_context->scratch);
 	}
 	kfree(rdev->mode_info.atom_context);
@@ -1152,7 +1057,6 @@ void radeon_combios_fini(struct radeon_device *rdev)
 {
 }
 
-#ifndef __NetBSD__		/* XXX radeon vga */
 /* if we get transitioned to only one device, take VGA back */
 /**
  * radeon_vga_set_decode - enable/disable vga decode
@@ -1173,7 +1077,6 @@ static unsigned int radeon_vga_set_decode(void *cookie, bool state)
 	else
 		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
 }
-#endif
 
 /**
  * radeon_check_pot_argument - check that argument is a power of two
@@ -1302,7 +1205,6 @@ static void radeon_check_arguments(struct radeon_device *rdev)
 	}
 }
 
-#ifndef __NetBSD__		/* XXX radeon vga */
 /**
  * radeon_switcheroo_set_state - set switcheroo state
  *
@@ -1363,7 +1265,6 @@ static const struct vga_switcheroo_client_ops radeon_switcheroo_ops = {
 	.reprobe = NULL,
 	.can_switch = radeon_switcheroo_can_switch,
 };
-#endif
 
 /**
  * radeon_device_init - initialize the driver
@@ -1384,12 +1285,10 @@ int radeon_device_init(struct radeon_device *rdev,
 {
 	int r, i;
 	int dma_bits;
-#ifndef __NetBSD__
 	bool runtime = false;
-#endif
 
 	rdev->shutdown = false;
-	rdev->dev = ddev->dev;
+	rdev->dev = &pdev->dev;
 	rdev->ddev = ddev;
 	rdev->pdev = pdev;
 	rdev->flags = flags;
@@ -1410,35 +1309,17 @@ int radeon_device_init(struct radeon_device *rdev,
 
 	/* mutex initialization are all done here so we
 	 * can recall function without having locking issues */
-#ifdef __NetBSD__
-	linux_mutex_init(&rdev->ring_lock);
-	linux_mutex_init(&rdev->dc_hw_i2c_mutex);
-#else
 	mutex_init(&rdev->ring_lock);
 	mutex_init(&rdev->dc_hw_i2c_mutex);
-#endif
 	atomic_set(&rdev->ih.lock, 0);
-#ifdef __NetBSD__
-	linux_mutex_init(&rdev->gem.mutex);
-	linux_mutex_init(&rdev->pm.mutex);
-	linux_mutex_init(&rdev->gpu_clock_mutex);
-	linux_mutex_init(&rdev->srbm_mutex);
-#else
 	mutex_init(&rdev->gem.mutex);
 	mutex_init(&rdev->pm.mutex);
 	mutex_init(&rdev->gpu_clock_mutex);
 	mutex_init(&rdev->srbm_mutex);
-#endif
 	init_rwsem(&rdev->pm.mclk_lock);
 	init_rwsem(&rdev->exclusive_lock);
-#ifdef __NetBSD__
-	spin_lock_init(&rdev->irq.vblank_lock);
-	DRM_INIT_WAITQUEUE(&rdev->irq.vblank_queue, "radvblnk");
-	linux_mutex_init(&rdev->mn_lock);
-#else
 	init_waitqueue_head(&rdev->irq.vblank_queue);
 	mutex_init(&rdev->mn_lock);
-#endif
 	hash_init(rdev->mn_hash);
 	r = radeon_gem_init(rdev);
 	if (r)
@@ -1496,11 +1377,6 @@ int radeon_device_init(struct radeon_device *rdev,
 #endif
 
 	dma_bits = rdev->need_dma32 ? 32 : 40;
-#ifdef __NetBSD__
-	r = drm_limit_dma_space(rdev->ddev, 0, __BITS(dma_bits - 1, 0));
-	if (r)
-		DRM_ERROR("No suitable DMA available.\n");
-#else
 	r = pci_set_dma_mask(rdev->pdev, DMA_BIT_MASK(dma_bits));
 	if (r) {
 		rdev->need_dma32 = true;
@@ -1513,11 +1389,9 @@ int radeon_device_init(struct radeon_device *rdev,
 		pr_warn("radeon: No coherent DMA available\n");
 	}
 	rdev->need_swiotlb = drm_get_max_iomem() > ((u64)1 << dma_bits);
-#endif
 
 	/* Registers mapping */
 	/* TODO: block userspace mapping of io register */
-	/* XXX Destroy these locks on detach...  */
 	spin_lock_init(&rdev->mmio_idx_lock);
 	spin_lock_init(&rdev->smc_idx_lock);
 	spin_lock_init(&rdev->pll_idx_lock);
@@ -1530,27 +1404,6 @@ int radeon_device_init(struct radeon_device *rdev,
 	spin_lock_init(&rdev->rcu_idx_lock);
 	spin_lock_init(&rdev->didt_idx_lock);
 	spin_lock_init(&rdev->end_idx_lock);
-#ifdef __NetBSD__
-    {
-	pcireg_t bar;
-
-	if (rdev->family >= CHIP_BONAIRE)
-		bar = 5;
-	else
-		bar = 2;
-	if (pci_mapreg_map(&rdev->pdev->pd_pa, PCI_BAR(bar),
-		pci_mapreg_type(rdev->pdev->pd_pa.pa_pc,
-		    rdev->pdev->pd_pa.pa_tag, PCI_BAR(bar)),
-		0,
-		&rdev->rmmio_bst, &rdev->rmmio_bsh,
-		&rdev->rmmio_addr, &rdev->rmmio_size))
-		return -EIO;
-    }
-	DRM_INFO("register mmio base: 0x%"PRIxMAX"\n",
-	    (uintmax_t)rdev->rmmio_addr);
-	DRM_INFO("register mmio size: %"PRIuMAX"\n",
-	    (uintmax_t)rdev->rmmio_size);
-#else
 	if (rdev->family >= CHIP_BONAIRE) {
 		rdev->rmmio_base = pci_resource_start(rdev->pdev, 5);
 		rdev->rmmio_size = pci_resource_len(rdev->pdev, 5);
@@ -1561,7 +1414,6 @@ int radeon_device_init(struct radeon_device *rdev,
 	rdev->rmmio = ioremap(rdev->rmmio_base, rdev->rmmio_size);
 	if (rdev->rmmio == NULL)
 		return -ENOMEM;
-#endif
 
 	/* doorbell bar mapping */
 	if (rdev->family >= CHIP_BONAIRE)
@@ -1569,33 +1421,18 @@ int radeon_device_init(struct radeon_device *rdev,
 
 	/* io port mapping */
 	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-#ifdef __NetBSD__
-		if (pci_mapreg_map(&rdev->pdev->pd_pa, PCI_BAR(i),
-			PCI_MAPREG_TYPE_IO, 0,
-			&rdev->rio_mem_bst, &rdev->rio_mem_bsh,
-			NULL, &rdev->rio_mem_size))
-			continue;
-		break;
-#else
 		if (pci_resource_flags(rdev->pdev, i) & IORESOURCE_IO) {
 			rdev->rio_mem_size = pci_resource_len(rdev->pdev, i);
 			rdev->rio_mem = pci_iomap(rdev->pdev, i, rdev->rio_mem_size);
 			break;
 		}
-#endif
 	}
-#ifdef __NetBSD__
-	if (i == DEVICE_COUNT_RESOURCE)
-		DRM_ERROR("Unable to find PCI I/O BAR\n");
-#else
 	if (rdev->rio_mem == NULL)
 		DRM_ERROR("Unable to find PCI I/O BAR\n");
-#endif
 
 	if (rdev->flags & RADEON_IS_PX)
 		radeon_device_handle_px_quirks(rdev);
 
-#ifndef __NetBSD__		/* XXX radeon vga */
 	/* if we have > 1 VGA cards, then disable the radeon VGA resources */
 	/* this will fail for cards that aren't VGA class devices, just
 	 * ignore it */
@@ -1608,7 +1445,6 @@ int radeon_device_init(struct radeon_device *rdev,
 					       &radeon_switcheroo_ops, runtime);
 	if (runtime)
 		vga_switcheroo_init_domain_pm_ops(rdev->dev, &rdev->vga_pm_domain);
-#endif
 
 	r = radeon_init(rdev);
 	if (r)
@@ -1679,10 +1515,8 @@ failed:
 	/* balance pm_runtime_get_sync() in radeon_driver_unload_kms() */
 	if (radeon_is_px(ddev))
 		pm_runtime_put_noidle(ddev->dev);
-#ifndef __NetBSD__		/* XXX radeon vga */
 	if (runtime)
 		vga_switcheroo_fini_domain_pm_ops(rdev->dev);
-#endif
 	return r;
 }
 
@@ -1701,47 +1535,18 @@ void radeon_device_fini(struct radeon_device *rdev)
 	/* evict vram memory */
 	radeon_bo_evict_vram(rdev);
 	radeon_fini(rdev);
-#ifndef __NetBSD__
 	if (!pci_is_thunderbolt_attached(rdev->pdev))
 		vga_switcheroo_unregister_client(rdev->pdev);
 	if (rdev->flags & RADEON_IS_PX)
 		vga_switcheroo_fini_domain_pm_ops(rdev->dev);
 	vga_client_register(rdev->pdev, NULL, NULL, NULL);
-#endif
-#ifdef __NetBSD__
-	if (rdev->rio_mem_size)
-		bus_space_unmap(rdev->rio_mem_bst, rdev->rio_mem_bsh,
-		    rdev->rio_mem_size);
-	rdev->rio_mem_size = 0;
-	bus_space_unmap(rdev->rmmio_bst, rdev->rmmio_bsh, rdev->rmmio_size);
-#else
 	if (rdev->rio_mem)
 		pci_iounmap(rdev->pdev, rdev->rio_mem);
 	rdev->rio_mem = NULL;
 	iounmap(rdev->rmmio);
 	rdev->rmmio = NULL;
-#endif
 	if (rdev->family >= CHIP_BONAIRE)
 		radeon_doorbell_fini(rdev);
-#ifdef __NetBSD__
-	DRM_DESTROY_WAITQUEUE(&rdev->irq.vblank_queue);
-	spin_lock_destroy(&rdev->irq.vblank_lock);
-	destroy_rwsem(&rdev->exclusive_lock);
-	destroy_rwsem(&rdev->pm.mclk_lock);
-	linux_mutex_destroy(&rdev->srbm_mutex);
-	linux_mutex_destroy(&rdev->gpu_clock_mutex);
-	linux_mutex_destroy(&rdev->pm.mutex);
-	linux_mutex_destroy(&rdev->gem.mutex);
-	linux_mutex_destroy(&rdev->dc_hw_i2c_mutex);
-	linux_mutex_destroy(&rdev->ring_lock);
-#else
-	mutex_destroy(&rdev->srbm_mutex);
-	mutex_destroy(&rdev->gpu_clock_mutex);
-	mutex_destroy(&rdev->pm.mutex);
-	mutex_destroy(&rdev->gem.mutex);
-	mutex_destroy(&rdev->dc_hw_i2c_mutex);
-	mutex_destroy(&rdev->ring_lock);
-#endif
 }
 
 
@@ -1836,7 +1641,6 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend,
 
 	radeon_agp_suspend(rdev);
 
-#ifndef __NetBSD__		/* pmf handles this for us.  */
 	pci_save_state(dev->pdev);
 	if (freeze && rdev->family >= CHIP_CEDAR && !(rdev->flags & RADEON_IS_IGP)) {
 		rdev->asic->asic_reset(rdev, true);
@@ -1846,15 +1650,12 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend,
 		pci_disable_device(dev->pdev);
 		pci_set_power_state(dev->pdev, PCI_D3hot);
 	}
-#endif
 
-#ifndef __NetBSD__		/* XXX radeon fb */
 	if (fbcon) {
 		console_lock();
 		radeon_fbdev_set_suspend(rdev, 1);
 		console_unlock();
 	}
-#endif
 	return 0;
 }
 
@@ -1877,12 +1678,9 @@ int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-#ifndef __NetBSD__		/* XXX radeon fb */
 	if (fbcon) {
 		console_lock();
 	}
-#endif
-#ifndef __NetBSD__		/* pmf handles this for us.  */
 	if (resume) {
 		pci_set_power_state(dev->pdev, PCI_D0);
 		pci_restore_state(dev->pdev);
@@ -1892,7 +1690,6 @@ int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 			return -1;
 		}
 	}
-#endif
 	/* resume AGP if in use */
 	radeon_agp_resume(rdev);
 	radeon_resume(rdev);
@@ -1967,12 +1764,10 @@ int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled)
 		radeon_pm_compute_clocks(rdev);
 
-#ifndef __NetBSD__		/* XXX radeon fb */
 	if (fbcon) {
 		radeon_fbdev_set_suspend(rdev, 0);
 		console_unlock();
 	}
-#endif
 
 	return 0;
 }

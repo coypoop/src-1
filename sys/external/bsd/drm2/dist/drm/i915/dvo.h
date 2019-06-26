@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2006 Eric Anholt
  *
@@ -26,7 +24,6 @@
 #define _INTEL_DVO_H
 
 #include <linux/i2c.h>
-#include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include "intel_drv.h"
 

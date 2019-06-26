@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012-15 Advanced Micro Devices, Inc.
  *
@@ -33,6 +31,5 @@ struct amdgpu_dm_connector;
 
 void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
 				       struct amdgpu_dm_connector *aconnector);
-void dm_dp_mst_dc_sink_create(struct drm_connector *connector);
 
 #endif

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2011 Advanced Micro Devices, Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Alex Deucher
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <drm/drmP.h>
 #include "radeon.h"
@@ -2031,7 +2026,6 @@ void rv6xx_dpm_print_power_state(struct radeon_device *rdev,
 	r600_dpm_print_ps_status(rdev, rps);
 }
 
-#ifdef CONFIG_DEBUG_FS
 void rv6xx_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 						       struct seq_file *m)
 {
@@ -2056,7 +2050,6 @@ void rv6xx_dpm_debugfs_print_current_performance_level(struct radeon_device *rde
 			   current_index, pl->sclk, pl->mclk, pl->vddc);
 	}
 }
-#endif
 
 /* get the current sclk in 10 khz units */
 u32 rv6xx_dpm_get_current_sclk(struct radeon_device *rdev)

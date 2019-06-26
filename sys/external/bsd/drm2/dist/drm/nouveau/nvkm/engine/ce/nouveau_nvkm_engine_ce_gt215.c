@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "priv.h"
 #include "fuc/gt215.fuc3.h"
 
@@ -58,7 +53,7 @@ gt215_ce_intr(struct nvkm_falcon *ce, struct nvkm_fifo_chan *chan)
 	const struct nvkm_enum *en =
 		nvkm_enum_find(gt215_ce_isr_error_name, ssta);
 
-	nvkm_error(subdev, "DISPATCH_ERROR %04x [%s] ch %d [%010"PRIx64" %s] "
+	nvkm_error(subdev, "DISPATCH_ERROR %04x [%s] ch %d [%010llx %s] "
 			   "subc %d mthd %04x data %08x\n", ssta,
 		   en ? en->name : "", chan ? chan->chid : -1,
 		   chan ? chan->inst->addr : 0,

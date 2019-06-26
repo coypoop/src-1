@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2013 Red Hat Inc.
  *
@@ -24,10 +22,6 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  * 	    Roy Spliet <rspliet@eclipso.eu>
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
-#include "ram.h"
 #include "priv.h"
 #include "ram.h"
 

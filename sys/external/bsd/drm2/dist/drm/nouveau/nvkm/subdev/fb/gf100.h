@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_RAM_NVC0_H__
 #define __NVKM_RAM_NVC0_H__
@@ -8,13 +6,7 @@
 
 struct gf100_fb {
 	struct nvkm_fb base;
-#ifdef __NetBSD__
-	bus_dma_segment_t r100c10_seg;
-	bus_dmamap_t r100c10_page;
-	void *r100c10_kva;
-#else
 	struct page *r100c10_page;
-#endif
 	dma_addr_t r100c10;
 };
 

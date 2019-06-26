@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "nv50.h"
 #include "pll.h"
 #include "seq.h"
@@ -118,9 +113,6 @@ read_pll_src(struct nv50_clk *clk, u32 base)
 		break;
 	default:
 		BUG();
-		M = 0;		/* XXX GCC is stupid */
-		N = 0;		/* XXX GCC is stupid */
-		P = 0;		/* XXX GCC is stupid */
 	}
 
 	if (M)

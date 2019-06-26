@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_FB_REGS_04_H__
 #define __NVKM_FB_REGS_04_H__

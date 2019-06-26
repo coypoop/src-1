@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* i810_dma.c -- DMA support for the i810 -*- linux-c -*-
  * Created: Mon Dec 13 01:50:01 1999 by jhartmann@precisioninsight.com
  *
@@ -31,9 +29,6 @@
  *          Keith Whitwell <keith@tungstengraphics.com>
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <drm/drmP.h>
 #include <drm/i810_drm.h>

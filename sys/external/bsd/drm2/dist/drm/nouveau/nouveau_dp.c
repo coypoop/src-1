@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2009 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <drm/drmP.h>
 #include <drm/drm_dp_helper.h>
@@ -52,11 +47,11 @@ nouveau_dp_probe_oui(struct drm_device *dev, struct nvkm_i2c_aux *aux, u8 *dpcd)
 		return;
 
 	if (!nvkm_rdaux(aux, DP_SINK_OUI, buf, 3))
-		NV_DEBUG(drm, "Sink OUI: %02"PRIx8"%02"PRIx8"%02"PRIx8"\n",
+		NV_DEBUG(drm, "Sink OUI: %02hx%02hx%02hx\n",
 			     buf[0], buf[1], buf[2]);
 
 	if (!nvkm_rdaux(aux, DP_BRANCH_OUI, buf, 3))
-		NV_DEBUG(drm, "Branch OUI: %02"PRIx8"%02"PRIx8"%02"PRIx8"\n",
+		NV_DEBUG(drm, "Branch OUI: %02hx%02hx%02hx\n",
 			     buf[0], buf[1], buf[2]);
 
 }

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * OSS_2_4 Register documentation
  *

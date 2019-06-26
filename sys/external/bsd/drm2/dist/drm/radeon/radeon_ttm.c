@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2009 Jerome Glisse.
  * All Rights Reserved.
@@ -31,9 +29,6 @@
  *    Thomas Hellstrom <thomas-at-tungstengraphics-dot-com>
  *    Dave Airlie
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
@@ -50,18 +45,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "radeon_reg.h"
 #include "radeon.h"
 
-#ifdef __NetBSD__
-#include <uvm/uvm_extern.h>
-#include <uvm/uvm_fault.h>
-#include <uvm/uvm_param.h>
-#include <drm/bus_dma_hacks.h>
-#endif
-
-#ifdef _LP64
 #define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
-#else
-#define DRM_FILE_PAGE_OFFSET (0xa0000000UL >> PAGE_SHIFT)
-#endif
 
 static int radeon_ttm_debugfs_init(struct radeon_device *rdev);
 static void radeon_ttm_debugfs_fini(struct radeon_device *rdev);
@@ -74,65 +58,6 @@ static struct radeon_device *radeon_get_rdev(struct ttm_bo_device *bdev)
 	mman = container_of(bdev, struct radeon_mman, bdev);
 	rdev = container_of(mman, struct radeon_device, mman);
 	return rdev;
-}
-
-
-/*
- * Global memory.
- */
-static int radeon_ttm_mem_global_init(struct drm_global_reference *ref)
-{
-	return ttm_mem_global_init(ref->object);
-}
-
-static void radeon_ttm_mem_global_release(struct drm_global_reference *ref)
-{
-	ttm_mem_global_release(ref->object);
-}
-
-static int radeon_ttm_global_init(struct radeon_device *rdev)
-{
-	struct drm_global_reference *global_ref;
-	int r;
-
-	rdev->mman.mem_global_referenced = false;
-	global_ref = &rdev->mman.mem_global_ref;
-	global_ref->global_type = DRM_GLOBAL_TTM_MEM;
-	global_ref->size = sizeof(struct ttm_mem_global);
-	global_ref->init = &radeon_ttm_mem_global_init;
-	global_ref->release = &radeon_ttm_mem_global_release;
-	r = drm_global_item_ref(global_ref);
-	if (r != 0) {
-		DRM_ERROR("Failed setting up TTM memory accounting "
-			  "subsystem.\n");
-		return r;
-	}
-
-	rdev->mman.bo_global_ref.mem_glob =
-		rdev->mman.mem_global_ref.object;
-	global_ref = &rdev->mman.bo_global_ref.ref;
-	global_ref->global_type = DRM_GLOBAL_TTM_BO;
-	global_ref->size = sizeof(struct ttm_bo_global);
-	global_ref->init = &ttm_bo_global_init;
-	global_ref->release = &ttm_bo_global_release;
-	r = drm_global_item_ref(global_ref);
-	if (r != 0) {
-		DRM_ERROR("Failed setting up TTM BO subsystem.\n");
-		drm_global_item_unref(&rdev->mman.mem_global_ref);
-		return r;
-	}
-
-	rdev->mman.mem_global_referenced = true;
-	return 0;
-}
-
-static void radeon_ttm_global_fini(struct radeon_device *rdev)
-{
-	if (rdev->mman.mem_global_referenced) {
-		drm_global_item_unref(&rdev->mman.bo_global_ref.ref);
-		drm_global_item_unref(&rdev->mman.mem_global_ref);
-		rdev->mman.mem_global_referenced = false;
-	}
 }
 
 static int radeon_invalidate_caches(struct ttm_bo_device *bdev, uint32_t flags)
@@ -328,7 +253,7 @@ static int radeon_move_vram_ram(struct ttm_buffer_object *bo,
 				struct ttm_mem_reg *new_mem)
 {
 	struct ttm_operation_ctx ctx = { interruptible, no_wait_gpu };
-	struct radeon_device *rdev __unused;
+	struct radeon_device *rdev;
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	struct ttm_mem_reg tmp_mem;
 	struct ttm_place placements;
@@ -375,7 +300,7 @@ static int radeon_move_ram_vram(struct ttm_buffer_object *bo,
 				struct ttm_mem_reg *new_mem)
 {
 	struct ttm_operation_ctx ctx = { interruptible, no_wait_gpu };
-	struct radeon_device *rdev __unused;
+	struct radeon_device *rdev;
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	struct ttm_mem_reg tmp_mem;
 	struct ttm_placement placement;
@@ -495,10 +420,6 @@ static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_
 			mem->bus.offset = mem->start << PAGE_SHIFT;
 			mem->bus.base = rdev->mc.agp_base;
 			mem->bus.is_iomem = !rdev->ddev->agp->cant_use_aperture;
-			KASSERTMSG((mem->bus.base & (PAGE_SIZE - 1)) == 0,
-			    "agp aperture is not page-aligned: %lx",
-			    mem->bus.base);
-			KASSERT((mem->bus.offset & (PAGE_SIZE - 1)) == 0);
 		}
 #endif
 		break;
@@ -534,10 +455,6 @@ static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_
 		mem->bus.base = (mem->bus.base & 0x0ffffffffUL) +
 			rdev->ddev->hose->dense_mem_base;
 #endif
-		KASSERTMSG((mem->bus.base & (PAGE_SIZE - 1)) == 0,
-		    "mc aperture is not page-aligned: %lx",
-		    mem->bus.base);
-		KASSERT((mem->bus.offset & (PAGE_SIZE - 1)) == 0);
 		break;
 	default:
 		return -EINVAL;
@@ -565,9 +482,6 @@ struct radeon_ttm_tt {
 /* prepare the sg table with the user pages */
 static int radeon_ttm_tt_pin_userptr(struct ttm_tt *ttm)
 {
-#ifdef __NetBSD__
-	panic("we don't handle user pointers round these parts");
-#else
 	struct radeon_device *rdev = radeon_get_rdev(ttm->bdev);
 	struct radeon_ttm_tt *gtt = (void *)ttm;
 	unsigned pinned = 0, nents;
@@ -626,14 +540,10 @@ release_sg:
 release_pages:
 	release_pages(ttm->pages, pinned);
 	return r;
-#endif
 }
 
 static void radeon_ttm_tt_unpin_userptr(struct ttm_tt *ttm)
 {
-#ifdef __NetBSD__
-	panic("some varmint pinned a userptr to my hat");
-#else
 	struct radeon_device *rdev = radeon_get_rdev(ttm->bdev);
 	struct radeon_ttm_tt *gtt = (void *)ttm;
 	struct sg_page_iter sg_iter;
@@ -659,7 +569,6 @@ static void radeon_ttm_tt_unpin_userptr(struct ttm_tt *ttm)
 	}
 
 	sg_free_table(ttm->sg);
-#endif
 }
 
 static int radeon_ttm_backend_bind(struct ttm_tt *ttm,
@@ -756,52 +665,32 @@ static int radeon_ttm_tt_populate(struct ttm_tt *ttm,
 			struct ttm_operation_ctx *ctx)
 {
 	struct radeon_ttm_tt *gtt = radeon_ttm_tt_to_gtt(ttm);
-#if !defined(__NetBSD__) || IS_ENABLED(CONFIG_AGP)
 	struct radeon_device *rdev;
-#endif
 	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
 
 	if (gtt && gtt->userptr) {
-#ifdef __NetBSD__
-		panic("don't point at users, it's not polite");
-#else
 		ttm->sg = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
 		if (!ttm->sg)
 			return -ENOMEM;
 
 		ttm->page_flags |= TTM_PAGE_FLAG_SG;
 		ttm->state = tt_unbound;
-#endif
 		return 0;
 	}
 
 	if (slave && ttm->sg) {
-#ifdef __NetBSD__
-		int r = drm_prime_bus_dmamap_load_sgt(ttm->bdev->dmat,
-		    gtt->ttm.dma_address, ttm->sg);
-		if (r)
-			return r;
-#else
 		drm_prime_sg_to_page_addr_arrays(ttm->sg, ttm->pages,
 						 gtt->ttm.dma_address, ttm->num_pages);
-#endif
 		ttm->state = tt_unbound;
 		return 0;
 	}
 
-#if !defined(__NetBSD__) || IS_ENABLED(CONFIG_AGP)
 	rdev = radeon_get_rdev(ttm->bdev);
-#endif
 #if IS_ENABLED(CONFIG_AGP)
 	if (rdev->flags & RADEON_IS_AGP) {
 		return ttm_agp_tt_populate(ttm, ctx);
 	}
 #endif
-
-#ifdef __NetBSD__
-	/* XXX errno NetBSD->Linux */
-	return ttm_bus_dma_populate(&gtt->ttm);
-#else
 
 #ifdef CONFIG_SWIOTLB
 	if (rdev->need_swiotlb && swiotlb_nr_tbl()) {
@@ -810,14 +699,11 @@ static int radeon_ttm_tt_populate(struct ttm_tt *ttm,
 #endif
 
 	return ttm_populate_and_map_pages(rdev->dev, &gtt->ttm, ctx);
-#endif
 }
 
 static void radeon_ttm_tt_unpopulate(struct ttm_tt *ttm)
 {
-#if !defined(__NetBSD__) || IS_ENABLED(CONFIG_AGP)
 	struct radeon_device *rdev;
-#endif
 	struct radeon_ttm_tt *gtt = radeon_ttm_tt_to_gtt(ttm);
 	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
 
@@ -830,20 +716,13 @@ static void radeon_ttm_tt_unpopulate(struct ttm_tt *ttm)
 	if (slave)
 		return;
 
-#if !defined(__NetBSD__) || IS_ENABLED(CONFIG_AGP)
 	rdev = radeon_get_rdev(ttm->bdev);
-#endif
 #if IS_ENABLED(CONFIG_AGP)
 	if (rdev->flags & RADEON_IS_AGP) {
 		ttm_agp_tt_unpopulate(ttm);
 		return;
 	}
 #endif
-
-#ifdef __NetBSD__
-	ttm_bus_dma_unpopulate(&gtt->ttm);
-	return;
-#else
 
 #ifdef CONFIG_SWIOTLB
 	if (rdev->need_swiotlb && swiotlb_nr_tbl()) {
@@ -853,41 +732,11 @@ static void radeon_ttm_tt_unpopulate(struct ttm_tt *ttm)
 #endif
 
 	ttm_unmap_and_unpopulate_pages(rdev->dev, &gtt->ttm);
-#endif
 }
-
-#ifdef __NetBSD__
-static void radeon_ttm_tt_swapout(struct ttm_tt *ttm)
-{
-	struct radeon_ttm_tt *gtt = container_of(ttm, struct radeon_ttm_tt,
-	    ttm.ttm);
-	struct ttm_dma_tt *ttm_dma = &gtt->ttm;
-
-	ttm_bus_dma_swapout(ttm_dma);
-}
-
-static int	radeon_ttm_fault(struct uvm_faultinfo *, vaddr_t,
-		    struct vm_page **, int, int, vm_prot_t, int);
-
-static const struct uvm_pagerops radeon_uvm_ops = {
-	.pgo_reference = &ttm_bo_uvm_reference,
-	.pgo_detach = &ttm_bo_uvm_detach,
-	.pgo_fault = &radeon_ttm_fault,
-};
-#endif
 
 int radeon_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
 			      uint32_t flags)
 {
-#ifdef __NetBSD__
-	/*
-	 * XXX Too painful to contemplate for now.  If you add this,
-	 * make sure to update radeon_cs.c radeon_cs_parser_relocs
-	 * (need_mmap_lock), and anything else using
-	 * radeon_ttm_tt_has_userptr.
-	 */
-	return -ENODEV;
-#else
 	struct radeon_ttm_tt *gtt = radeon_ttm_tt_to_gtt(ttm);
 
 	if (gtt == NULL)
@@ -897,7 +746,6 @@ int radeon_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
 	gtt->usermm = current->mm;
 	gtt->userflags = flags;
 	return 0;
-#endif
 }
 
 bool radeon_ttm_tt_has_userptr(struct ttm_tt *ttm)
@@ -924,10 +772,6 @@ static struct ttm_bo_driver radeon_bo_driver = {
 	.ttm_tt_create = &radeon_ttm_tt_create,
 	.ttm_tt_populate = &radeon_ttm_tt_populate,
 	.ttm_tt_unpopulate = &radeon_ttm_tt_unpopulate,
-#ifdef __NetBSD__
-	.ttm_tt_swapout = &radeon_ttm_tt_swapout,
-	.ttm_uvm_ops = &radeon_uvm_ops,
-#endif
 	.invalidate_caches = &radeon_invalidate_caches,
 	.init_mem_type = &radeon_init_mem_type,
 	.eviction_valuable = ttm_bo_eviction_valuable,
@@ -944,20 +788,10 @@ int radeon_ttm_init(struct radeon_device *rdev)
 {
 	int r;
 
-	r = radeon_ttm_global_init(rdev);
-	if (r) {
-		return r;
-	}
 	/* No others user of address space so set it to 0 */
 	r = ttm_bo_device_init(&rdev->mman.bdev,
-			       rdev->mman.bo_global_ref.ref.object,
 			       &radeon_bo_driver,
-#ifdef __NetBSD__
-			       rdev->ddev->bst,
-			       rdev->ddev->dmat,
-#else
 			       rdev->ddev->anon_inode->i_mapping,
-#endif
 			       DRM_FILE_PAGE_OFFSET,
 			       rdev->need_dma32);
 	if (r) {
@@ -1027,7 +861,6 @@ void radeon_ttm_fini(struct radeon_device *rdev)
 	ttm_bo_clean_mm(&rdev->mman.bdev, TTM_PL_TT);
 	ttm_bo_device_release(&rdev->mman.bdev);
 	radeon_gart_fini(rdev);
-	radeon_ttm_global_fini(rdev);
 	rdev->mman.initialized = false;
 	DRM_INFO("radeon: ttm finalized\n");
 }
@@ -1045,49 +878,6 @@ void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size)
 	/* this just adjusts TTM size idea, which sets lpfn to the correct value */
 	man->size = size >> PAGE_SHIFT;
 }
-
-#ifdef __NetBSD__
-
-static int
-radeon_ttm_fault(struct uvm_faultinfo *ufi, vaddr_t vaddr,
-    struct vm_page **pps, int npages, int centeridx, vm_prot_t access_type,
-    int flags)
-{
-	struct uvm_object *const uobj = ufi->entry->object.uvm_obj;
-	struct ttm_buffer_object *const bo = container_of(uobj,
-	    struct ttm_buffer_object, uvmobj);
-	struct radeon_device *const rdev = radeon_get_rdev(bo->bdev);
-	int error;
-
-	KASSERT(rdev != NULL);
-	down_read(&rdev->pm.mclk_lock);
-	error = ttm_bo_uvm_fault(ufi, vaddr, pps, npages, centeridx,
-	    access_type, flags);
-	up_read(&rdev->pm.mclk_lock);
-
-	return error;
-}
-
-int
-radeon_mmap_object(struct drm_device *dev, off_t offset, size_t size,
-    vm_prot_t prot, struct uvm_object **uobjp, voff_t *uoffsetp,
-    struct file *file)
-{
-	struct radeon_device *rdev = dev->dev_private;
-
-	KASSERT(0 == (offset & (PAGE_SIZE - 1)));
-
-	if (__predict_false(rdev == NULL))	/* XXX How?? */
-		return -EINVAL;
-
-	if (__predict_false((offset >> PAGE_SHIFT) < DRM_FILE_PAGE_OFFSET))
-		return -EINVAL;
-
-	return ttm_bo_mmap_object(&rdev->mman.bdev, offset, size, prot,
-	    uobjp, uoffsetp, file);
-}
-
-#else
 
 static struct vm_operations_struct radeon_ttm_vm_ops;
 static const struct vm_operations_struct *ttm_vm_ops = NULL;
@@ -1136,8 +926,6 @@ int radeon_mmap(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_ops = &radeon_ttm_vm_ops;
 	return 0;
 }
-
-#endif	/* __NetBSD__ */
 
 #if defined(CONFIG_DEBUG_FS)
 

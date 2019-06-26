@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -22,16 +20,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "priv.h"
 
 #include <core/pci.h>
-
-#ifdef __NetBSD__
-#  define	__iomem	__pci_rom_iomem
-#endif
 
 struct priv {
 	struct pci_dev *pdev;
@@ -44,8 +35,7 @@ pcirom_read(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 {
 	struct priv *priv = data;
 	if (offset + length <= priv->size) {
-		memcpy_fromio(bios->data + offset,
-		    (const char __iomem *)priv->rom + offset, length);
+		memcpy_fromio(bios->data + offset, priv->rom + offset, length);
 		return length;
 	}
 	return 0;

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (c) 2006-2008 Intel Corporation
  * Copyright (c) 2007 Dave Airlie <airlied@linux.ie>
@@ -31,19 +29,12 @@
  *      Dave Airlie <airlied@linux.ie>
  *      Jesse Barnes <jesse.barnes@intel.com>
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
-#include <linux/err.h>
-#include <linux/spinlock.h>
 #include <linux/ctype.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/export.h>
-#include <linux/errno.h>
 #include <linux/dma-fence.h>
-#include <asm/bug.h>
-#include <drm/drmP.h>
+#include <linux/uaccess.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_fourcc.h>
@@ -51,6 +42,9 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <drm/drm_atomic.h>
 #include <drm/drm_auth.h>
 #include <drm/drm_debugfs_crc.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_print.h>
+#include <drm/drm_file.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
@@ -99,15 +93,6 @@ struct drm_crtc *drm_crtc_from_index(struct drm_device *dev, int idx)
 }
 EXPORT_SYMBOL(drm_crtc_from_index);
 
-/**
- * drm_crtc_force_disable - Forcibly turn off a CRTC
- * @crtc: CRTC to turn off
- *
- * Note: This should only be used by non-atomic legacy drivers.
- *
- * Returns:
- * Zero on success, error code on failure.
- */
 int drm_crtc_force_disable(struct drm_crtc *crtc)
 {
 	struct drm_mode_set set = {
@@ -118,38 +103,6 @@ int drm_crtc_force_disable(struct drm_crtc *crtc)
 
 	return drm_mode_set_config_internal(&set);
 }
-EXPORT_SYMBOL(drm_crtc_force_disable);
-
-/**
- * drm_crtc_force_disable_all - Forcibly turn off all enabled CRTCs
- * @dev: DRM device whose CRTCs to turn off
- *
- * Drivers may want to call this on unload to ensure that all displays are
- * unlit and the GPU is in a consistent, low power state. Takes modeset locks.
- *
- * Note: This should only be used by non-atomic legacy drivers. For an atomic
- * version look at drm_atomic_helper_shutdown().
- *
- * Returns:
- * Zero on success, error code on failure.
- */
-int drm_crtc_force_disable_all(struct drm_device *dev)
-{
-	struct drm_crtc *crtc;
-	int ret = 0;
-
-	drm_modeset_lock_all(dev);
-	drm_for_each_crtc(crtc, dev)
-		if (crtc->enabled) {
-			ret = drm_crtc_force_disable(crtc);
-			if (ret)
-				goto out;
-		}
-out:
-	drm_modeset_unlock_all(dev);
-	return ret;
-}
-EXPORT_SYMBOL(drm_crtc_force_disable_all);
 
 static unsigned int drm_num_crtcs(struct drm_device *dev)
 {
@@ -346,6 +299,8 @@ int drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 		drm_object_attach_property(&crtc->base, config->prop_mode_id, 0);
 		drm_object_attach_property(&crtc->base,
 					   config->prop_out_fence_ptr, 0);
+		drm_object_attach_property(&crtc->base,
+					   config->prop_vrr_enabled, 0);
 	}
 
 	return 0;
@@ -411,7 +366,7 @@ int drm_mode_getcrtc(struct drm_device *dev,
 	struct drm_plane *plane;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	crtc = drm_crtc_find(dev, file_priv, crtc_resp->crtc_id);
 	if (!crtc)
@@ -586,7 +541,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	int i;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	/*
 	 * Universal plane src offsets are only 16.16, prevent havoc for
@@ -604,12 +559,13 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 
 	plane = crtc->primary;
 
+	/* allow disabling with the primary plane leased */
+	if (crtc_req->mode_valid && !drm_lease_held(file_priv, plane->base.id))
+		return -EACCES;
+
 	mutex_lock(&crtc->dev->mode_config.mutex);
-	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
-retry:
-	ret = drm_modeset_lock_all_ctx(crtc->dev, &ctx);
-	if (ret)
-		goto out;
+	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx,
+				   DRM_MODESET_ACQUIRE_INTERRUPTIBLE, ret);
 
 	if (crtc_req->mode_valid) {
 		/* If we have a mode we need a framebuffer. */
@@ -768,13 +724,13 @@ out:
 	}
 	kfree(connector_set);
 	drm_mode_destroy(dev, mode);
-	if (ret == -EDEADLK) {
-		ret = drm_modeset_backoff(&ctx);
-		if (!ret)
-			goto retry;
-	}
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
+
+	/* In case we need to retry... */
+	connector_set = NULL;
+	fb = NULL;
+	mode = NULL;
+
+	DRM_MODESET_LOCK_ALL_END(ctx, ret);
 	mutex_unlock(&crtc->dev->mode_config.mutex);
 
 	return ret;

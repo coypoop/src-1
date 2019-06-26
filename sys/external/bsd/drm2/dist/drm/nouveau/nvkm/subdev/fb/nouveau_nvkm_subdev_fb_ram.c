@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2015 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #define nvkm_vram(p) container_of((p), struct nvkm_vram, memory)
 #include "ram.h"
 
@@ -189,6 +184,9 @@ nvkm_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 		[NVKM_RAM_TYPE_GDDR3  ] = "GDDR3",
 		[NVKM_RAM_TYPE_GDDR4  ] = "GDDR4",
 		[NVKM_RAM_TYPE_GDDR5  ] = "GDDR5",
+		[NVKM_RAM_TYPE_GDDR5X ] = "GDDR5X",
+		[NVKM_RAM_TYPE_GDDR6  ] = "GDDR6",
+		[NVKM_RAM_TYPE_HBM2   ] = "HBM2",
 	};
 	struct nvkm_subdev *subdev = &fb->subdev;
 	int ret;

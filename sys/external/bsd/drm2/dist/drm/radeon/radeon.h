@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2008 Advanced Micro Devices, Inc.
  * Copyright 2008 Red Hat Inc.
@@ -62,7 +60,6 @@
  *                          are considered as fatal)
  */
 
-#include <asm/byteorder.h>
 #include <linux/atomic.h>
 #include <linux/wait.h>
 #include <linux/list.h>
@@ -70,11 +67,6 @@
 #include <linux/interval_tree.h>
 #include <linux/hashtable.h>
 #include <linux/dma-fence.h>
-#include <linux/device.h>
-#include <linux/log2.h>
-#include <linux/notifier.h>
-#include <linux/printk.h>
-#include <linux/rwsem.h>
 
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
@@ -247,9 +239,6 @@ enum radeon_pll_errata {
 
 struct radeon_device;
 
-#ifdef __NetBSD__
-extern struct radeon_device *radeon_device_private(device_t);
-#endif
 
 /*
  * BIOS.
@@ -261,12 +250,7 @@ bool radeon_get_bios(struct radeon_device *rdev);
  */
 struct radeon_dummy_page {
 	uint64_t	entry;
-#ifdef __NetBSD__
-	bus_dma_segment_t	rdp_seg;
-	bus_dmamap_t		rdp_map;
-#else
 	struct page	*page;
-#endif
 	dma_addr_t	addr;
 };
 int radeon_dummy_page_init(struct radeon_device *rdev);
@@ -393,11 +377,7 @@ struct radeon_fence {
 	unsigned		ring;
 	bool			is_vm_update;
 
-#ifdef __NetBSD__
-	TAILQ_ENTRY(radeon_fence)	fence_check;
-#else
 	wait_queue_entry_t		fence_wake;
-#endif
 };
 
 int radeon_fence_driver_start_ring(struct radeon_device *rdev, int ring);
@@ -405,7 +385,6 @@ int radeon_fence_driver_init(struct radeon_device *rdev);
 void radeon_fence_driver_fini(struct radeon_device *rdev);
 void radeon_fence_driver_force_completion(struct radeon_device *rdev, int ring);
 int radeon_fence_emit(struct radeon_device *rdev, struct radeon_fence **fence, int ring);
-void radeon_fence_wakeup_locked(struct radeon_device *rdev);
 void radeon_fence_process(struct radeon_device *rdev, int ring);
 bool radeon_fence_signaled(struct radeon_fence *fence);
 long radeon_fence_wait_timeout(struct radeon_fence *fence, bool interruptible, long timeout);
@@ -469,10 +448,7 @@ struct radeon_surface_reg {
  * TTM.
  */
 struct radeon_mman {
-	struct ttm_bo_global_ref        bo_global_ref;
-	struct drm_global_reference	mem_global_ref;
 	struct ttm_bo_device		bdev;
-	bool				mem_global_referenced;
 	bool				initialized;
 
 #if defined(CONFIG_DEBUG_FS)
@@ -532,9 +508,7 @@ struct radeon_bo {
 	struct drm_gem_object		gem_base;
 
 	struct ttm_bo_kmap_obj		dma_buf_vmap;
-#ifndef __NetBSD__		/* XXX pid???  */
 	pid_t				pid;
-#endif
 
 	struct radeon_mn		*mn;
 	struct list_head		mn_list;
@@ -567,12 +541,7 @@ int radeon_gem_debugfs_init(struct radeon_device *rdev);
  * alignment).
  */
 struct radeon_sa_manager {
-#ifdef __NetBSD__
-	spinlock_t		wq_lock;
-	drm_waitqueue_t		wq;
-#else
 	wait_queue_head_t	wq;
-#endif
 	struct radeon_bo	*bo;
 	struct list_head	*hole;
 	struct list_head	flist[RADEON_NUM_RINGS];
@@ -676,10 +645,6 @@ struct radeon_mc;
 #define RADEON_GART_PAGE_SNOOP	(1 << 3)
 
 struct radeon_gart {
-#ifdef __NetBSD__
-	bus_dma_segment_t		rg_table_seg;
-	bus_dmamap_t			rg_table_map;
-#endif
 	dma_addr_t			table_addr;
 	struct radeon_bo		*robj;
 	void				*ptr;
@@ -699,19 +664,11 @@ int radeon_gart_table_vram_pin(struct radeon_device *rdev);
 void radeon_gart_table_vram_unpin(struct radeon_device *rdev);
 int radeon_gart_init(struct radeon_device *rdev);
 void radeon_gart_fini(struct radeon_device *rdev);
-#ifdef __NetBSD__
-void radeon_gart_unbind(struct radeon_device *rdev, unsigned gpu_start,
-			unsigned npages);
-int radeon_gart_bind(struct radeon_device *rdev, unsigned gpu_start,
-		     unsigned npages, struct page **pages,
-		     bus_dmamap_t dmamap, uint32_t flags);
-#else
 void radeon_gart_unbind(struct radeon_device *rdev, unsigned offset,
 			int pages);
 int radeon_gart_bind(struct radeon_device *rdev, unsigned offset,
 		     int pages, struct page **pagelist,
 		     dma_addr_t *dma_addr, uint32_t flags);
-#endif
 
 
 /*
@@ -764,12 +721,7 @@ struct radeon_doorbell {
 	/* doorbell mmio */
 	resource_size_t		base;
 	resource_size_t		size;
-#ifdef __NetBSD__
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
-#else
 	u32 __iomem		*ptr;
-#endif
 	u32			num_doorbells;	/* Number of doorbells actually reserved for radeon. */
 	DECLARE_BITMAP(used, RADEON_MAX_DOORBELLS);
 };
@@ -844,12 +796,7 @@ struct radeon_irq {
 	atomic_t			ring_int[RADEON_NUM_RINGS];
 	bool				crtc_vblank_int[RADEON_MAX_CRTCS];
 	atomic_t			pflip[RADEON_MAX_CRTCS];
-#ifdef __NetBSD__
-	spinlock_t			vblank_lock;
-	drm_waitqueue_t			vblank_queue;
-#else
 	wait_queue_head_t		vblank_queue;
-#endif
 	bool				hpd[RADEON_MAX_HPD_PINS];
 	bool				afmt[RADEON_MAX_AFMT_BLOCKS];
 	union radeon_irq_stat_regs	stat_regs;
@@ -2379,10 +2326,8 @@ struct radeon_device {
 	uint16_t			bios_header_start;
 	struct radeon_bo		*stolen_vga_memory;
 	/* Register mmio */
-#ifndef __NetBSD__
 	resource_size_t			rmmio_base;
 	resource_size_t			rmmio_size;
-#endif
 	/* protects concurrent MM_INDEX/DATA based register access */
 	spinlock_t mmio_idx_lock;
 	/* protects concurrent SMC based register access */
@@ -2407,14 +2352,7 @@ struct radeon_device {
 	spinlock_t didt_idx_lock;
 	/* protects concurrent ENDPOINT (audio) register access */
 	spinlock_t end_idx_lock;
-#ifdef __NetBSD__
-	bus_space_tag_t			rmmio_bst;
-	bus_space_handle_t		rmmio_bsh;
-	bus_addr_t			rmmio_addr;
-	bus_size_t			rmmio_size;
-#else
 	void __iomem			*rmmio;
-#endif
 	radeon_rreg_t			mc_rreg;
 	radeon_wreg_t			mc_wreg;
 	radeon_rreg_t			pll_rreg;
@@ -2423,14 +2361,8 @@ struct radeon_device {
 	radeon_rreg_t			pciep_rreg;
 	radeon_wreg_t			pciep_wreg;
 	/* io port */
-#ifdef __NetBSD__
-	bus_space_tag_t			rio_mem_bst;
-	bus_space_handle_t		rio_mem_bsh;
-	bus_size_t			rio_mem_size;
-#else
 	void __iomem                    *rio_mem;
 	resource_size_t			rio_mem_size;
-#endif
 	struct radeon_clock             clock;
 	struct radeon_mc		mc;
 	struct radeon_gart		gart;
@@ -2439,13 +2371,7 @@ struct radeon_device {
 	struct radeon_doorbell		doorbell;
 	struct radeon_mman		mman;
 	struct radeon_fence_driver	fence_drv[RADEON_NUM_RINGS];
-#ifdef __NetBSD__
-	spinlock_t			fence_lock;
-	drm_waitqueue_t			fence_queue;
-	TAILQ_HEAD(, radeon_fence)	fence_check;
-#else
 	wait_queue_head_t		fence_queue;
-#endif
 	u64				fence_context;
 	struct mutex			ring_lock;
 	struct radeon_ring		ring[RADEON_NUM_RINGS];
@@ -2547,11 +2473,7 @@ static inline uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg,
 {
 	/* The mmio size is 64kb at minimum. Allows the if to be optimized out. */
 	if ((reg < rdev->rmmio_size || reg < RADEON_MIN_MMIO_SIZE) && !always_indirect)
-#ifdef __NetBSD__
-		return bus_space_read_4(rdev->rmmio_bst, rdev->rmmio_bsh, reg);
-#else
 		return readl(((void __iomem *)rdev->rmmio) + reg);
-#endif
 	else
 		return r100_mm_rreg_slow(rdev, reg);
 }
@@ -2559,11 +2481,7 @@ static inline void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32
 				bool always_indirect)
 {
 	if ((reg < rdev->rmmio_size || reg < RADEON_MIN_MMIO_SIZE) && !always_indirect)
-#ifdef __NetBSD__
-		bus_space_write_4(rdev->rmmio_bst, rdev->rmmio_bsh, reg, v);
-#else
 		writel(v, ((void __iomem *)rdev->rmmio) + reg);
-#endif
 	else
 		r100_mm_wreg_slow(rdev, reg, v);
 }
@@ -2592,17 +2510,10 @@ static inline struct radeon_fence *to_radeon_fence(struct dma_fence *f)
 /*
  * Registers read & write functions.
  */
-#ifdef __NetBSD__
-#define	RREG8(r) bus_space_read_1(rdev->rmmio_bst, rdev->rmmio_bsh, (r))
-#define	WREG8(r, v) bus_space_write_1(rdev->rmmio_bst, rdev->rmmio_bsh, (r), (v))
-#define	RREG16(r) bus_space_read_2(rdev->rmmio_bst, rdev->rmmio_bsh, (r))
-#define	WREG16(r, v) bus_space_write_2(rdev->rmmio_bst, rdev->rmmio_bsh, (r), (v))
-#else
 #define RREG8(reg) readb((rdev->rmmio) + (reg))
 #define WREG8(reg, v) writeb(v, (rdev->rmmio) + (reg))
 #define RREG16(reg) readw((rdev->rmmio) + (reg))
 #define WREG16(reg, v) writew(v, (rdev->rmmio) + (reg))
-#endif
 #define RREG32(reg) r100_mm_rreg(rdev, (reg), false)
 #define RREG32_IDX(reg) r100_mm_rreg(rdev, (reg), true)
 #define DREG32(reg) pr_info("REGISTER: " #reg " : 0x%08X\n",	\

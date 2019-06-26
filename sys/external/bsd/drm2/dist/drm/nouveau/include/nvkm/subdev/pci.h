@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_PCI_H__
 #define __NVKM_PCI_H__
@@ -15,12 +13,7 @@ struct nvkm_pci {
 	const struct nvkm_pci_func *func;
 	struct nvkm_subdev subdev;
 	struct pci_dev *pdev;
-#ifdef __NetBSD__
-	pci_intr_handle_t *pci_ihp;
-	void *pci_intrcookie;
-#else
 	int irq;
-#endif
 
 	struct {
 		struct agp_bridge_data *bridge;

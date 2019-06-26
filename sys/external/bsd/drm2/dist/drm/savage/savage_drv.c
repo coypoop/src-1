@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* savage_drv.c -- Savage driver for Linux
  *
  * Copyright 2004  Felix Kuehling
@@ -24,9 +22,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/module.h>
 
@@ -60,7 +55,6 @@ static struct drm_driver driver = {
 	.preclose = savage_reclaim_buffers,
 	.lastclose = savage_driver_lastclose,
 	.unload = savage_driver_unload,
-	.set_busid = drm_pci_set_busid,
 	.ioctls = savage_ioctls,
 	.dma_ioctl = savage_bci_buffers,
 	.fops = &savage_driver_fops,

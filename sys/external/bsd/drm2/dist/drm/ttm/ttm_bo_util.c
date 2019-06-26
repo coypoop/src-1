@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
@@ -31,9 +29,6 @@
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
 #include <drm/drm_vma_manager.h>
@@ -44,13 +39,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <linux/vmalloc.h>
 #include <linux/module.h>
 #include <linux/reservation.h>
-#include <linux/export.h>
-#include <asm/barrier.h>
-
-#ifdef __NetBSD__		/* PMAP_* caching flags for ttm_io_prot */
-#include <uvm/uvm_pmap.h>
-#include <drm/drm_auth_netbsd.h>
-#endif
 
 struct ttm_transfer_obj {
 	struct ttm_buffer_object base;
@@ -231,23 +219,6 @@ static int ttm_mem_reg_ioremap(struct ttm_bo_device *bdev, struct ttm_mem_reg *m
 	if (mem->bus.addr) {
 		addr = mem->bus.addr;
 	} else {
-#ifdef __NetBSD__
-		const bus_addr_t bus_addr = (mem->bus.base + mem->bus.offset);
-		int flags = BUS_SPACE_MAP_LINEAR;
-
-		if (ISSET(mem->placement, TTM_PL_FLAG_WC))
-			flags |= BUS_SPACE_MAP_PREFETCHABLE;
-		/* XXX errno NetBSD->Linux */
-		ret = -bus_space_map(bdev->memt, bus_addr, mem->bus.size,
-		    flags, &mem->bus.memh);
-		if (ret) {
-			(void) ttm_mem_io_lock(man, false);
-			ttm_mem_io_free(bdev, mem);
-			ttm_mem_io_unlock(man);
-			return ret;
-		}
-		addr = bus_space_vaddr(bdev->memt, mem->bus.memh);
-#else
 		if (mem->placement & TTM_PL_FLAG_WC)
 			addr = ioremap_wc(mem->bus.base + mem->bus.offset, mem->bus.size);
 		else
@@ -258,7 +229,6 @@ static int ttm_mem_reg_ioremap(struct ttm_bo_device *bdev, struct ttm_mem_reg *m
 			ttm_mem_io_unlock(man);
 			return -ENOMEM;
 		}
-#endif
 	}
 	*virtual = addr;
 	return 0;
@@ -272,39 +242,11 @@ static void ttm_mem_reg_iounmap(struct ttm_bo_device *bdev, struct ttm_mem_reg *
 	man = &bdev->man[mem->mem_type];
 
 	if (virtual && mem->bus.addr == NULL)
-#ifdef __NetBSD__
-		bus_space_unmap(bdev->memt, mem->bus.memh, mem->bus.size);
-#else
 		iounmap(virtual);
-#endif
 	(void) ttm_mem_io_lock(man, false);
 	ttm_mem_io_free(bdev, mem);
 	ttm_mem_io_unlock(man);
 }
-
-#ifdef __NetBSD__
-#  define	ioread32	fake_ioread32
-#  define	iowrite32	fake_iowrite32
-
-static inline uint32_t
-ioread32(const volatile uint32_t *p)
-{
-	uint32_t v;
-
-	v = *p;
-	__insn_barrier();	/* XXX ttm io barrier */
-
-	return v;		/* XXX ttm byte order */
-}
-
-static inline void
-iowrite32(uint32_t v, volatile uint32_t *p)
-{
-
-	__insn_barrier();	/* XXX ttm io barrier */
-	*p = v;			/* XXX ttm byte order */
-}
-#endif
 
 static int ttm_copy_io_page(void *dst, void *src, unsigned long page)
 {
@@ -319,22 +261,14 @@ static int ttm_copy_io_page(void *dst, void *src, unsigned long page)
 	return 0;
 }
 
-#ifdef __NetBSD__
-#  undef	ioread32
-#  undef	iowrite32
-#endif
-
 #ifdef CONFIG_X86
 #define __ttm_kmap_atomic_prot(__page, __prot) kmap_atomic_prot(__page, __prot)
 #define __ttm_kunmap_atomic(__addr) kunmap_atomic(__addr)
 #else
 #define __ttm_kmap_atomic_prot(__page, __prot) vmap(&__page, 1, 0,  __prot)
-#ifdef __NetBSD__
-#define __ttm_kunmap_atomic(__addr) vunmap(__addr, 1)
-#else
 #define __ttm_kunmap_atomic(__addr) vunmap(__addr)
 #endif
-#endif
+
 
 /**
  * ttm_kmap_atomic_prot - Efficient kernel map of a single page with
@@ -558,8 +492,10 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	if (!fbo)
 		return -ENOMEM;
 
-	ttm_bo_get(bo);
 	fbo->base = *bo;
+	fbo->base.mem.placement |= TTM_PL_FLAG_NO_EVICT;
+
+	ttm_bo_get(bo);
 	fbo->bo = bo;
 
 	/**
@@ -572,24 +508,10 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	INIT_LIST_HEAD(&fbo->base.lru);
 	INIT_LIST_HEAD(&fbo->base.swap);
 	INIT_LIST_HEAD(&fbo->base.io_reserve_lru);
-#ifdef __NetBSD__
-	linux_mutex_init(&fbo->wu_mutex);
-#else
 	mutex_init(&fbo->base.wu_mutex);
-#endif
 	fbo->base.moving = NULL;
-#ifdef __NetBSD__
-	drm_vma_node_init(&fbo->vma_node);
-#else
 	drm_vma_node_reset(&fbo->base.vma_node);
-#endif
 	atomic_set(&fbo->base.cpu_writers, 0);
-
-#ifdef __NetBSD__
-	uvm_obj_init(&fbo->uvmobj, bo->bdev->driver->ttm_uvm_ops, true, 1);
-	mutex_obj_hold(bo->uvmobj.vmobjlock);
-	uvm_obj_setlock(&fbo->uvmobj, bo->uvmobj.vmobjlock);
-#endif
 
 	kref_init(&fbo->base.list_kref);
 	kref_init(&fbo->base.kref);
@@ -610,19 +532,6 @@ pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp)
 	if (caching_flags & TTM_PL_FLAG_CACHED)
 		return tmp;
 
-#ifdef __NetBSD__
-	switch (caching_flags & TTM_PL_MASK_CACHING) {
-	case TTM_PL_FLAG_CACHED:
-		return (tmp | PMAP_WRITE_BACK);
-	case TTM_PL_FLAG_WC:
-		return (tmp | PMAP_WRITE_COMBINE);
-	case TTM_PL_FLAG_UNCACHED:
-		return (tmp | PMAP_NOCACHE);
-	default:
-		panic("invalid caching flags: %"PRIx32"\n",
-		    (caching_flags & TTM_PL_MASK_CACHING));
-	}
-#else
 #if defined(__i386__) || defined(__x86_64__)
 	if (caching_flags & TTM_PL_FLAG_WC)
 		tmp = pgprot_writecombine(tmp);
@@ -640,7 +549,6 @@ pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp)
 	tmp = pgprot_noncached(tmp);
 #endif
 	return tmp;
-#endif
 }
 EXPORT_SYMBOL(ttm_io_prot);
 
@@ -656,31 +564,12 @@ static int ttm_bo_ioremap(struct ttm_buffer_object *bo,
 		map->virtual = (void *)(((u8 *)bo->mem.bus.addr) + offset);
 	} else {
 		map->bo_kmap_type = ttm_bo_map_iomap;
-#ifdef __NetBSD__
-	    {
-		bus_addr_t addr;
-		int flags = BUS_SPACE_MAP_LINEAR;
-		int ret;
-
-		addr = (bo->mem.bus.base + bo->mem.bus.offset + offset);
-		if (ISSET(mem->placement, TTM_PL_FLAG_WC))
-			flags |= BUS_SPACE_MAP_PREFETCHABLE;
-		/* XXX errno NetBSD->Linux */
-		ret = -bus_space_map(bo->bdev->memt, addr, size, flags,
-		    &map->u.io.memh);
-		if (ret)
-			return ret;
-		map->u.io.size = size;
-		map->virtual = bus_space_vaddr(bo->bdev->memt, map->u.io.memh);
-	    }
-#else
 		if (mem->placement & TTM_PL_FLAG_WC)
 			map->virtual = ioremap_wc(bo->mem.bus.base + bo->mem.bus.offset + offset,
 						  size);
 		else
 			map->virtual = ioremap_nocache(bo->mem.bus.base + bo->mem.bus.offset + offset,
 						       size);
-#endif
 	}
 	return (!map->virtual) ? -ENOMEM : 0;
 }
@@ -712,13 +601,8 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 		 */
 
 		map->bo_kmap_type = ttm_bo_map_kmap;
-#ifdef __NetBSD__
-		map->u.kmapped.page = ttm->pages[start_page];
-		map->virtual = kmap(map->u.kmapped.page);
-#else
 		map->page = ttm->pages[start_page];
 		map->virtual = kmap(map->page);
-#endif
 	} else {
 		/*
 		 * We need to use vmap to get the desired page protection
@@ -728,9 +612,6 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 		map->bo_kmap_type = ttm_bo_map_vmap;
 		map->virtual = vmap(ttm->pages + start_page, num_pages,
 				    0, prot);
-#ifdef __NetBSD__
-		map->u.vmapped.vsize = (vsize_t)num_pages << PAGE_SHIFT;
-#endif
 	}
 	return (!map->virtual) ? -ENOMEM : 0;
 }
@@ -750,10 +631,7 @@ int ttm_bo_kmap(struct ttm_buffer_object *bo,
 		return -EINVAL;
 	if (start_page > bo->num_pages)
 		return -EINVAL;
-#if 0
-	if (num_pages > 1 && !capable(CAP_SYS_ADMIN))
-		return -EPERM;
-#endif
+
 	(void) ttm_mem_io_lock(man, false);
 	ret = ttm_mem_io_reserve(bo->bdev, &bo->mem);
 	ttm_mem_io_unlock(man);
@@ -779,26 +657,13 @@ void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map)
 		return;
 	switch (map->bo_kmap_type) {
 	case ttm_bo_map_iomap:
-#ifdef __NetBSD__
-		bus_space_unmap(bo->bdev->memt, map->u.io.memh,
-		    map->u.io.size);
-#else
 		iounmap(map->virtual);
-#endif
 		break;
 	case ttm_bo_map_vmap:
-#ifdef __NetBSD__
-		vunmap(map->virtual, map->u.vmapped.vsize >> PAGE_SHIFT);
-#else
 		vunmap(map->virtual);
-#endif
 		break;
 	case ttm_bo_map_kmap:
-#ifdef __NetBSD__
-		kunmap(map->u.kmapped.page);
-#else
 		kunmap(map->page);
-#endif
 		break;
 	case ttm_bo_map_premapped:
 		break;
@@ -809,9 +674,7 @@ void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map)
 	ttm_mem_io_free(map->bo->bdev, &map->bo->mem);
 	ttm_mem_io_unlock(man);
 	map->virtual = NULL;
-#ifndef __NetBSD__
 	map->page = NULL;
-#endif
 }
 EXPORT_SYMBOL(ttm_bo_kunmap);
 

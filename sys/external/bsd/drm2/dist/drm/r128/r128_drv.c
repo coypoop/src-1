@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* r128_drv.c -- ATI Rage 128 driver -*- linux-c -*-
  * Created: Mon Dec 13 09:47:27 1999 by faith@precisioninsight.com
  *
@@ -31,9 +29,6 @@
  *    Gareth Hughes <gareth@valinux.com>
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/module.h>
 
 #include <drm/drmP.h>
@@ -62,12 +57,11 @@ static const struct file_operations r128_driver_fops = {
 static struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_PCI_DMA | DRIVER_SG | DRIVER_LEGACY |
-	    DRIVER_HAVE_DMA | DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
+	    DRIVER_HAVE_DMA | DRIVER_HAVE_IRQ,
 	.dev_priv_size = sizeof(drm_r128_buf_priv_t),
 	.load = r128_driver_load,
 	.preclose = r128_driver_preclose,
 	.lastclose = r128_driver_lastclose,
-	.set_busid = drm_pci_set_busid,
 	.get_vblank_counter = r128_get_vblank_counter,
 	.enable_vblank = r128_enable_vblank,
 	.disable_vblank = r128_disable_vblank,
@@ -75,10 +69,6 @@ static struct drm_driver driver = {
 	.irq_postinstall = r128_driver_irq_postinstall,
 	.irq_uninstall = r128_driver_irq_uninstall,
 	.irq_handler = r128_driver_irq_handler,
-#ifdef __NetBSD__
-	.request_irq = drm_pci_request_irq,
-	.free_irq = drm_pci_free_irq,
-#endif
 	.ioctls = r128_ioctls,
 	.dma_ioctl = r128_cce_buffers,
 	.fops = &r128_driver_fops,

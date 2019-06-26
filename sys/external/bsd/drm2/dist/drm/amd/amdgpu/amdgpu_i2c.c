@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2007-8 Advanced Micro Devices, Inc.
  * Copyright 2008 Red Hat Inc.
@@ -25,11 +23,7 @@
  * Authors: Dave Airlie
  *          Alex Deucher
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/export.h>
-#include <linux/module.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
@@ -181,14 +175,10 @@ struct amdgpu_i2c_chan *amdgpu_i2c_create(struct drm_device *dev,
 	i2c->rec = *rec;
 	i2c->adapter.owner = THIS_MODULE;
 	i2c->adapter.class = I2C_CLASS_DDC;
-	i2c->adapter.dev.parent = dev->dev;
+	i2c->adapter.dev.parent = &dev->pdev->dev;
 	i2c->dev = dev;
 	i2c_set_adapdata(&i2c->adapter, i2c);
-#ifdef __NetBSD__
-	linux_mutex_init(&i2c->mutex);
-#else
 	mutex_init(&i2c->mutex);
-#endif
 	if (rec->hw_capable &&
 	    amdgpu_hw_i2c) {
 		/* hw i2c using atom */
@@ -221,11 +211,6 @@ struct amdgpu_i2c_chan *amdgpu_i2c_create(struct drm_device *dev,
 
 	return i2c;
 out_free:
-#ifdef __NetBSD__
-	linux_mutex_destroy(&i2c->mutex);
-#else
-	mutex_destroy(&i2c->mutex);
-#endif
 	kfree(i2c);
 	return NULL;
 
@@ -237,11 +222,6 @@ void amdgpu_i2c_destroy(struct amdgpu_i2c_chan *i2c)
 		return;
 	WARN_ON(i2c->has_aux);
 	i2c_del_adapter(&i2c->adapter);
-#ifdef __NetBSD__
-	linux_mutex_destroy(&i2c->mutex);
-#else
-	mutex_destroy(&i2c->mutex);
-#endif
 	kfree(i2c);
 }
 

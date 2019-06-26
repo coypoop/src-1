@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2008 Advanced Micro Devices, Inc.
  * Copyright 2008 Red Hat Inc.
@@ -27,9 +25,6 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <drm/drmP.h>
@@ -116,25 +111,6 @@ uint64_t rv370_pcie_gart_get_page_entry(uint64_t addr, uint32_t flags)
 	return addr;
 }
 
-#ifdef __NetBSD__
-/*
- * XXX Can't use bus_space here because this is all mapped through the
- * radeon_bo abstraction.  Can't assume we're x86 because this is
- * AMD/ATI Radeon, not Intel.
- */
-
-#  define	__iomem		volatile
-#  define	writel		fake_writel
-
-static inline void
-fake_writel(uint32_t v, void __iomem *ptr)
-{
-
-	membar_producer();
-	*(uint32_t __iomem *)ptr = v;
-}
-#endif
-
 void rv370_pcie_gart_set_page(struct radeon_device *rdev, unsigned i,
 			      uint64_t entry)
 {
@@ -143,13 +119,8 @@ void rv370_pcie_gart_set_page(struct radeon_device *rdev, unsigned i,
 	/* on x86 we want this to be CPU endian, on powerpc
 	 * on powerpc without HW swappers, it'll get swapped on way
 	 * into VRAM - so no need for cpu_to_le32 on VRAM tables */
-	writel(entry, (uint8_t __iomem *)ptr + (i * 4));
+	writel(entry, ((void __iomem *)ptr) + (i * 4));
 }
-
-#ifdef __NetBSD__
-#  undef	__iomem
-#  undef	writel
-#endif
 
 int rv370_pcie_gart_init(struct radeon_device *rdev)
 {
@@ -843,7 +814,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 					  ((idx_value >> 21) & 0xF));
 				return -EINVAL;
 			}
-			/* Pass through. */
+			/* Fall through. */
 		case 6:
 			track->cb[i].cpp = 4;
 			break;
@@ -994,7 +965,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 				return -EINVAL;
 			}
 			/* The same rules apply as for DXT3/5. */
-			/* Pass through. */
+			/* Fall through. */
 		case R300_TX_FORMAT_DXT3:
 		case R300_TX_FORMAT_DXT5:
 			track->textures[i].cpp = 1;

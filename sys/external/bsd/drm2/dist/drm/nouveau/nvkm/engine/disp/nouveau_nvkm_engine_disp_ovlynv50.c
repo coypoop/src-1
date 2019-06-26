@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "channv50.h"
 #include "head.h"
 
@@ -51,7 +46,7 @@ nv50_disp_ovly_new_(const struct nv50_disp_chan_func *func,
 	nvif_ioctl(parent, "create disp overlay channel dma size %d\n", argc);
 	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
 		nvif_ioctl(parent, "create disp overlay channel dma vers %d "
-				   "pushbuf %016"PRIx64" head %d\n",
+				   "pushbuf %016llx head %d\n",
 			   args->v0.version, args->v0.pushbuf, args->v0.head);
 		if (!nvkm_head_find(&disp->base, args->v0.head))
 			return -EINVAL;

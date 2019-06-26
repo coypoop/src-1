@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2014-2017 Intel Corporation
  *
@@ -117,9 +115,14 @@ static inline bool intel_uc_fw_is_selected(struct intel_uc_fw *uc_fw)
 	return uc_fw->path != NULL;
 }
 
+static inline bool intel_uc_fw_is_loaded(struct intel_uc_fw *uc_fw)
+{
+	return uc_fw->load_status == INTEL_UC_FIRMWARE_SUCCESS;
+}
+
 static inline void intel_uc_fw_sanitize(struct intel_uc_fw *uc_fw)
 {
-	if (uc_fw->load_status == INTEL_UC_FIRMWARE_SUCCESS)
+	if (intel_uc_fw_is_loaded(uc_fw))
 		uc_fw->load_status = INTEL_UC_FIRMWARE_PENDING;
 }
 

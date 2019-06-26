@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2007 David Airlie
  *
@@ -25,9 +23,6 @@
  * Authors:
  *     David Airlie
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
@@ -42,10 +37,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/vga_switcheroo.h>
 
-#ifdef __NetBSD__
-#include "radeondrmkmsfb.h"
-#endif
-
 /* object hierarchy -
  * this contains a helper + a radeon fb
  * the helper contains a pointer to radeon framebuffer baseclass.
@@ -56,7 +47,6 @@ struct radeon_fbdev {
 	struct radeon_device *rdev;
 };
 
-#ifndef __NetBSD__
 static int
 radeonfb_open(struct fb_info *info, int user)
 {
@@ -91,7 +81,6 @@ static struct fb_ops radeonfb_ops = {
 	.fb_copyarea = drm_fb_helper_cfb_copyarea,
 	.fb_imageblit = drm_fb_helper_cfb_imageblit,
 };
-#endif
 
 
 int radeon_align_pitch(struct radeon_device *rdev, int width, int cpp, bool tiled)
@@ -153,17 +142,9 @@ static int radeonfb_create_pinned_object(struct radeon_fbdev *rfbdev,
 						  fb_tiled);
 
 	if (rdev->family >= CHIP_R600)
-#ifdef __NetBSD__		/* XXX ALIGN means something else.  */
-		height = round_up(mode_cmd->height, 8);
-#else
 		height = ALIGN(mode_cmd->height, 8);
-#endif
 	size = mode_cmd->pitches[0] * height;
-#ifdef __NetBSD__		/* XXX ALIGN means something else.  */
-	aligned_size = round_up(size, PAGE_SIZE);
-#else
 	aligned_size = ALIGN(size, PAGE_SIZE);
-#endif
 	ret = radeon_gem_object_create(rdev, aligned_size, 0,
 				       RADEON_GEM_DOMAIN_VRAM,
 				       0, true, &gobj);
@@ -230,17 +211,13 @@ static int radeonfb_create(struct drm_fb_helper *helper,
 	struct radeon_fbdev *rfbdev =
 		container_of(helper, struct radeon_fbdev, helper);
 	struct radeon_device *rdev = rfbdev->rdev;
-#ifndef __NetBSD__
 	struct fb_info *info;
-#endif
 	struct drm_framebuffer *fb = NULL;
 	struct drm_mode_fb_cmd2 mode_cmd;
 	struct drm_gem_object *gobj = NULL;
 	struct radeon_bo *rbo = NULL;
 	int ret;
-#ifndef __NetBSD__
 	unsigned long tmp;
-#endif
 
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
@@ -260,34 +237,6 @@ static int radeonfb_create(struct drm_fb_helper *helper,
 
 	rbo = gem_to_radeon_bo(gobj);
 
-#ifdef __NetBSD__
-	ret = radeon_framebuffer_init(rdev->ddev, &rfbdev->rfb, &mode_cmd, gobj);
-	if (ret) {
-		DRM_ERROR("failed to initialize framebuffer %d\n", ret);
-		goto out_unref;
-	}
-
-	(void)memset(rbo->kptr, 0, radeon_bo_size(rbo));
-
-    {
-	static const struct radeonfb_attach_args zero_rfa;
-	struct radeonfb_attach_args rfa = zero_rfa;
-
-	rfa.rfa_fb_helper = helper;
-	rfa.rfa_fb_sizes = *sizes;
-	rfa.rfa_fb_ptr = rbo->kptr;
-	rfa.rfa_fb_linebytes = mode_cmd.pitches[0];
-
-	helper->fbdev = config_found_ia(rdev->ddev->dev, "radeonfbbus", &rfa,
-	    NULL);
-	if (helper->fbdev == NULL) {
-		DRM_ERROR("failed to attach genfb\n");
-		goto out_unref;
-	}
-    }
-	fb = &rfbdev->rfb.base;
-	rfbdev->helper.fb = fb;
-#else
 	/* okay we have an object now allocate the framebuffer */
 	info = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(info)) {
@@ -342,7 +291,6 @@ static int radeonfb_create(struct drm_fb_helper *helper,
 	DRM_INFO("   pitch is %d\n", fb->pitches[0]);
 
 	vga_switcheroo_client_fb_set(rdev->ddev->pdev, info);
-#endif
 	return 0;
 
 out:
@@ -361,19 +309,8 @@ out:
 static int radeon_fbdev_destroy(struct drm_device *dev, struct radeon_fbdev *rfbdev)
 {
 	struct drm_framebuffer *fb = &rfbdev->fb;
-#ifdef __NetBSD__
-	int ret;
-#endif
 
-#ifdef __NetBSD__
-	/* XXX errno NetBSD->Linux */
-	ret = -config_detach(rfbdev->helper.fbdev, DETACH_FORCE);
-	if (ret)
-		DRM_ERROR("failed to detach radeonfb: %d\n", ret);
-	rfbdev->helper.fbdev = NULL;
-#else
 	drm_fb_helper_unregister_fbi(&rfbdev->helper);
-#endif
 
 	if (fb->obj[0]) {
 		radeonfb_destroy_pinned_object(fb->obj[0]);
@@ -454,10 +391,8 @@ void radeon_fbdev_fini(struct radeon_device *rdev)
 
 void radeon_fbdev_set_suspend(struct radeon_device *rdev, int state)
 {
-#ifndef __NetBSD__		/* XXX radeon fb suspend */
 	if (rdev->mode_info.rfbdev)
 		drm_fb_helper_set_suspend(&rdev->mode_info.rfbdev->helper, state);
-#endif
 }
 
 bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj)

@@ -59,27 +59,19 @@
 #include <linux/workqueue.h>
 #include <linux/dma-fence.h>
 #include <linux/module.h>
-
-#include <asm/mman.h>
+#include <linux/mman.h>
 #include <asm/pgalloc.h>
 #include <linux/uaccess.h>
 
 #include <uapi/drm/drm.h>
 #include <uapi/drm/drm_mode.h>
 
-#ifdef __NetBSD__
-#include <drm/drm_os_netbsd.h>
-#else
-#include <drm/drm_os_linux.h>
-#endif
-
-#include <drm/drm.h>
 #include <drm/drm_agpsupport.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_global.h>
 #include <drm/drm_hashtab.h>
 #include <drm/drm_mm.h>
+#include <drm/drm_os_linux.h>
 #include <drm/drm_sarea.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_prime.h>
@@ -103,45 +95,11 @@ struct dma_buf_attachment;
 struct pci_dev;
 struct pci_controller;
 
-#define DRM_IF_VERSION(maj, min) (maj << 16 | min)
-
-#define DRM_SWITCH_POWER_ON 0
-#define DRM_SWITCH_POWER_OFF 1
-#define DRM_SWITCH_POWER_CHANGING 2
-#define DRM_SWITCH_POWER_DYNAMIC_OFF 3
-
-/* returns true if currently okay to sleep */
-static inline bool drm_can_sleep(void)
-{
-#ifdef __NetBSD__
-	return false;		/* XXX */
-#else
-	if (in_atomic() || in_dbg_master() || irqs_disabled())
-		return false;
-	return true;
-#endif
-}
-
-/* helper for handling conditionals in various for_each macros */
-#define for_each_if(condition) if (!(condition)) {} else
-
-#ifdef __NetBSD__
-
-/* XXX This is pretty kludgerific.  */
-
-#include <linux/io-mapping.h>
-
-static inline struct io_mapping *
-drm_io_mapping_create_wc(struct drm_device *dev, resource_size_t addr,
-    unsigned long size)
-{
-	return bus_space_io_mapping_create_wc(dev->bst, addr, size);
-}
-
-#endif	/* defined(__NetBSD__) */
-
-#ifdef __NetBSD__
-extern const struct cdevsw drm_cdevsw;
-#endif
+/*
+ * NOTE: drmP.h is obsolete - do NOT add anything to this file
+ *
+ * Do not include drmP.h in new files.
+ * Work is ongoing to remove drmP.h includes from existing files
+ */
 
 #endif

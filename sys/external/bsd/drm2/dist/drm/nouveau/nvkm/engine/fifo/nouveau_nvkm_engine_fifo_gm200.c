@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2015 Red Hat Inc.
  *
@@ -23,17 +21,28 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "gk104.h"
 #include "changk104.h"
 
 #include <nvif/class.h>
 
+int
+gm200_fifo_pbdma_nr(struct gk104_fifo *fifo)
+{
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	return nvkm_rd32(device, 0x002004) & 0x000000ff;
+}
+
+const struct gk104_fifo_pbdma_func
+gm200_fifo_pbdma = {
+	.nr = gm200_fifo_pbdma_nr,
+	.init = gk104_fifo_pbdma_init,
+	.init_timeout = gk208_fifo_pbdma_init_timeout,
+};
+
 static const struct gk104_fifo_func
 gm200_fifo = {
-	.init_pbdma_timeout = gk208_fifo_init_pbdma_timeout,
+	.pbdma = &gm200_fifo_pbdma,
 	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gm107_fifo_fault_engine,
 	.fault.reason = gk104_fifo_fault_reason,

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2015 Samuel Pitoiset
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Samuel Pitoiset
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "gf100.h"
 
 static const struct nvkm_specsrc

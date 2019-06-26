@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "rootnv50.h"
 #include "channv50.h"
 #include "dp.h"
@@ -181,9 +176,10 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 		nvif_ioctl(object, "disp sor hdmi ctrl size %d\n", size);
 		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
 			nvif_ioctl(object, "disp sor hdmi ctrl vers %d state %d "
-					   "max_ac_packet %d rekey %d\n",
+					   "max_ac_packet %d rekey %d scdc %d\n",
 				   args->v0.version, args->v0.state,
-				   args->v0.max_ac_packet, args->v0.rekey);
+				   args->v0.max_ac_packet, args->v0.rekey,
+				   args->v0.scdc);
 			if (args->v0.max_ac_packet > 0x1f || args->v0.rekey > 0x7f)
 				return -EINVAL;
 			if ((args->v0.avi_infoframe_length
@@ -207,6 +203,11 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 					   args->v0.max_ac_packet,
 					   args->v0.rekey, avi, avi_size,
 					   vendor, vendor_size);
+
+		if (outp->ior->func->hdmi.scdc)
+			outp->ior->func->hdmi.scdc(
+					outp->ior, hidx, args->v0.scdc);
+
 		return 0;
 	}
 		break;

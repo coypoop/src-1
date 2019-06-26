@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -23,17 +21,10 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #define nv04_instmem(p) container_of((p), struct nv04_instmem, base)
 #include "priv.h"
 
 #include <core/ramht.h>
-
-#ifdef __NetBSD__
-#  define	__iomem	__nvkm_memory_iomem
-#endif
 
 struct nv04_instmem {
 	struct nvkm_instmem base;
@@ -83,8 +74,7 @@ nv04_instobj_acquire(struct nvkm_memory *memory)
 {
 	struct nv04_instobj *iobj = nv04_instobj(memory);
 	struct nvkm_device *device = iobj->imem->base.subdev.device;
-	return (char __iomem *)bus_space_vaddr(device->mmiot, device->mmioh) +
-	    0x700000 + iobj->node->offset;
+	return device->pri + 0x700000 + iobj->node->offset;
 }
 
 static u64

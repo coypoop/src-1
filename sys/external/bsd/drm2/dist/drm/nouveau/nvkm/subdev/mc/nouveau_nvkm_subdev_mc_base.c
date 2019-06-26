@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "priv.h"
 
 #include <core/option.h>
@@ -113,6 +108,9 @@ nvkm_mc_intr(struct nvkm_device *device, bool *handled)
 	if (stat)
 		nvkm_error(&mc->subdev, "intr %08x\n", stat);
 	*handled = intr != 0;
+
+	if (mc->func->intr_hack)
+		mc->func->intr_hack(mc, handled);
 }
 
 static u32

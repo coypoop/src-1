@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2007 Dave Mueller
  *
@@ -26,9 +24,6 @@
  *    Dave Mueller <dave.mueller@gmx.ch>
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include "dvo.h"
 

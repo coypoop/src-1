@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 #ifndef __NVKM_MEM_H__
 #define __NVKM_MEM_H__
 #include "priv.h"

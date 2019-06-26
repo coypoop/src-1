@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* sis.c -- sis driver -*- linux-c -*-
  *
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
@@ -26,9 +24,6 @@
  * DEALINGS IN THE SOFTWARE.
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/module.h>
 
@@ -109,7 +104,6 @@ static struct drm_driver driver = {
 	.open = sis_driver_open,
 	.preclose = sis_reclaim_buffers_locked,
 	.postclose = sis_driver_postclose,
-	.set_busid = drm_pci_set_busid,
 	.dma_quiescent = sis_idle,
 	.lastclose = sis_lastclose,
 	.ioctls = sis_ioctls,

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2007-2008 Nouveau Project
  *
@@ -25,8 +23,6 @@
 
 #ifndef __NOUVEAU_DISPBIOS_H__
 #define __NOUVEAU_DISPBIOS_H__
-
-#include <asm/byteorder.h>
 
 #define DCB_MAX_NUM_ENTRIES 16
 #define DCB_MAX_NUM_I2C_ENTRIES 16

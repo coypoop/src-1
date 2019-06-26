@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2017 Red Hat Inc.
  *
@@ -21,9 +19,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "vmm.h"
 
 #include <subdev/timer.h>
@@ -210,63 +205,22 @@ nv44_vmm = {
 };
 
 int
-nv44_vmm_new(struct nvkm_mmu *mmu, u64 addr, u64 size, void *argv, u32 argc,
-	     struct lock_class_key *key, const char *name,
+nv44_vmm_new(struct nvkm_mmu *mmu, bool managed, u64 addr, u64 size,
+	     void *argv, u32 argc, struct lock_class_key *key, const char *name,
 	     struct nvkm_vmm **pvmm)
 {
 	struct nvkm_subdev *subdev = &mmu->subdev;
 	struct nvkm_vmm *vmm;
 	int ret;
 
-	ret = nv04_vmm_new_(&nv44_vmm, mmu, 0, addr, size,
+	ret = nv04_vmm_new_(&nv44_vmm, mmu, 0, managed, addr, size,
 			    argv, argc, key, name, &vmm);
 	*pvmm = vmm;
 	if (ret)
 		return ret;
 
-#ifdef __NetBSD__
-    {
-	struct nvkm_device *device = vmm->mmu->subdev.device;
-	const bus_dma_tag_t dmat = device->func->dma_tag(device);
-	const unsigned nullsz = 16 * 1024;
-	int nsegs;
-
-	/* XXX errno NetBSD->Linux */
-	ret = -bus_dmamem_alloc(dmat, nullsz, PAGE_SIZE, 0,
-	    &vmm->nullseg, 1, &nsegs, BUS_DMA_WAITOK);
-	if (ret)
-fail0:		return ret;
-	KASSERT(nsegs == 1);
-
-	/* XXX errno NetBSD->Linux */
-	ret = -bus_dmamap_create(dmat, nullsz /* size */, 1 /* maxnseg */,
-	    nullsz /* maxsegsz */, 0, BUS_DMA_WAITOK, &vmm->nullmap);
-	if (ret) {
-fail1:		bus_dmamem_free(dmat, &vmm->nullseg, 1);
-		goto fail0;
-	}
-
-	/* XXX errno NetBSD->Linux */
-	ret = -bus_dmamem_map(dmat, &vmm->nullseg, 1, nullsz,
-	    &vmm->nullp, BUS_DMA_WAITOK);
-	if (ret) {
-fail2:		bus_dmamap_destroy(dmat, vmm->nullmap);
-		goto fail1;
-	}
-
-	/* XXX errno NetBSD->Linux */
-	ret = -bus_dmamap_load(dmat, vmm->nullmap, vmm->nullp, nullsz,
-	    NULL, BUS_DMA_WAITOK);
-	if (ret) {
-fail3: __unused	bus_dmamem_unmap(dmat, vmm->nullp, nullsz);
-		goto fail2;
-	}
-	vmm->null = vmm->nullmap->dm_segs[0].ds_addr;
-    }
-#else
 	vmm->nullp = dma_alloc_coherent(subdev->device->dev, 16 * 1024,
 					&vmm->null, GFP_KERNEL);
-#endif
 	if (!vmm->nullp) {
 		nvkm_warn(subdev, "unable to allocate dummy pages\n");
 		vmm->null = 0;

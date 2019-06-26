@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #define nv50_instmem(p) container_of((p), struct nv50_instmem, base)
 #include "priv.h"
 
@@ -33,10 +28,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <subdev/bar.h>
 #include <subdev/fb.h>
 #include <subdev/mmu.h>
-
-#ifdef __NetBSD__
-#  define	__iomem	__nvkm_memory_iomem
-#endif
 
 struct nv50_instmem {
 	struct nvkm_instmem base;
@@ -56,10 +47,6 @@ struct nv50_instobj {
 	struct nv50_instmem *imem;
 	struct nvkm_memory *ram;
 	struct nvkm_vma *bar;
-#ifdef __NetBSD__
-	bus_space_tag_t bst;
-	bus_space_handle_t bsh;
-#endif
 	refcount_t maps;
 	void *map;
 	struct list_head lru;
@@ -114,23 +101,13 @@ nv50_instobj_slow = {
 static void
 nv50_instobj_wr32(struct nvkm_memory *memory, u64 offset, u32 data)
 {
-#ifdef __NetBSD__
-	struct nv50_instobj *iobj = nv50_instobj(memory);
-	bus_space_write_stream_4(iobj->bst, iobj->bsh, offset, data);
-#else
 	iowrite32_native(data, nv50_instobj(memory)->map + offset);
-#endif
 }
 
 static u32
 nv50_instobj_rd32(struct nvkm_memory *memory, u64 offset)
 {
-#ifdef __NetBSD__
-	struct nv50_instobj *iobj = nv50_instobj(memory);
-	return bus_space_read_stream_4(iobj->bst, iobj->bsh, offset);
-#else
 	return ioread32_native(nv50_instobj(memory)->map + offset);
-#endif
 }
 
 static const struct nvkm_memory_ptrs
@@ -177,11 +154,7 @@ nv50_instobj_kmap(struct nv50_instobj *iobj, struct nvkm_vmm *vmm)
 		mutex_unlock(&subdev->mutex);
 		if (!eobj)
 			break;
-#ifdef __NetBSD__
-		bus_space_unmap(eobj->bst, eobj->bsh, size);
-#else
 		iounmap(emap);
-#endif
 		nvkm_vmm_put(vmm, &ebar);
 	}
 
@@ -198,19 +171,8 @@ nv50_instobj_kmap(struct nv50_instobj *iobj, struct nvkm_vmm *vmm)
 
 	/* Make the mapping visible to the host. */
 	iobj->bar = bar;
-#ifdef __NetBSD__
-	iobj->bst = device->func->resource_tag(device, 3);
-	/* Yes, truncation is really intended here.  */
-	if (bus_space_map(iobj->bst, (device->func->resource_addr(device, 3)
-		    + (u32)iobj->bar->addr), size,
-		BUS_SPACE_MAP_PREFETCHABLE|BUS_SPACE_MAP_LINEAR, &iobj->bsh))
-		iobj->map = NULL;
-	else
-		iobj->map = bus_space_vaddr(iobj->bst, iobj->bsh);
-#else
 	iobj->map = ioremap_wc(device->func->resource_addr(device, 3) +
 			       (u32)iobj->bar->addr, size);
-#endif
 	if (!iobj->map) {
 		nvkm_warn(subdev, "PRAMIN ioremap failed\n");
 		nvkm_vmm_put(vmm, &iobj->bar);
@@ -326,6 +288,19 @@ nv50_instobj_addr(struct nvkm_memory *memory)
 	return nvkm_memory_addr(nv50_instobj(memory)->ram);
 }
 
+static u64
+nv50_instobj_bar2(struct nvkm_memory *memory)
+{
+	struct nv50_instobj *iobj = nv50_instobj(memory);
+	u64 addr = ~0ULL;
+	if (nv50_instobj_acquire(&iobj->base.memory)) {
+		iobj->lru.next = NULL; /* Exclude from eviction. */
+		addr = iobj->bar->addr;
+	}
+	nv50_instobj_release(&iobj->base.memory);
+	return addr;
+}
+
 static enum nvkm_memory_target
 nv50_instobj_target(struct nvkm_memory *memory)
 {
@@ -349,12 +324,7 @@ nv50_instobj_dtor(struct nvkm_memory *memory)
 
 	if (map) {
 		struct nvkm_vmm *vmm = nvkm_bar_bar2_vmm(imem->subdev.device);
-#ifdef __NetBSD__
-		bus_space_unmap(iobj->bst, iobj->bsh,
-		    nvkm_memory_size(&iobj->memory));
-#else
 		iounmap(map);
-#endif
 		if (likely(vmm)) /* Can be NULL during BAR destructor. */
 			nvkm_vmm_put(vmm, &bar);
 	}
@@ -368,8 +338,9 @@ static const struct nvkm_memory_func
 nv50_instobj_func = {
 	.dtor = nv50_instobj_dtor,
 	.target = nv50_instobj_target,
-	.size = nv50_instobj_size,
+	.bar2 = nv50_instobj_bar2,
 	.addr = nv50_instobj_addr,
+	.size = nv50_instobj_size,
 	.boot = nv50_instobj_boot,
 	.acquire = nv50_instobj_acquire,
 	.release = nv50_instobj_release,

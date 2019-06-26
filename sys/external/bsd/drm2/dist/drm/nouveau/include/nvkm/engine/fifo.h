@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_FIFO_H__
 #define __NVKM_FIFO_H__
@@ -27,14 +25,7 @@ struct nvkm_fifo_chan {
 	struct nvkm_gpuobj *inst;
 	struct nvkm_gpuobj *push;
 	struct nvkm_vmm *vmm;
-#ifdef __NetBSD__
-	bus_space_tag_t bst;
-	bus_space_handle_t bsh;
-	bool mapped;
-	bool subregion;
-#else
 	void __iomem *user;
-#endif
 	u64 addr;
 	u32 size;
 
@@ -83,4 +74,5 @@ int gm20b_fifo_new(struct nvkm_device *, int, struct nvkm_fifo **);
 int gp100_fifo_new(struct nvkm_device *, int, struct nvkm_fifo **);
 int gp10b_fifo_new(struct nvkm_device *, int, struct nvkm_fifo **);
 int gv100_fifo_new(struct nvkm_device *, int, struct nvkm_fifo **);
+int tu102_fifo_new(struct nvkm_device *, int, struct nvkm_fifo **);
 #endif

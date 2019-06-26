@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
 * Copyright 2012-15 Advanced Micro Devices, Inc.
  *
@@ -32,6 +30,7 @@
 
 struct dc;
 
+bool dce121_xgmi_enabled(struct dce_hwseq *hws);
 void dce120_hw_sequencer_construct(struct dc *dc);
 
 #endif /* __DC_HWSS_DCE112_H__ */

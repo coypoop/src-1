@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012-15 Advanced Micro Devices, Inc.
  *
@@ -226,6 +224,12 @@ void dce110_link_encoder_enable_dp_mst_output(
 	struct link_encoder *enc,
 	const struct dc_link_settings *link_settings,
 	enum clock_source_id clock_source);
+
+/* enables LVDS PHY output */
+void dce110_link_encoder_enable_lvds_output(
+	struct link_encoder *enc,
+	enum clock_source_id clock_source,
+	uint32_t pixel_clock);
 
 /* disable PHY output */
 void dce110_link_encoder_disable_output(

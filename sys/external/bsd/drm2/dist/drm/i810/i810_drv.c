@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* i810_drv.c -- I810 driver -*- linux-c -*-
  * Created: Mon Dec 13 01:56:22 1999 by jhartmann@precisioninsight.com
  *
@@ -32,9 +30,6 @@
  *    Gareth Hughes <gareth@valinux.com>
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/module.h>
 
 #include <drm/drmP.h>
@@ -64,7 +59,6 @@ static struct drm_driver driver = {
 	.load = i810_driver_load,
 	.lastclose = i810_driver_lastclose,
 	.preclose = i810_driver_preclose,
-	.set_busid = drm_pci_set_busid,
 	.dma_quiescent = i810_driver_dma_quiescent,
 	.ioctls = i810_ioctls,
 	.fops = &i810_driver_fops,

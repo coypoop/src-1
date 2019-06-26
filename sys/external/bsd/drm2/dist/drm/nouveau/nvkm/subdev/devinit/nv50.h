@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NV50_DEVINIT_H__
 #define __NV50_DEVINIT_H__
@@ -28,4 +26,5 @@ void gf100_devinit_preinit(struct nvkm_devinit *);
 u64  gm107_devinit_disable(struct nvkm_devinit *);
 
 int gm200_devinit_post(struct nvkm_devinit *, bool);
+void gm200_devinit_preos(struct nv50_devinit *, bool);
 #endif

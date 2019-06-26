@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright(c) 2011-2016 Intel Corporation. All rights reserved.
  *
@@ -63,7 +61,7 @@ struct shadow_indirect_ctx {
 	unsigned long guest_gma;
 	unsigned long shadow_gma;
 	void *shadow_va;
-	uint32_t size;
+	u32 size;
 };
 
 #define PER_CTX_ADDR_MASK 0xfffff000
@@ -85,6 +83,7 @@ struct intel_vgpu_workload {
 	struct i915_request *req;
 	/* if this workload has been dispatched to i915? */
 	bool dispatched;
+	bool shadow;      /* if workload has done shadow of guest request */
 	int status;
 
 	struct intel_vgpu_mm *shadow_mm;

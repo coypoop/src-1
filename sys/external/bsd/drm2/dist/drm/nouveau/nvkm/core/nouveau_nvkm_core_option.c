@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <core/option.h>
 #include <core/debug.h>
 
@@ -100,8 +95,6 @@ int
 nvkm_dbgopt(const char *optstr, const char *sub)
 {
 	int mode = 1, level = CONFIG_NOUVEAU_DEBUG_DEFAULT;
-
-	return NV_DBG_DEBUG;
 
 	while (optstr) {
 		int len = strcspn(optstr, ",=");

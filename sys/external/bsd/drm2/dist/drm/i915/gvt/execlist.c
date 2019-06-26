@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright(c) 2011-2016 Intel Corporation. All rights reserved.
  *
@@ -33,9 +31,6 @@
  *    Tina Zhang <tina.zhang@intel.com>
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include "i915_drv.h"
 #include "gvt.h"

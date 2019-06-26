@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVBIOS_TIMING_H__
 #define __NVBIOS_TIMING_H__

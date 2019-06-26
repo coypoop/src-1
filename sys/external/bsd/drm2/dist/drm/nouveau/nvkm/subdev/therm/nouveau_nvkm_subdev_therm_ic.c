@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Nouveau community
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Martin Peres
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "priv.h"
 
 #include <subdev/bios/extdev.h>
@@ -35,9 +30,6 @@ static bool
 probe_monitoring_device(struct nvkm_i2c_bus *bus,
 			struct i2c_board_info *info, void *data)
 {
-#ifdef __NetBSD__
-	return false;
-#else
 	struct nvkm_therm *therm = data;
 	struct nvbios_therm_sensor *sensor = &therm->bios_sensor;
 	struct i2c_client *client;
@@ -60,7 +52,6 @@ probe_monitoring_device(struct nvkm_i2c_bus *bus,
 		   info->type, info->addr, sensor->offset_constant);
 	therm->ic = client;
 	return true;
-#endif
 }
 
 static struct nvkm_i2c_bus_probe

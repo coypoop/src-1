@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (c) 2014, NVIDIA CORPORATION. All rights reserved.
  *
@@ -21,9 +19,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "gk104.h"
 #include "changk104.h"
 
@@ -31,7 +26,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 static const struct gk104_fifo_func
 gk20a_fifo = {
-	.init_pbdma_timeout = gk208_fifo_init_pbdma_timeout,
+	.pbdma = &gk208_fifo_pbdma,
 	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gk104_fifo_fault_engine,
 	.fault.reason = gk104_fifo_fault_reason,

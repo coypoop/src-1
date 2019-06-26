@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (C) 2014  Advanced Micro Devices, Inc.
  *

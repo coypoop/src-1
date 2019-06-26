@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (C) 2016 Martin Peres
  *
@@ -29,9 +27,6 @@
  * Authors:
  *  Martin Peres <martin.peres@free.fr>
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/leds.h>
 

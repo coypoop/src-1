@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2016 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "gk104.h"
 #include "cgrp.h"
 #include "changk104.h"
@@ -48,10 +43,12 @@ gk110_fifo_runlist = {
 	.size = 8,
 	.cgrp = gk110_fifo_runlist_cgrp,
 	.chan = gk104_fifo_runlist_chan,
+	.commit = gk104_fifo_runlist_commit,
 };
 
 static const struct gk104_fifo_func
 gk110_fifo = {
+	.pbdma = &gk104_fifo_pbdma,
 	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gk104_fifo_fault_engine,
 	.fault.reason = gk104_fifo_fault_reason,

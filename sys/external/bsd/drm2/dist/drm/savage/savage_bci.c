@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* savage_bci.c -- BCI support for Savage
  *
  * Copyright 2004  Felix Kuehling
@@ -24,9 +22,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/drmP.h>
 #include <drm/savage_drm.h>
 #include "savage_drv.h"

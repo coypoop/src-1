@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (C) 2007 Ben Skeggs.
  * All Rights Reserved.
@@ -26,19 +24,11 @@
  *
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_vmm.h"
 
 #include <nvif/user.h>
-
-#ifdef __NetBSD__
-#  define	__iomem
-#  define	__force
-#endif
 
 void
 OUT_RINGp(struct nouveau_channel *chan, const void *data, unsigned nr_dwords)
@@ -52,11 +42,6 @@ OUT_RINGp(struct nouveau_channel *chan, const void *data, unsigned nr_dwords)
 		memcpy(mem, data, nr_dwords * 4);
 	chan->dma.cur += nr_dwords;
 }
-
-#ifdef __NetBSD__
-#  undef	__force
-#  undef	__iomem
-#endif
 
 /* Fetch and adjust GPU GET pointer
  *
@@ -116,7 +101,7 @@ nv50_dma_push(struct nouveau_channel *chan, u64 offset, int length)
 
 	nvif_wr32(&chan->user, 0x8c, chan->dma.ib_put);
 	if (user->func && user->func->doorbell)
-		user->func->doorbell(user, chan->chid);
+		user->func->doorbell(user, chan->token);
 	chan->dma.ib_free--;
 }
 

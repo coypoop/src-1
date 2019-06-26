@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 The Nouveau community
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Martin Peres
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "priv.h"
 
 #include <subdev/gpio.h>

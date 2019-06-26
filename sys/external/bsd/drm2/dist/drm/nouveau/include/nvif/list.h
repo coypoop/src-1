@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2010 Intel Corporation
  * Copyright © 2010 Francisco Jerez <currojerez@riseup.net>

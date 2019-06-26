@@ -72,6 +72,7 @@ struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
 int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 			       struct drm_file *file_priv, uint32_t handle, uint32_t flags,
 			       int *prime_fd);
+int drm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
 struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
 					    struct dma_buf *dma_buf);
 
@@ -95,26 +96,10 @@ void drm_gem_unmap_dma_buf(struct dma_buf_attachment *attach,
 			   enum dma_data_direction dir);
 void *drm_gem_dmabuf_vmap(struct dma_buf *dma_buf);
 void drm_gem_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr);
-void *drm_gem_dmabuf_kmap(struct dma_buf *dma_buf, unsigned long page_num);
-void drm_gem_dmabuf_kunmap(struct dma_buf *dma_buf, unsigned long page_num,
-			   void *addr);
 int drm_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma);
 
-#ifdef __NetBSD__
-struct sg_table *drm_prime_bus_dmamem_to_sg(bus_dma_tag_t,
-    const bus_dma_segment_t *, int);
-struct sg_table *drm_prime_pglist_to_sg(struct pglist *, unsigned);
-int drm_prime_sg_to_bus_dmamem(bus_dma_tag_t, bus_dma_segment_t *, int, int *,
-    const struct sg_table *);
-int drm_prime_bus_dmamap_load_sgt(bus_dma_tag_t, bus_dmamap_t,
-    struct sg_table *);
-bus_size_t drm_prime_sg_size(struct sg_table *);
-void drm_prime_sg_free(struct sg_table *);
-bool drm_prime_sg_importable(bus_dma_tag_t, struct sg_table *);
-#else
 int drm_prime_sg_to_page_addr_arrays(struct sg_table *sgt, struct page **pages,
 				     dma_addr_t *addrs, int max_pages);
-#endif
 struct sg_table *drm_prime_pages_to_sg(struct page **pages, unsigned int nr_pages);
 void drm_prime_gem_destroy(struct drm_gem_object *obj, struct sg_table *sg);
 

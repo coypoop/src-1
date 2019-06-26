@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 The Nouveau community
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Martin Peres
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "priv.h"
 
 static void
@@ -93,7 +88,7 @@ nvkm_therm_sensor_event(struct nvkm_therm *therm, enum nvkm_therm_thrs thrs,
 	};
 	int temperature = therm->func->temp_get(therm);
 
-	if ((unsigned)thrs >= __arraycount(thresolds))
+	if (thrs < 0 || thrs > 3)
 		return;
 
 	if (dir == NVKM_THERM_THRS_FALLING)

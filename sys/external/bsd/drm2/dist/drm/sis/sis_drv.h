@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* sis_drv.h -- Private header for sis driver -*- linux-c -*- */
 /*
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (C) 2007 Ben Skeggs.
  * All Rights Reserved.
@@ -26,12 +24,8 @@
  *
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/drmP.h>
 
-#include <asm/param.h>
 #include <linux/ktime.h>
 #include <linux/hrtimer.h>
 #include <trace/events/dma_fence.h>
@@ -120,11 +114,7 @@ nouveau_fence_context_del(struct nouveau_fence_chan *fctx)
 static void
 nouveau_fence_context_put(struct kref *fence_ref)
 {
-	struct nouveau_fence_chan *fctx =
-	    container_of(fence_ref, struct nouveau_fence_chan, fence_ref);
-
-	spin_lock_destroy(&fctx->lock);
-	kfree(fctx);
+	kfree(container_of(fence_ref, struct nouveau_fence_chan, fence_ref));
 }
 
 void
@@ -167,7 +157,7 @@ nouveau_fence_wait_uevent_handler(struct nvif_notify *notify)
 
 		fence = list_entry(fctx->pending.next, typeof(*fence), head);
 		chan = rcu_dereference_protected(fence->channel, lockdep_is_held(&fctx->lock));
-		if (nouveau_fence_update(chan, fctx))
+		if (nouveau_fence_update(fence->channel, fctx))
 			ret = NVIF_NOTIFY_DROP;
 	}
 	spin_unlock_irqrestore(&fctx->lock, flags);
@@ -267,24 +257,9 @@ static long
 nouveau_fence_wait_legacy(struct dma_fence *f, bool intr, long wait)
 {
 	struct nouveau_fence *fence = from_fence(f);
-#ifndef __NetBSD__
 	unsigned long sleep_time = NSEC_PER_MSEC / 1000;
-#endif
 	unsigned long t = jiffies, timeout = t + wait;
 
-#ifdef __NetBSD__
-	while (!nouveau_fence_done(fence)) {
-		int ret;
-		/* XXX what lock? */
-		/* XXX errno NetBSD->Linux */
-		ret = -kpause("nvfencel", intr, 1, NULL);
-		if (ret)
-			return ret;
-		t = jiffies;
-		if (t >= timeout)
-			return 0;
-	}
-#else
 	while (!nouveau_fence_done(fence)) {
 		ktime_t kt;
 
@@ -309,7 +284,6 @@ nouveau_fence_wait_legacy(struct dma_fence *f, bool intr, long wait)
 	}
 
 	__set_current_state(TASK_RUNNING);
-#endif
 
 	return timeout - t;
 }
@@ -325,11 +299,6 @@ nouveau_fence_wait_busy(struct nouveau_fence *fence, bool intr)
 			break;
 		}
 
-#ifdef __NetBSD__
-		/* XXX unlock anything? */
-		/* XXX poll for interrupts? */
-		DELAY(1000);
-#else
 		__set_current_state(intr ?
 				    TASK_INTERRUPTIBLE :
 				    TASK_UNINTERRUPTIBLE);
@@ -338,12 +307,9 @@ nouveau_fence_wait_busy(struct nouveau_fence *fence, bool intr)
 			ret = -ERESTARTSYS;
 			break;
 		}
-#endif
 	}
 
-#ifndef __NetBSD__
 	__set_current_state(TASK_RUNNING);
-#endif
 	return ret;
 }
 
@@ -375,7 +341,7 @@ nouveau_fence_sync(struct nouveau_bo *nvbo, struct nouveau_channel *chan, bool e
 	int ret = 0, i;
 
 	if (!exclusive) {
-		ret = reservation_object_reserve_shared(resv);
+		ret = reservation_object_reserve_shared(resv, 1);
 
 		if (ret)
 			return ret;
@@ -560,6 +526,5 @@ static const struct dma_fence_ops nouveau_fence_ops_uevent = {
 	.get_timeline_name = nouveau_fence_get_timeline_name,
 	.enable_signaling = nouveau_fence_enable_signaling,
 	.signaled = nouveau_fence_is_signaled,
-	.wait = dma_fence_default_wait,
 	.release = nouveau_fence_release
 };

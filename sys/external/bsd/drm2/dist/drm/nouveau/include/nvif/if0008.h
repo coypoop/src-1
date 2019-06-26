@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 #ifndef __NVIF_IF0008_H__
 #define __NVIF_IF0008_H__
 struct nvif_mmu_v0 {

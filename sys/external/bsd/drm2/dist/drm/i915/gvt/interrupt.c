@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright(c) 2011-2016 Intel Corporation. All rights reserved.
  *
@@ -30,9 +28,6 @@
  *    Min he <min.he@intel.com>
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include "i915_drv.h"
 #include "gvt.h"
@@ -131,7 +126,7 @@ static const char * const irq_name[INTEL_GVT_EVENT_MAX] = {
 	[FDI_RX_INTERRUPTS_TRANSCODER_C] = "FDI RX Interrupts Combined C",
 	[AUDIO_CP_CHANGE_TRANSCODER_C] = "Audio CP Change Transcoder C",
 	[AUDIO_CP_REQUEST_TRANSCODER_C] = "Audio CP Request Transcoder C",
-	[ERR_AND_DBG] = "South Error and Debug Interupts Combined",
+	[ERR_AND_DBG] = "South Error and Debug Interrupts Combined",
 	[GMBUS] = "Gmbus",
 	[SDVO_B_HOTPLUG] = "SDVO B hotplug",
 	[CRT_HOTPLUG] = "CRT Hotplug",
@@ -586,9 +581,7 @@ static void gen8_init_irq(
 
 		SET_BIT_INFO(irq, 4, PRIMARY_C_FLIP_DONE, INTEL_GVT_IRQ_INFO_DE_PIPE_C);
 		SET_BIT_INFO(irq, 5, SPRITE_C_FLIP_DONE, INTEL_GVT_IRQ_INFO_DE_PIPE_C);
-	} else if (IS_SKYLAKE(gvt->dev_priv)
-			|| IS_KABYLAKE(gvt->dev_priv)
-			|| IS_BROXTON(gvt->dev_priv)) {
+	} else if (INTEL_GEN(gvt->dev_priv) >= 9) {
 		SET_BIT_INFO(irq, 25, AUX_CHANNEL_B, INTEL_GVT_IRQ_INFO_DE_PORT);
 		SET_BIT_INFO(irq, 26, AUX_CHANNEL_C, INTEL_GVT_IRQ_INFO_DE_PORT);
 		SET_BIT_INFO(irq, 27, AUX_CHANNEL_D, INTEL_GVT_IRQ_INFO_DE_PORT);

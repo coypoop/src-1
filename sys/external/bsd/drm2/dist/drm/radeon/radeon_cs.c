@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2008 Jerome Glisse.
  * All Rights Reserved.
@@ -26,9 +24,6 @@
  * Authors:
  *    Jerome Glisse <glisse@freedesktop.org>
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/list_sort.h>
 #include <drm/drmP.h>
 #include <drm/radeon_drm.h>
@@ -82,7 +77,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 	struct radeon_cs_chunk *chunk;
 	struct radeon_cs_buckets buckets;
 	unsigned i;
-	bool need_mmap_lock __diagused = false;
+	bool need_mmap_lock = false;
 	int r;
 
 	if (p->chunk_relocs == NULL) {
@@ -183,7 +178,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		}
 
 		p->relocs[i].tv.bo = &p->relocs[i].robj->tbo;
-		p->relocs[i].tv.shared = !r->write_domain;
+		p->relocs[i].tv.num_shared = !r->write_domain;
 
 		radeon_cs_buckets_add(&buckets, &p->relocs[i].tv.head,
 				      priority);
@@ -194,21 +189,13 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 	if (p->cs_flags & RADEON_CS_USE_VM)
 		p->vm_bos = radeon_vm_get_bos(p->rdev, p->ib.vm,
 					      &p->validated);
-#ifdef __NetBSD__
-	KASSERTMSG(!need_mmap_lock,
-	    "someone didn't finish adding support for userptr"
-	    " and it wasn't me");
-#else
 	if (need_mmap_lock)
 		down_read(&current->mm->mmap_sem);
-#endif
 
 	r = radeon_bo_list_validate(p->rdev, &p->ticket, &p->validated, p->ring);
 
-#ifndef __NetBSD__
 	if (need_mmap_lock)
 		up_read(&current->mm->mmap_sem);
-#endif
 
 	return r;
 }
@@ -266,7 +253,7 @@ static int radeon_cs_sync_rings(struct radeon_cs_parser *p)
 
 		resv = reloc->robj->tbo.resv;
 		r = radeon_sync_resv(p->rdev, &p->ib.sync, resv,
-				     reloc->tv.shared);
+				     reloc->tv.num_shared);
 		if (r)
 			return r;
 	}

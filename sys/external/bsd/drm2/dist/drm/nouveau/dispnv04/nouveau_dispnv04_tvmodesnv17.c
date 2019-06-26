@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (C) 2009 Francisco Jerez.
  * All Rights Reserved.
@@ -26,10 +24,6 @@
  *
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
-#include <asm/div64.h>		/* XXX */
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include "nouveau_drv.h"
@@ -55,7 +49,7 @@ const char * const nv17_tv_norm_names[NUM_TV_NORMS] = {
 
 /* TV standard specific parameters */
 
-const struct nv17_tv_norm_params nv17_tv_norms[NUM_TV_NORMS] = {
+struct nv17_tv_norm_params nv17_tv_norms[NUM_TV_NORMS] = {
 	[TV_NORM_PAL] = { TV_ENC_MODE, {
 			.tv_enc_mode = { 720, 576, 50000, {
 					0x2a, 0x9, 0x8a, 0xcb, 0x0, 0x0, 0xb, 0x18,
@@ -322,7 +316,7 @@ static struct filter_params{
 static void tv_setup_filter(struct drm_encoder *encoder)
 {
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
-	const struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
+	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
 	struct drm_display_mode *mode = &encoder->crtc->mode;
 	uint32_t (*filters[])[4][7] = {&tv_enc->state.hfilter,
 				       &tv_enc->state.vfilter};
@@ -480,7 +474,7 @@ void nv17_tv_update_properties(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
 	struct nv17_tv_state *regs = &tv_enc->state;
-	const struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
+	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
 	int subconnector = tv_enc->select_subconnector ?
 						tv_enc->select_subconnector :
 						tv_enc->subconnector;
@@ -553,7 +547,7 @@ void nv17_ctv_update_rescaler(struct drm_encoder *encoder)
 	int head = nouveau_crtc(encoder->crtc)->index;
 	struct nv04_crtc_reg *regs = &nv04_display(dev)->mode_reg.crtc_reg[head];
 	struct drm_display_mode *crtc_mode = &encoder->crtc->mode;
-	const struct drm_display_mode *output_mode =
+	struct drm_display_mode *output_mode =
 		&get_tv_norm(encoder)->ctv_enc_mode.mode;
 	int overscan, hmargin, vmargin, hratio, vratio;
 

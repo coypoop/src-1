@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2009 Jerome Glisse.
  * All Rights Reserved.
@@ -31,9 +29,6 @@
  *    Thomas Hellstrom <thomas-at-tungstengraphics-dot-com>
  *    Dave Airlie
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <drm/drmP.h>
@@ -194,11 +189,7 @@ int radeon_bo_create(struct radeon_device *rdev,
 	size_t acc_size;
 	int r;
 
-#ifdef __NetBSD__		/* XXX ALIGN means something else.  */
-	size = round_up(size, PAGE_SIZE);
-#else
 	size = ALIGN(size, PAGE_SIZE);
-#endif
 
 	if (kernel) {
 		type = ttm_bo_type_kernel;
@@ -323,11 +314,9 @@ struct radeon_bo *radeon_bo_ref(struct radeon_bo *bo)
 void radeon_bo_unref(struct radeon_bo **bo)
 {
 	struct ttm_buffer_object *tbo;
-	struct radeon_device *rdev __unused;
 
 	if ((*bo) == NULL)
 		return;
-	rdev = (*bo)->rdev;
 	tbo = &((*bo)->tbo);
 	ttm_bo_put(tbo);
 	*bo = NULL;
@@ -430,11 +419,13 @@ int radeon_bo_unpin(struct radeon_bo *bo)
 int radeon_bo_evict_vram(struct radeon_device *rdev)
 {
 	/* late 2.6.33 fix IGP hibernate - we need pm ops to do this correct */
-	if (0 && (rdev->flags & RADEON_IS_IGP)) {
+#ifndef CONFIG_HIBERNATION
+	if (rdev->flags & RADEON_IS_IGP) {
 		if (rdev->mc.igp_sideport_enabled == false)
 			/* Useless to evict on IGP chips */
 			return 0;
 	}
+#endif
 	return ttm_bo_evict_mm(&rdev->mman.bdev, TTM_PL_VRAM);
 }
 
@@ -469,11 +460,7 @@ int radeon_bo_init(struct radeon_device *rdev)
 		rdev->mc.vram_mtrr = arch_phys_wc_add(rdev->mc.aper_base,
 						      rdev->mc.aper_size);
 	}
-#ifdef __NetBSD__
-	if (rdev->mc.aper_base)
-		pmap_pv_track(rdev->mc.aper_base, rdev->mc.aper_size);
-#endif
-	DRM_INFO("Detected VRAM RAM=%"PRIx64"M, BAR=%lluM\n",
+	DRM_INFO("Detected VRAM RAM=%lluM, BAR=%lluM\n",
 		rdev->mc.mc_vram_size >> 20,
 		(unsigned long long)rdev->mc.aper_size >> 20);
 	DRM_INFO("RAM width %dbits %cDR\n",
@@ -484,10 +471,6 @@ int radeon_bo_init(struct radeon_device *rdev)
 void radeon_bo_fini(struct radeon_device *rdev)
 {
 	radeon_ttm_fini(rdev);
-#ifdef __NetBSD__
-	if (rdev->mc.aper_base)
-		pmap_pv_untrack(rdev->mc.aper_base, rdev->mc.aper_size);
-#endif
 	arch_phys_wc_del(rdev->mc.vram_mtrr);
 	arch_io_free_memtype_wc(rdev->mc.aper_base, rdev->mc.aper_size);
 }

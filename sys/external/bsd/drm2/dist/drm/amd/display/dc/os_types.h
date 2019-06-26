@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012-16 Advanced Micro Devices, Inc.
  *
@@ -42,8 +40,6 @@
 #define LITTLEENDIAN_CPU
 #endif
 
-#undef READ
-#undef WRITE
 #undef FRAME_SIZE
 
 #define dm_output_to_console(fmt, ...) DRM_DEBUG_KMS(fmt, ##__VA_ARGS__)

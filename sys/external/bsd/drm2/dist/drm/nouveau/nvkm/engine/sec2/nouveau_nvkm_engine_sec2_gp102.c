@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (c) 2017, NVIDIA CORPORATION. All rights reserved.
  *
@@ -22,14 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "priv.h"
 
 int
 gp102_sec2_new(struct nvkm_device *device, int index,
 	       struct nvkm_sec2 **psec2)
 {
-	return nvkm_sec2_new_(device, index, psec2);
+	return nvkm_sec2_new_(device, index, 0, psec2);
 }

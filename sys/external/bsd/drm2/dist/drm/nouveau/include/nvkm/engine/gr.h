@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_GR_H__
 #define __NVKM_GR_H__
@@ -12,6 +10,9 @@ struct nvkm_gr {
 
 u64 nvkm_gr_units(struct nvkm_gr *);
 int nvkm_gr_tlb_flush(struct nvkm_gr *);
+int nvkm_gr_ctxsw_pause(struct nvkm_device *);
+int nvkm_gr_ctxsw_resume(struct nvkm_device *);
+u32 nvkm_gr_ctxsw_inst(struct nvkm_device *);
 
 int nv04_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
 int nv10_gr_new(struct nvkm_device *, int, struct nvkm_gr **);

@@ -33,18 +33,8 @@
 #ifndef _TTM_BO_API_H_
 #define _TTM_BO_API_H_
 
-#ifdef __NetBSD__
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/mutex.h>		/* XXX ugh include order botch */
-#include <uvm/uvm_object.h>
-#include <uvm/uvm_param.h>
-#include <uvm/uvm_prot.h>
-#endif
-
 #include <drm/drm_hashtab.h>
 #include <drm/drm_vma_manager.h>
-#include <linux/atomic.h>
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/wait.h>
@@ -62,6 +52,8 @@ struct drm_mm_node;
 struct ttm_placement;
 
 struct ttm_place;
+
+struct ttm_lru_bulk_move;
 
 /**
  * struct ttm_bus_placement
@@ -84,9 +76,6 @@ struct ttm_bus_placement {
 	bool		is_iomem;
 	bool		io_reserved_vm;
 	uint64_t        io_reserved_count;
-#ifdef __NetBSD__
-	bus_space_handle_t	memh;
-#endif
 };
 
 
@@ -191,9 +180,6 @@ struct ttm_buffer_object {
 	void (*destroy) (struct ttm_buffer_object *);
 	unsigned long num_pages;
 	size_t acc_size;
-#ifdef __NetBSD__
-	struct uvm_object uvmobj;
-#endif
 
 	/**
 	* Members not needing protection.
@@ -267,22 +253,7 @@ struct ttm_buffer_object {
 #define TTM_BO_MAP_IOMEM_MASK 0x80
 struct ttm_bo_kmap_obj {
 	void *virtual;
-#ifdef __NetBSD__
-	union {
-		struct {
-			bus_space_handle_t	memh;
-			bus_size_t		size;
-		} io;
-		struct {
-			vsize_t			vsize;
-		} vmapped;
-		struct {
-			struct page		*page;
-		} kmapped;
-	} u;
-#else
 	struct page *page;
-#endif
 	enum {
 		ttm_bo_map_iomap        = 1 | TTM_BO_MAP_IOMEM_MASK,
 		ttm_bo_map_vmap         = 2,
@@ -327,19 +298,20 @@ static inline void ttm_bo_get(struct ttm_buffer_object *bo)
 }
 
 /**
- * ttm_bo_reference - reference a struct ttm_buffer_object
- *
+ * ttm_bo_get_unless_zero - reference a struct ttm_buffer_object unless
+ * its refcount has already reached zero.
  * @bo: The buffer object.
  *
- * Returns a refcounted pointer to a buffer object.
+ * Used to reference a TTM buffer object in lookups where the object is removed
+ * from the lookup structure during the destructor and for RCU lookups.
  *
- * This function is deprecated. Use @ttm_bo_get instead.
+ * Returns: @bo if the referencing was successful, NULL otherwise.
  */
-
-static inline struct ttm_buffer_object *
-ttm_bo_reference(struct ttm_buffer_object *bo)
+static inline __must_check struct ttm_buffer_object *
+ttm_bo_get_unless_zero(struct ttm_buffer_object *bo)
 {
-	ttm_bo_get(bo);
+	if (!kref_get_unless_zero(&bo->kref))
+		return NULL;
 	return bo;
 }
 
@@ -400,17 +372,6 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 void ttm_bo_put(struct ttm_buffer_object *bo);
 
 /**
- * ttm_bo_unref
- *
- * @bo: The buffer object.
- *
- * Unreference and clear a pointer to a buffer object.
- *
- * This function is deprecated. Use @ttm_bo_put instead.
- */
-void ttm_bo_unref(struct ttm_buffer_object **bo);
-
-/**
  * ttm_bo_add_to_lru
  *
  * @bo: The buffer object.
@@ -438,12 +399,24 @@ void ttm_bo_del_from_lru(struct ttm_buffer_object *bo);
  * ttm_bo_move_to_lru_tail
  *
  * @bo: The buffer object.
+ * @bulk: optional bulk move structure to remember BO positions
  *
  * Move this BO to the tail of all lru lists used to lookup and reserve an
  * object. This function must be called with struct ttm_bo_global::lru_lock
  * held, and is used to make a BO less likely to be considered for eviction.
  */
-void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo);
+void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo,
+			     struct ttm_lru_bulk_move *bulk);
+
+/**
+ * ttm_bo_bulk_move_lru_tail
+ *
+ * @bulk: bulk move structure
+ *
+ * Bulk move BOs to the LRU tail, only valid to use when driver makes sure that
+ * BO order never changes. Should be called with ttm_bo_global::lru_lock held.
+ */
+void ttm_bo_bulk_move_lru_tail(struct ttm_lru_bulk_move *bulk);
 
 /**
  * ttm_bo_lock_delayed_workqueue
@@ -740,19 +713,6 @@ int ttm_bo_kmap(struct ttm_buffer_object *bo, unsigned long start_page,
  */
 void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map);
 
-#ifdef __NetBSD__
-
-/* XXX ttm_fbdev_mmap?  */
-
-extern void ttm_bo_uvm_reference(struct uvm_object *);
-extern void ttm_bo_uvm_detach(struct uvm_object *);
-extern int ttm_bo_uvm_fault(struct uvm_faultinfo *, vaddr_t, struct vm_page **,
-    int, int, vm_prot_t, int);
-extern int ttm_bo_mmap_object(struct ttm_bo_device *, off_t, size_t, vm_prot_t,
-    struct uvm_object **, voff_t *, struct file *);
-
-#else
-
 /**
  * ttm_fbdev_mmap - mmap fbdev memory backed by a ttm buffer object.
  *
@@ -781,8 +741,6 @@ int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
 void *ttm_kmap_atomic_prot(struct page *page, pgprot_t prot);
 
 void ttm_kunmap_atomic_prot(void *addr, pgprot_t prot);
-
-#endif	/* __NetBSD__ */
 
 /**
  * ttm_bo_io

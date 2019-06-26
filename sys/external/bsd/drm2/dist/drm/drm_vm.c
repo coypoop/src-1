@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /**
  * \file drm_vm.c
  * Memory mapping for DRM
@@ -34,9 +32,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <drm/drmP.h>
 #include <linux/export.h>

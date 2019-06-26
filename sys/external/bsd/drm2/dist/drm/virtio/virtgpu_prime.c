@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2014 Canonical
  *
@@ -24,9 +22,6 @@
  * Authors: Andreas Pokorny
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "virtgpu_drv.h"
 
 /* Empty Implementations as there should not be any other driver for a virtual
@@ -46,7 +41,6 @@ void virtgpu_gem_prime_unpin(struct drm_gem_object *obj)
 
 struct sg_table *virtgpu_gem_prime_get_sg_table(struct drm_gem_object *obj)
 {
-	WARN_ONCE(1, "not implemented");
 	return ERR_PTR(-ENODEV);
 }
 
@@ -54,19 +48,23 @@ struct drm_gem_object *virtgpu_gem_prime_import_sg_table(
 	struct drm_device *dev, struct dma_buf_attachment *attach,
 	struct sg_table *table)
 {
-	WARN_ONCE(1, "not implemented");
 	return ERR_PTR(-ENODEV);
 }
 
 void *virtgpu_gem_prime_vmap(struct drm_gem_object *obj)
 {
-	WARN_ONCE(1, "not implemented");
-	return ERR_PTR(-ENODEV);
+	struct virtio_gpu_object *bo = gem_to_virtio_gpu_obj(obj);
+	int ret;
+
+	ret = virtio_gpu_object_kmap(bo);
+	if (ret)
+		return NULL;
+	return bo->vmap;
 }
 
 void virtgpu_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 {
-	WARN_ONCE(1, "not implemented");
+	virtio_gpu_object_kunmap(gem_to_virtio_gpu_obj(obj));
 }
 
 int virtgpu_gem_prime_mmap(struct drm_gem_object *obj,

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2008 Advanced Micro Devices, Inc.
  * Copyright 2008 Red Hat Inc.
@@ -27,9 +25,6 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/firmware.h>
 #include <linux/slab.h>
 #include <drm/drmP.h>
@@ -1633,7 +1628,7 @@ void r700_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
 			mc->vram_start = mc->gtt_end + 1;
 		}
 		mc->vram_end = mc->vram_start + mc->mc_vram_size - 1;
-		dev_info(rdev->dev, "VRAM: %"PRIu64"M 0x%08"PRIX64" - 0x%08"PRIX64" (%"PRIu64"M used)\n",
+		dev_info(rdev->dev, "VRAM: %lluM 0x%08llX - 0x%08llX (%lluM used)\n",
 				mc->mc_vram_size >> 20, mc->vram_start,
 				mc->vram_end, mc->real_vram_size >> 20);
 	} else {
@@ -2025,7 +2020,6 @@ void rv770_fini(struct radeon_device *rdev)
 
 static void rv770_pcie_gen2_enable(struct radeon_device *rdev)
 {
-#ifndef __NetBSD__		/* XXX radeon pcie */
 	u32 link_width_cntl, lanes, speed_cntl, tmp;
 	u16 link_cntl2;
 
@@ -2103,5 +2097,4 @@ static void rv770_pcie_gen2_enable(struct radeon_device *rdev)
 			link_width_cntl &= ~LC_UPCONFIGURE_DIS;
 		WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
 	}
-#endif
 }

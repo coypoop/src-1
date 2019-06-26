@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2004 The Unichrome Project. All Rights Reserved.
  *

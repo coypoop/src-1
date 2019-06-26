@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2015 Karol Herbst <nouveau@karolherbst.de>
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Karol Herbst <nouveau@karolherbst.de>
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "priv.h"
 
 static int

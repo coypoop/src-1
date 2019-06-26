@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2009 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "aux.h"
 #include "pad.h"
 
@@ -110,9 +105,15 @@ nvkm_i2c_aux_acquire(struct nvkm_i2c_aux *aux)
 {
 	struct nvkm_i2c_pad *pad = aux->pad;
 	int ret;
+
 	AUX_TRACE(aux, "acquire");
 	mutex_lock(&aux->mutex);
-	ret = nvkm_i2c_pad_acquire(pad, NVKM_I2C_PAD_AUX);
+
+	if (aux->enabled)
+		ret = nvkm_i2c_pad_acquire(pad, NVKM_I2C_PAD_AUX);
+	else
+		ret = -EIO;
+
 	if (ret)
 		mutex_unlock(&aux->mutex);
 	return ret;
@@ -145,14 +146,27 @@ nvkm_i2c_aux_del(struct nvkm_i2c_aux **paux)
 		AUX_TRACE(aux, "dtor");
 		list_del(&aux->head);
 		i2c_del_adapter(&aux->i2c);
-#ifdef __NetBSD__
-		linux_mutex_destroy(&aux->mutex);
-#else
-		mutex_destroy(&aux->mutex);
-#endif
 		kfree(*paux);
 		*paux = NULL;
 	}
+}
+
+void
+nvkm_i2c_aux_init(struct nvkm_i2c_aux *aux)
+{
+	AUX_TRACE(aux, "init");
+	mutex_lock(&aux->mutex);
+	aux->enabled = true;
+	mutex_unlock(&aux->mutex);
+}
+
+void
+nvkm_i2c_aux_fini(struct nvkm_i2c_aux *aux)
+{
+	AUX_TRACE(aux, "fini");
+	mutex_lock(&aux->mutex);
+	aux->enabled = false;
+	mutex_unlock(&aux->mutex);
 }
 
 int
@@ -165,11 +179,7 @@ nvkm_i2c_aux_ctor(const struct nvkm_i2c_aux_func *func,
 	aux->func = func;
 	aux->pad = pad;
 	aux->id = id;
-#ifdef __NetBSD__
-	linux_mutex_init(&aux->mutex);
-#else
 	mutex_init(&aux->mutex);
-#endif
 	list_add_tail(&aux->head, &pad->i2c->aux);
 	AUX_TRACE(aux, "ctor");
 

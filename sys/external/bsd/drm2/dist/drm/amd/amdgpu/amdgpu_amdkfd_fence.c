@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2016-2018 Advanced Micro Devices, Inc.
  *
@@ -21,9 +19,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/dma-fence.h>
 #include <linux/spinlock.h>
@@ -127,7 +122,7 @@ static bool amdkfd_fence_enable_signaling(struct dma_fence *f)
 	if (dma_fence_is_signaled(f))
 		return true;
 
-	if (!kgd2kfd->schedule_evict_and_restore_process(fence->mm, f))
+	if (!kgd2kfd_schedule_evict_and_restore_process(fence->mm, f))
 		return true;
 
 	return false;

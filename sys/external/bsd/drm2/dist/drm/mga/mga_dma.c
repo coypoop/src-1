@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* mga_dma.c -- DMA support for mga g200/g400 -*- linux-c -*-
  * Created: Mon Dec 13 01:50:01 1999 by jhartmann@precisioninsight.com
  *
@@ -36,9 +34,6 @@
  * \author Keith Whitwell <keith@tungstengraphics.com>
  * \author Gareth Hughes <gareth@valinux.com>
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <drm/drmP.h>
 #include <drm/mga_drm.h>

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2016 Intel Corporation
  *
@@ -24,9 +22,6 @@
  *
  * Author: Deepak M <m.deepak at intel.com>
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include "intel_drv.h"
 #include "intel_dsi.h"

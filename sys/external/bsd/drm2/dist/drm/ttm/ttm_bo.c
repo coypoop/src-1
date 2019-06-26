@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
@@ -31,18 +29,8 @@
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #define pr_fmt(fmt) "[TTM] " fmt
 
-#ifdef __NetBSD__
-#include <sys/types.h>
-#include <uvm/uvm_extern.h>
-#include <uvm/uvm_object.h>
-#endif
-
-#include <drm/drmP.h>
 #include <drm/ttm/ttm_module.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
@@ -54,20 +42,20 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <linux/module.h>
 #include <linux/atomic.h>
 #include <linux/reservation.h>
-#include <linux/printk.h>
-#include <linux/export.h>
-#include <linux/fence.h>
 
-#ifndef __NetBSD__
 static void ttm_bo_global_kobj_release(struct kobject *kobj);
-#endif
 
-#ifndef __NetBSD__		/* XXX sysfs */
+/**
+ * ttm_global_mutex - protecting the global BO state
+ */
+DEFINE_MUTEX(ttm_global_mutex);
+unsigned ttm_bo_glob_use_count;
+struct ttm_bo_global ttm_bo_glob;
+
 static struct attribute ttm_bo_count = {
 	.name = "bo_count",
 	.mode = S_IRUGO
 };
-#endif
 
 /* default destructor */
 static void ttm_bo_default_destroy(struct ttm_buffer_object *bo)
@@ -88,42 +76,42 @@ static inline int ttm_mem_type_from_place(const struct ttm_place *place,
 	return 0;
 }
 
-static void ttm_mem_type_debug(struct ttm_bo_device *bdev, int mem_type)
+static void ttm_mem_type_debug(struct ttm_bo_device *bdev, struct drm_printer *p,
+			       int mem_type)
 {
 	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
-	struct drm_printer p = drm_debug_printer(TTM_PFX);
 
-	pr_err("    has_type: %d\n", man->has_type);
-	pr_err("    use_type: %d\n", man->use_type);
-	pr_err("    flags: 0x%08X\n", man->flags);
-	pr_err("    gpu_offset: 0x%"PRIX64"\n", man->gpu_offset);
-	pr_err("    size: %"PRIu64"\n", man->size);
-	pr_err("    available_caching: 0x%08X\n", man->available_caching);
-	pr_err("    default_caching: 0x%08X\n", man->default_caching);
+	drm_printf(p, "    has_type: %d\n", man->has_type);
+	drm_printf(p, "    use_type: %d\n", man->use_type);
+	drm_printf(p, "    flags: 0x%08X\n", man->flags);
+	drm_printf(p, "    gpu_offset: 0x%08llX\n", man->gpu_offset);
+	drm_printf(p, "    size: %llu\n", man->size);
+	drm_printf(p, "    available_caching: 0x%08X\n", man->available_caching);
+	drm_printf(p, "    default_caching: 0x%08X\n", man->default_caching);
 	if (mem_type != TTM_PL_SYSTEM)
-		(*man->func->debug)(man, &p);
+		(*man->func->debug)(man, p);
 }
 
 static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,
 					struct ttm_placement *placement)
 {
+	struct drm_printer p = drm_debug_printer(TTM_PFX);
 	int i, ret, mem_type;
 
-	pr_err("No space for %p (%lu pages, %luK, %luM)\n",
-	       bo, bo->mem.num_pages, bo->mem.size >> 10,
-	       bo->mem.size >> 20);
+	drm_printf(&p, "No space for %p (%lu pages, %luK, %luM)\n",
+		   bo, bo->mem.num_pages, bo->mem.size >> 10,
+		   bo->mem.size >> 20);
 	for (i = 0; i < placement->num_placement; i++) {
 		ret = ttm_mem_type_from_place(&placement->placement[i],
 						&mem_type);
 		if (ret)
 			return;
-		pr_err("  placement[%d]=0x%08X (%d)\n",
-		       i, placement->placement[i].flags, mem_type);
-		ttm_mem_type_debug(bo->bdev, mem_type);
+		drm_printf(&p, "  placement[%d]=0x%08X (%d)\n",
+			   i, placement->placement[i].flags, mem_type);
+		ttm_mem_type_debug(bo->bdev, &p, mem_type);
 	}
 }
 
-#ifndef __NetBSD__		/* XXX sysfs */
 static ssize_t ttm_bo_global_show(struct kobject *kobj,
 				  struct attribute *attr,
 				  char *buffer)
@@ -149,7 +137,6 @@ static struct kobj_type ttm_bo_glob_kobj_type  = {
 	.sysfs_ops = &ttm_bo_global_ops,
 	.default_attrs = ttm_bo_global_attrs
 };
-#endif	/* __NetBSD__ */
 
 
 static inline uint32_t ttm_bo_type_flags(unsigned type)
@@ -174,11 +161,7 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	atomic_dec(&bo->bdev->glob->bo_count);
 	dma_fence_put(bo->moving);
 	reservation_object_fini(&bo->ttm_resv);
-#ifdef __NetBSD__
-	linux_mutex_destroy(&bo->wu_mutex);
-#else
 	mutex_destroy(&bo->wu_mutex);
-#endif
 	bo->destroy(bo);
 	ttm_mem_global_free(bdev->glob->mem_glob, acc_size);
 }
@@ -214,19 +197,22 @@ static void ttm_bo_ref_bug(struct kref *list_kref)
 
 void ttm_bo_del_from_lru(struct ttm_buffer_object *bo)
 {
+	struct ttm_bo_device *bdev = bo->bdev;
+	bool notify = false;
+
 	if (!list_empty(&bo->swap)) {
 		list_del_init(&bo->swap);
 		kref_put(&bo->list_kref, ttm_bo_ref_bug);
+		notify = true;
 	}
 	if (!list_empty(&bo->lru)) {
 		list_del_init(&bo->lru);
 		kref_put(&bo->list_kref, ttm_bo_ref_bug);
+		notify = true;
 	}
 
-	/*
-	 * TODO: Add a driver hook to delete from
-	 * driver-specific LRU's here.
-	 */
+	if (notify && bdev->driver->del_from_lru_notify)
+		bdev->driver->del_from_lru_notify(bo);
 }
 
 void ttm_bo_del_sub_from_lru(struct ttm_buffer_object *bo)
@@ -239,14 +225,88 @@ void ttm_bo_del_sub_from_lru(struct ttm_buffer_object *bo)
 }
 EXPORT_SYMBOL(ttm_bo_del_sub_from_lru);
 
-void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo)
+static void ttm_bo_bulk_move_set_pos(struct ttm_lru_bulk_move_pos *pos,
+				     struct ttm_buffer_object *bo)
+{
+	if (!pos->first)
+		pos->first = bo;
+	pos->last = bo;
+}
+
+void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo,
+			     struct ttm_lru_bulk_move *bulk)
 {
 	reservation_object_assert_held(bo->resv);
 
 	ttm_bo_del_from_lru(bo);
 	ttm_bo_add_to_lru(bo);
+
+	if (bulk && !(bo->mem.placement & TTM_PL_FLAG_NO_EVICT)) {
+		switch (bo->mem.mem_type) {
+		case TTM_PL_TT:
+			ttm_bo_bulk_move_set_pos(&bulk->tt[bo->priority], bo);
+			break;
+
+		case TTM_PL_VRAM:
+			ttm_bo_bulk_move_set_pos(&bulk->vram[bo->priority], bo);
+			break;
+		}
+		if (bo->ttm && !(bo->ttm->page_flags &
+				 (TTM_PAGE_FLAG_SG | TTM_PAGE_FLAG_SWAPPED)))
+			ttm_bo_bulk_move_set_pos(&bulk->swap[bo->priority], bo);
+	}
 }
 EXPORT_SYMBOL(ttm_bo_move_to_lru_tail);
+
+void ttm_bo_bulk_move_lru_tail(struct ttm_lru_bulk_move *bulk)
+{
+	unsigned i;
+
+	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
+		struct ttm_lru_bulk_move_pos *pos = &bulk->tt[i];
+		struct ttm_mem_type_manager *man;
+
+		if (!pos->first)
+			continue;
+
+		reservation_object_assert_held(pos->first->resv);
+		reservation_object_assert_held(pos->last->resv);
+
+		man = &pos->first->bdev->man[TTM_PL_TT];
+		list_bulk_move_tail(&man->lru[i], &pos->first->lru,
+				    &pos->last->lru);
+	}
+
+	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
+		struct ttm_lru_bulk_move_pos *pos = &bulk->vram[i];
+		struct ttm_mem_type_manager *man;
+
+		if (!pos->first)
+			continue;
+
+		reservation_object_assert_held(pos->first->resv);
+		reservation_object_assert_held(pos->last->resv);
+
+		man = &pos->first->bdev->man[TTM_PL_VRAM];
+		list_bulk_move_tail(&man->lru[i], &pos->first->lru,
+				    &pos->last->lru);
+	}
+
+	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
+		struct ttm_lru_bulk_move_pos *pos = &bulk->swap[i];
+		struct list_head *lru;
+
+		if (!pos->first)
+			continue;
+
+		reservation_object_assert_held(pos->first->resv);
+		reservation_object_assert_held(pos->last->resv);
+
+		lru = &pos->first->bdev->glob->swap_lru[i];
+		list_bulk_move_tail(lru, &pos->first->swap, &pos->last->swap);
+	}
+}
+EXPORT_SYMBOL(ttm_bo_bulk_move_lru_tail);
 
 static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 				  struct ttm_mem_reg *mem, bool evict,
@@ -604,13 +664,7 @@ static void ttm_bo_release(struct kref *kref)
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_mem_type_manager *man = &bdev->man[bo->mem.mem_type];
 
-#ifdef __NetBSD__
-	uvm_obj_destroy(&bo->uvmobj, true);
-#endif
 	drm_vma_offset_remove(&bdev->vma_manager, &bo->vma_node);
-#ifdef __NetBSD__
-	drm_vma_node_destroy(&bo->vma_node);
-#endif
 	ttm_mem_io_lock(man, false);
 	ttm_mem_io_free_vm(bo);
 	ttm_mem_io_unlock(man);
@@ -623,15 +677,6 @@ void ttm_bo_put(struct ttm_buffer_object *bo)
 	kref_put(&bo->kref, ttm_bo_release);
 }
 EXPORT_SYMBOL(ttm_bo_put);
-
-void ttm_bo_unref(struct ttm_buffer_object **p_bo)
-{
-	struct ttm_buffer_object *bo = *p_bo;
-
-	*p_bo = NULL;
-	ttm_bo_put(bo);
-}
-EXPORT_SYMBOL(ttm_bo_unref);
 
 int ttm_bo_lock_delayed_workqueue(struct ttm_bo_device *bdev)
 {
@@ -829,9 +874,11 @@ static int ttm_bo_add_move_fence(struct ttm_buffer_object *bo,
 	if (fence) {
 		reservation_object_add_shared_fence(bo->resv, fence);
 
-		ret = reservation_object_reserve_shared(bo->resv);
-		if (unlikely(ret))
+		ret = reservation_object_reserve_shared(bo->resv, 1);
+		if (unlikely(ret)) {
+			dma_fence_put(fence);
 			return ret;
+		}
 
 		dma_fence_put(bo->moving);
 		bo->moving = fence;
@@ -934,7 +981,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 	bool has_erestartsys = false;
 	int i, ret;
 
-	ret = reservation_object_reserve_shared(bo->resv);
+	ret = reservation_object_reserve_shared(bo->resv, 1);
 	if (unlikely(ret))
 		return ret;
 
@@ -1047,7 +1094,6 @@ static int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 	mem.num_pages = bo->num_pages;
 	mem.size = mem.num_pages << PAGE_SHIFT;
 	mem.page_alignment = bo->mem.page_alignment;
-	mem.bus.is_iomem = false;
 	mem.bus.io_reserved_vm = false;
 	mem.bus.io_reserved_count = 0;
 	/*
@@ -1158,11 +1204,6 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 	struct ttm_mem_global *mem_glob = bdev->glob->mem_glob;
 	bool locked;
 
-	if (sg && !drm_prime_sg_importable(bdev->dmat, sg)) {
-		pr_err("DRM prime buffer violates DMA constraints\n");
-		return -EIO;
-	}
-
 	ret = ttm_mem_global_alloc(mem_glob, acc_size, ctx);
 	if (ret) {
 		pr_err("Out of kernel memory\n");
@@ -1192,11 +1233,7 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 	INIT_LIST_HEAD(&bo->ddestroy);
 	INIT_LIST_HEAD(&bo->swap);
 	INIT_LIST_HEAD(&bo->io_reserve_lru);
-#ifdef __NetBSD__
-	linux_mutex_init(&bo->wu_mutex);
-#else
 	mutex_init(&bo->wu_mutex);
-#endif
 	bo->bdev = bdev;
 	bo->type = type;
 	bo->num_pages = num_pages;
@@ -1219,12 +1256,7 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 	}
 	reservation_object_init(&bo->ttm_resv);
 	atomic_inc(&bo->bdev->glob->bo_count);
-#ifdef __NetBSD__
-	drm_vma_node_init(&bo->vma_node);
-	uvm_obj_init(&bo->uvmobj, bdev->driver->ttm_uvm_ops, true, 1);
-#else
 	drm_vma_node_reset(&bo->vma_node);
-#endif
 
 	/*
 	 * For ttm_bo_type_device buffers, allocate
@@ -1422,12 +1454,6 @@ int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 		ret = (*man->func->takedown)(man);
 	}
 
-	spin_lock_destroy(&man->move_lock);
-#ifdef __NetBSD__
-	linux_mutex_destroy(&man->io_reserve_mutex);
-#else
-	mutex_destroy(&man->io_reserve_mutex);
-#endif
 	dma_fence_put(man->move);
 	man->move = NULL;
 
@@ -1465,11 +1491,7 @@ int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
 	BUG_ON(man->has_type);
 	man->io_reserve_fastpath = true;
 	man->use_io_reserve_lru = false;
-#ifdef __NetBSD__
-	linux_mutex_init(&man->io_reserve_mutex);
-#else
 	mutex_init(&man->io_reserve_mutex);
-#endif
 	spin_lock_init(&man->move_lock);
 	INIT_LIST_HEAD(&man->io_reserve_lru);
 
@@ -1495,86 +1517,67 @@ int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
 }
 EXPORT_SYMBOL(ttm_bo_init_mm);
 
-#ifndef __NetBSD__
 static void ttm_bo_global_kobj_release(struct kobject *kobj)
 {
 	struct ttm_bo_global *glob =
 		container_of(kobj, struct ttm_bo_global, kobj);
 
 	__free_page(glob->dummy_read_page);
-	mutex_destroy(&glob->device_list_mutex);
-	kfree(glob);
 }
-#endif
 
-void ttm_bo_global_release(struct drm_global_reference *ref)
+static void ttm_bo_global_release(void)
 {
-	struct ttm_bo_global *glob = ref->object;
+	struct ttm_bo_global *glob = &ttm_bo_glob;
 
-#ifdef __NetBSD__
-	BUG_ON(glob->dummy_read_page != NULL);
-	spin_lock_destroy(&glob->lru_lock);
-	linux_mutex_destroy(&glob->device_list_mutex);
-	kfree(glob);
-#else
+	mutex_lock(&ttm_global_mutex);
+	if (--ttm_bo_glob_use_count > 0)
+		goto out;
+
 	kobject_del(&glob->kobj);
 	kobject_put(&glob->kobj);
-#endif
+	ttm_mem_global_release(&ttm_mem_glob);
+	memset(glob, 0, sizeof(*glob));
+out:
+	mutex_unlock(&ttm_global_mutex);
 }
-EXPORT_SYMBOL(ttm_bo_global_release);
 
-int ttm_bo_global_init(struct drm_global_reference *ref)
+static int ttm_bo_global_init(void)
 {
-	struct ttm_bo_global_ref *bo_ref =
-		container_of(ref, struct ttm_bo_global_ref, ref);
-	struct ttm_bo_global *glob = ref->object;
-	int ret;
+	struct ttm_bo_global *glob = &ttm_bo_glob;
+	int ret = 0;
 	unsigned i;
 
-#ifdef __NetBSD__
-	linux_mutex_init(&glob->device_list_mutex);
-#else
-	mutex_init(&glob->device_list_mutex);
-#endif
+	mutex_lock(&ttm_global_mutex);
+	if (++ttm_bo_glob_use_count > 1)
+		goto out;
+
+	ret = ttm_mem_global_init(&ttm_mem_glob);
+	if (ret)
+		goto out;
+
 	spin_lock_init(&glob->lru_lock);
-	glob->mem_glob = bo_ref->mem_glob;
+	glob->mem_glob = &ttm_mem_glob;
 	glob->mem_glob->bo_glob = glob;
-#ifdef __NetBSD__
-	/* Only used by agp back end, will fix there.  */
-	/* XXX Fix agp back end to DTRT.  */
-	glob->dummy_read_page = NULL;
-#else
 	glob->dummy_read_page = alloc_page(__GFP_ZERO | GFP_DMA32);
 
 	if (unlikely(glob->dummy_read_page == NULL)) {
 		ret = -ENOMEM;
-		goto out_no_drp;
+		goto out;
 	}
-#endif
 
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i)
 		INIT_LIST_HEAD(&glob->swap_lru[i]);
 	INIT_LIST_HEAD(&glob->device_list);
 	atomic_set(&glob->bo_count, 0);
 
-#ifdef __NetBSD__
-	ret = 0;
-#else
 	ret = kobject_init_and_add(
 		&glob->kobj, &ttm_bo_glob_kobj_type, ttm_get_kobj(), "buffer_objects");
 	if (unlikely(ret != 0))
 		kobject_put(&glob->kobj);
-#endif
-	return ret;
-out_no_drp:
-#ifdef __NetBSD__
-	__unused
-#endif
-	kfree(glob);
+out:
+	mutex_unlock(&ttm_global_mutex);
 	return ret;
 }
-EXPORT_SYMBOL(ttm_bo_global_init);
-
 
 int ttm_bo_device_release(struct ttm_bo_device *bdev)
 {
@@ -1596,9 +1599,9 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 		}
 	}
 
-	mutex_lock(&glob->device_list_mutex);
+	mutex_lock(&ttm_global_mutex);
 	list_del(&bdev->device_list);
-	mutex_unlock(&glob->device_list_mutex);
+	mutex_unlock(&ttm_global_mutex);
 
 	cancel_delayed_work_sync(&bdev->wq);
 
@@ -1613,23 +1616,25 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 
 	drm_vma_offset_manager_destroy(&bdev->vma_manager);
 
+	if (!ret)
+		ttm_bo_global_release();
+
 	return ret;
 }
 EXPORT_SYMBOL(ttm_bo_device_release);
 
 int ttm_bo_device_init(struct ttm_bo_device *bdev,
-		       struct ttm_bo_global *glob,
 		       struct ttm_bo_driver *driver,
-#ifdef __NetBSD__
-		       bus_space_tag_t memt,
-		       bus_dma_tag_t dmat,
-#else
 		       struct address_space *mapping,
-#endif
 		       uint64_t file_page_offset,
 		       bool need_dma32)
 {
-	int ret = -EINVAL;
+	struct ttm_bo_global *glob = &ttm_bo_glob;
+	int ret;
+
+	ret = ttm_bo_global_init();
+	if (ret)
+		return ret;
 
 	bdev->driver = driver;
 
@@ -1647,20 +1652,16 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 				    0x10000000);
 	INIT_DELAYED_WORK(&bdev->wq, ttm_bo_delayed_workqueue);
 	INIT_LIST_HEAD(&bdev->ddestroy);
-#ifdef __NetBSD__
-	bdev->memt = memt;
-	bdev->dmat = dmat;
-#else
 	bdev->dev_mapping = mapping;
-#endif
 	bdev->glob = glob;
 	bdev->need_dma32 = need_dma32;
-	mutex_lock(&glob->device_list_mutex);
+	mutex_lock(&ttm_global_mutex);
 	list_add_tail(&bdev->device_list, &glob->device_list);
-	mutex_unlock(&glob->device_list_mutex);
+	mutex_unlock(&ttm_global_mutex);
 
 	return 0;
 out_no_sys:
+	ttm_bo_global_release();
 	return ret;
 }
 EXPORT_SYMBOL(ttm_bo_device_init);
@@ -1688,38 +1689,9 @@ bool ttm_mem_reg_is_pci(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 
 void ttm_bo_unmap_virtual_locked(struct ttm_buffer_object *bo)
 {
-#ifndef __NetBSD__
 	struct ttm_bo_device *bdev = bo->bdev;
-#endif
 
-#ifdef __NetBSD__
-	if (bo->mem.bus.is_iomem) {
-		paddr_t start, end, pa;
-
-		KASSERTMSG((bo->mem.bus.base & (PAGE_SIZE - 1)) == 0,
-		    "bo bus base addr not page-aligned: %lx",
-		    bo->mem.bus.base);
-		KASSERTMSG((bo->mem.bus.offset & (PAGE_SIZE - 1)) == 0,
-		    "bo bus offset not page-aligned: %lx",
-		    bo->mem.bus.offset);
-		start = bo->mem.bus.base + bo->mem.bus.offset;
-		KASSERT((bo->mem.bus.size & (PAGE_SIZE - 1)) == 0);
-		end = start + bo->mem.bus.size;
-
-		for (pa = start; pa < end; pa += PAGE_SIZE)
-			pmap_pv_protect(pa, VM_PROT_NONE);
-	} else if (bo->ttm != NULL) {
-		unsigned i;
-
-		mutex_enter(bo->uvmobj.vmobjlock);
-		for (i = 0; i < bo->ttm->num_pages; i++)
-			pmap_page_protect(&bo->ttm->pages[i]->p_vmp,
-			    VM_PROT_NONE);
-		mutex_exit(bo->uvmobj.vmobjlock);
-	}
-#else
 	drm_vma_node_unmap(&bo->vma_node, bdev->dev_mapping);
-#endif
 	ttm_mem_io_free_vm(bo);
 }
 

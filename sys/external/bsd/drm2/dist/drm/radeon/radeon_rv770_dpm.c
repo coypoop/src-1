@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2011 Advanced Micro Devices, Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Alex Deucher
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <drm/drmP.h>
 #include "radeon.h"
@@ -1237,16 +1232,16 @@ static int rv770_init_smc_table(struct radeon_device *rdev,
 static int rv770_construct_vddc_table(struct radeon_device *rdev)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
-	u16 vmin, vmax, step;
+	u16 min, max, step;
 	u32 steps = 0;
 	u8 vddc_index = 0;
 	u32 i;
 
-	radeon_atom_get_min_voltage(rdev, SET_VOLTAGE_TYPE_ASIC_VDDC, &vmin);
-	radeon_atom_get_max_voltage(rdev, SET_VOLTAGE_TYPE_ASIC_VDDC, &vmax);
+	radeon_atom_get_min_voltage(rdev, SET_VOLTAGE_TYPE_ASIC_VDDC, &min);
+	radeon_atom_get_max_voltage(rdev, SET_VOLTAGE_TYPE_ASIC_VDDC, &max);
 	radeon_atom_get_voltage_step(rdev, SET_VOLTAGE_TYPE_ASIC_VDDC, &step);
 
-	steps = (vmax - vmin) / step + 1;
+	steps = (max - min) / step + 1;
 
 	if (steps > MAX_NO_VREG_STEPS)
 		return -EINVAL;
@@ -1254,7 +1249,7 @@ static int rv770_construct_vddc_table(struct radeon_device *rdev)
 	for (i = 0; i < steps; i++) {
 		u32 gpio_pins, gpio_mask;
 
-		pi->vddc_table[i].vddc = (u16)(vmin + i * step);
+		pi->vddc_table[i].vddc = (u16)(min + i * step);
 		radeon_atom_get_voltage_gpio_settings(rdev,
 						      pi->vddc_table[i].vddc,
 						      SET_VOLTAGE_TYPE_ASIC_VDDC,
@@ -2468,7 +2463,6 @@ void rv770_dpm_print_power_state(struct radeon_device *rdev,
 	r600_dpm_print_ps_status(rdev, rps);
 }
 
-#ifdef CONFIG_DEBUG_FS
 void rv770_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 						       struct seq_file *m)
 {
@@ -2498,7 +2492,6 @@ void rv770_dpm_debugfs_print_current_performance_level(struct radeon_device *rde
 		}
 	}
 }
-#endif
 
 u32 rv770_dpm_get_current_sclk(struct radeon_device *rdev)
 {

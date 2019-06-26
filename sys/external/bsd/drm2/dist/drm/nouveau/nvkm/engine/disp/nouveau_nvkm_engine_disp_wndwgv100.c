@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2018 Red Hat Inc.
  *
@@ -21,9 +19,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "channv50.h"
 
 #include <core/client.h>
@@ -123,7 +118,7 @@ gv100_disp_wndw_mthd_base = {
 
 const struct nv50_disp_chan_mthd
 gv100_disp_wndw_mthd = {
-	.name = "Base",
+	.name = "Window",
 	.addr = 0x001000,
 	.prev = 0x000800,
 	.data = {

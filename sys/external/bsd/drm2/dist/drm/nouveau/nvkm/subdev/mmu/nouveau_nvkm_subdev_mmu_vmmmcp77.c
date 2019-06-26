@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2017 Red Hat Inc.
  *
@@ -21,9 +19,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "vmm.h"
 
 static const struct nvkm_vmm_func
@@ -41,10 +36,10 @@ mcp77_vmm = {
 };
 
 int
-mcp77_vmm_new(struct nvkm_mmu *mmu, u64 addr, u64 size, void *argv, u32 argc,
-	      struct lock_class_key *key, const char *name,
-	      struct nvkm_vmm **pvmm)
+mcp77_vmm_new(struct nvkm_mmu *mmu, bool managed, u64 addr, u64 size,
+	      void *argv, u32 argc, struct lock_class_key *key,
+	      const char *name, struct nvkm_vmm **pvmm)
 {
-	return nv04_vmm_new_(&mcp77_vmm, mmu, 0, addr, size,
+	return nv04_vmm_new_(&mcp77_vmm, mmu, 0, managed, addr, size,
 			     argv, argc, key, name, pvmm);
 }

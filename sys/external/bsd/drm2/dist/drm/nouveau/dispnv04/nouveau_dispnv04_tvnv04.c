@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (C) 2009 Francisco Jerez.
  * All Rights Reserved.
@@ -25,11 +23,6 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
-#include <linux/err.h>
 
 #include <drm/drmP.h>
 #include "nouveau_drv.h"
@@ -189,9 +182,7 @@ static void nv04_tv_destroy(struct drm_encoder *encoder)
 	get_slave_funcs(encoder)->destroy(encoder);
 	drm_encoder_cleanup(encoder);
 
-#ifndef __NetBSD__		/* XXX How can this possibly be right?  */
 	kfree(encoder->helper_private);
-#endif
 	kfree(nouveau_encoder(encoder));
 }
 

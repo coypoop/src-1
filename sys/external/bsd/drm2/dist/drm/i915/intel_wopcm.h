@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * SPDX-License-Identifier: MIT
  *

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
  * Copyright (c) 2007-2008 Tungsten Graphics, Inc., Cedar Park, TX., USA,
@@ -24,12 +22,6 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
-#include <sys/param.h>
-#include <uvm/uvm_extern.h>	/* pmap_pv_track/untrack */
-
 #include "nouveau_drv.h"
 #include "nouveau_gem.h"
 #include "nouveau_mem.h"
@@ -170,27 +162,6 @@ const struct ttm_mem_type_manager_func nv04_gart_manager = {
 	.debug = nouveau_manager_debug
 };
 
-#ifdef __NetBSD__
-
-int
-nouveau_ttm_mmap_object(struct drm_device *dev, off_t offset, size_t size,
-    vm_prot_t prot, struct uvm_object **uobjp, voff_t *uoffsetp,
-    struct file *file)
-{
-	struct nouveau_drm *const drm = nouveau_drm(dev);
-
-	KASSERT(0 == (offset & (PAGE_SIZE - 1)));
-
-	if (__predict_false((offset >> PAGE_SHIFT) < DRM_FILE_PAGE_OFFSET))
-		return drm_legacy_mmap_object(dev, offset, size, prot, uobjp,
-		    uoffsetp, file);
-	else
-		return ttm_bo_mmap_object(&drm->ttm.bdev, offset, size, prot,
-		    uobjp, uoffsetp, file);
-}
-
-#else
-
 int
 nouveau_ttm_mmap(struct file *filp, struct vm_area_struct *vma)
 {
@@ -198,71 +169,13 @@ nouveau_ttm_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct nouveau_drm *drm = nouveau_drm(file_priv->minor->dev);
 
 	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET))
+#if defined(CONFIG_NOUVEAU_LEGACY_CTX_SUPPORT)
 		return drm_legacy_mmap(filp, vma);
-
-	return ttm_bo_mmap(filp, vma, &drm->ttm.bdev);
-}
-
+#else
+		return -EINVAL;
 #endif
 
-static int
-nouveau_ttm_mem_global_init(struct drm_global_reference *ref)
-{
-	return ttm_mem_global_init(ref->object);
-}
-
-static void
-nouveau_ttm_mem_global_release(struct drm_global_reference *ref)
-{
-	ttm_mem_global_release(ref->object);
-}
-
-int
-nouveau_ttm_global_init(struct nouveau_drm *drm)
-{
-	struct drm_global_reference *global_ref;
-	int ret;
-
-	global_ref = &drm->ttm.mem_global_ref;
-	global_ref->global_type = DRM_GLOBAL_TTM_MEM;
-	global_ref->size = sizeof(struct ttm_mem_global);
-	global_ref->init = &nouveau_ttm_mem_global_init;
-	global_ref->release = &nouveau_ttm_mem_global_release;
-
-	ret = drm_global_item_ref(global_ref);
-	if (unlikely(ret != 0)) {
-		DRM_ERROR("Failed setting up TTM memory accounting\n");
-		drm->ttm.mem_global_ref.release = NULL;
-		return ret;
-	}
-
-	drm->ttm.bo_global_ref.mem_glob = global_ref->object;
-	global_ref = &drm->ttm.bo_global_ref.ref;
-	global_ref->global_type = DRM_GLOBAL_TTM_BO;
-	global_ref->size = sizeof(struct ttm_bo_global);
-	global_ref->init = &ttm_bo_global_init;
-	global_ref->release = &ttm_bo_global_release;
-
-	ret = drm_global_item_ref(global_ref);
-	if (unlikely(ret != 0)) {
-		DRM_ERROR("Failed setting up TTM BO subsystem\n");
-		drm_global_item_unref(&drm->ttm.mem_global_ref);
-		drm->ttm.mem_global_ref.release = NULL;
-		return ret;
-	}
-
-	return 0;
-}
-
-void
-nouveau_ttm_global_release(struct nouveau_drm *drm)
-{
-	if (drm->ttm.mem_global_ref.release == NULL)
-		return;
-
-	drm_global_item_unref(&drm->ttm.bo_global_ref.ref);
-	drm_global_item_unref(&drm->ttm.mem_global_ref);
-	drm->ttm.mem_global_ref.release = NULL;
+	return ttm_bo_mmap(filp, vma, &drm->ttm.bdev);
 }
 
 static int
@@ -327,19 +240,9 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 		drm->agp.cma = pci->agp.cma;
 	}
 
-	ret = nouveau_ttm_global_init(drm);
-	if (ret)
-		return ret;
-
 	ret = ttm_bo_device_init(&drm->ttm.bdev,
-				  drm->ttm.bo_global_ref.ref.object,
 				  &nouveau_bo_driver,
-#ifdef __NetBSD__
-				  dev->bst,
-				  dev->dmat,
-#else
 				  dev->anon_inode->i_mapping,
-#endif
 				  DRM_FILE_PAGE_OFFSET,
 				  drm->client.mmu.dmabits <= 32 ? true : false);
 	if (ret) {
@@ -362,11 +265,6 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 
 	drm->ttm.mtrr = arch_phys_wc_add(device->func->resource_addr(device, 1),
 					 device->func->resource_size(device, 1));
-
-#ifdef __NetBSD__
-	pmap_pv_track(device->func->resource_addr(device, 1),
-	    device->func->resource_size(device, 1));
-#endif
 
 	/* GART init */
 	if (!drm->agp.bridge) {
@@ -397,16 +295,9 @@ nouveau_ttm_fini(struct nouveau_drm *drm)
 
 	ttm_bo_device_release(&drm->ttm.bdev);
 
-	nouveau_ttm_global_release(drm);
-
 	arch_phys_wc_del(drm->ttm.mtrr);
 	drm->ttm.mtrr = 0;
 	arch_io_free_memtype_wc(device->func->resource_addr(device, 1),
 				device->func->resource_size(device, 1));
 
-#ifdef __NetBSD__
-	struct nvkm_device *device = nvxx_device(&drm->device);
-	pmap_pv_untrack(device->func->resource_addr(device, 1),
-	    device->func->resource_size(device, 1));
-#endif
 }

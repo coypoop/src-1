@@ -43,22 +43,113 @@ struct drm_display_mode;
 struct drm_mode_create_dumb;
 struct drm_printer;
 
-/* driver capabilities and requirements mask */
-#define DRIVER_USE_AGP			0x1
-#define DRIVER_LEGACY			0x2
-#define DRIVER_PCI_DMA			0x8
-#define DRIVER_SG			0x10
-#define DRIVER_HAVE_DMA			0x20
-#define DRIVER_HAVE_IRQ			0x40
-#define DRIVER_IRQ_SHARED		0x80
-#define DRIVER_GEM			0x1000
-#define DRIVER_MODESET			0x2000
-#define DRIVER_PRIME			0x4000
-#define DRIVER_RENDER			0x8000
-#define DRIVER_ATOMIC			0x10000
-#define DRIVER_KMS_LEGACY_CONTEXT	0x20000
-#define DRIVER_SYNCOBJ                  0x40000
-#define DRIVER_PREFER_XBGR_30BPP        0x80000
+/**
+ * enum drm_driver_feature - feature flags
+ *
+ * See &drm_driver.driver_features, drm_device.driver_features and
+ * drm_core_check_feature().
+ */
+enum drm_driver_feature {
+	/**
+	 * @DRIVER_GEM:
+	 *
+	 * Driver use the GEM memory manager. This should be set for all modern
+	 * drivers.
+	 */
+	DRIVER_GEM			= BIT(0),
+	/**
+	 * @DRIVER_MODESET:
+	 *
+	 * Driver supports mode setting interfaces (KMS).
+	 */
+	DRIVER_MODESET			= BIT(1),
+	/**
+	 * @DRIVER_PRIME:
+	 *
+	 * Driver implements DRM PRIME buffer sharing.
+	 */
+	DRIVER_PRIME			= BIT(2),
+	/**
+	 * @DRIVER_RENDER:
+	 *
+	 * Driver supports dedicated render nodes. See also the :ref:`section on
+	 * render nodes <drm_render_node>` for details.
+	 */
+	DRIVER_RENDER			= BIT(3),
+	/**
+	 * @DRIVER_ATOMIC:
+	 *
+	 * Driver supports the full atomic modesetting userspace API. Drivers
+	 * which only use atomic internally, but do not the support the full
+	 * userspace API (e.g. not all properties converted to atomic, or
+	 * multi-plane updates are not guaranteed to be tear-free) should not
+	 * set this flag.
+	 */
+	DRIVER_ATOMIC			= BIT(4),
+	/**
+	 * @DRIVER_SYNCOBJ:
+	 *
+	 * Driver supports &drm_syncobj for explicit synchronization of command
+	 * submission.
+	 */
+	DRIVER_SYNCOBJ                  = BIT(5),
+
+	/* IMPORTANT: Below are all the legacy flags, add new ones above. */
+
+	/**
+	 * @DRIVER_USE_AGP:
+	 *
+	 * Set up DRM AGP support, see drm_agp_init(), the DRM core will manage
+	 * AGP resources. New drivers don't need this.
+	 */
+	DRIVER_USE_AGP			= BIT(25),
+	/**
+	 * @DRIVER_LEGACY:
+	 *
+	 * Denote a legacy driver using shadow attach. Do not use.
+	 */
+	DRIVER_LEGACY			= BIT(26),
+	/**
+	 * @DRIVER_PCI_DMA:
+	 *
+	 * Driver is capable of PCI DMA, mapping of PCI DMA buffers to userspace
+	 * will be enabled. Only for legacy drivers. Do not use.
+	 */
+	DRIVER_PCI_DMA			= BIT(27),
+	/**
+	 * @DRIVER_SG:
+	 *
+	 * Driver can perform scatter/gather DMA, allocation and mapping of
+	 * scatter/gather buffers will be enabled. Only for legacy drivers. Do
+	 * not use.
+	 */
+	DRIVER_SG			= BIT(28),
+
+	/**
+	 * @DRIVER_HAVE_DMA:
+	 *
+	 * Driver supports DMA, the userspace DMA API will be supported. Only
+	 * for legacy drivers. Do not use.
+	 */
+	DRIVER_HAVE_DMA			= BIT(29),
+	/**
+	 * @DRIVER_HAVE_IRQ:
+	 *
+	 * Legacy irq support. Only for legacy drivers. Do not use.
+	 *
+	 * New drivers can either use the drm_irq_install() and
+	 * drm_irq_uninstall() helper functions, or roll their own irq support
+	 * code by calling request_irq() directly.
+	 */
+	DRIVER_HAVE_IRQ			= BIT(30),
+	/**
+	 * @DRIVER_KMS_LEGACY_CONTEXT:
+	 *
+	 * Used only by nouveau for backwards compatibility with existing
+	 * userspace.  Do not use.
+	 */
+	DRIVER_KMS_LEGACY_CONTEXT	= BIT(31),
+};
 
 /**
  * struct drm_driver - DRM driver structure
@@ -337,7 +428,7 @@ struct drm_driver {
 	 * Interrupt handler called when using drm_irq_install(). Not used by
 	 * drivers which implement their own interrupt handling.
 	 */
-	irqreturn_t(*irq_handler) (DRM_IRQ_ARGS);
+	irqreturn_t(*irq_handler) (int irq, void *arg);
 
 	/**
 	 * @irq_preinstall:
@@ -366,11 +457,6 @@ struct drm_driver {
 	 * interrupt generation in the hardware.
 	 */
 	void (*irq_uninstall) (struct drm_device *dev);
-
-#ifdef __NetBSD__
-	int (*request_irq)(struct drm_device *, int);
-	void (*free_irq)(struct drm_device *);
-#endif
 
 	/**
 	 * @master_create:
@@ -479,6 +565,8 @@ struct drm_driver {
 	 * @gem_prime_export:
 	 *
 	 * export GEM -> dmabuf
+	 *
+	 * This defaults to drm_gem_prime_export() if not set.
 	 */
 	struct dma_buf * (*gem_prime_export)(struct drm_device *dev,
 				struct drm_gem_object *obj, int flags);
@@ -486,6 +574,8 @@ struct drm_driver {
 	 * @gem_prime_import:
 	 *
 	 * import dmabuf -> GEM
+	 *
+	 * This defaults to drm_gem_prime_import() if not set.
 	 */
 	struct drm_gem_object * (*gem_prime_import)(struct drm_device *dev,
 				struct dma_buf *dma_buf);
@@ -500,14 +590,8 @@ struct drm_driver {
 				struct sg_table *sgt);
 	void *(*gem_prime_vmap)(struct drm_gem_object *obj);
 	void (*gem_prime_vunmap)(struct drm_gem_object *obj, void *vaddr);
-#ifdef __NetBSD__
-	int (*gem_prime_mmap)(struct drm_gem_object *obj, off_t *offp,
-	    size_t len, int prot, int *flagsp, int *advicep,
-	    struct uvm_object **uobjp, int *maxprotp);
-#else
 	int (*gem_prime_mmap)(struct drm_gem_object *obj,
 				struct vm_area_struct *vma);
-#endif
 
 	/**
 	 * @dumb_create:
@@ -537,8 +621,10 @@ struct drm_driver {
 	 * @dumb_map_offset:
 	 *
 	 * Allocate an offset in the drm device node's address space to be able to
-	 * memory map a dumb buffer. GEM-based drivers must use
-	 * drm_gem_create_mmap_offset() to implement this.
+	 * memory map a dumb buffer.
+	 *
+	 * The default implementation is drm_gem_create_mmap_offset(). GEM based
+	 * drivers must not overwrite this.
 	 *
 	 * Called by the user via ioctl.
 	 *
@@ -558,6 +644,9 @@ struct drm_driver {
 	 *
 	 * Called by the user via ioctl.
 	 *
+	 * The default implementation is drm_gem_dumb_destroy(). GEM based drivers
+	 * must not overwrite this.
+	 *
 	 * Returns:
 	 *
 	 * Zero on success, negative errno on failure.
@@ -566,16 +655,10 @@ struct drm_driver {
 			    struct drm_device *dev,
 			    uint32_t handle);
 
-#ifdef __NetBSD__
-	int (*mmap_object)(struct drm_device *, off_t, size_t, int,
-	    struct uvm_object **, voff_t *, struct file *);
-	const struct uvm_pagerops *gem_uvm_ops;
-#else
 	/**
 	 * @gem_vm_ops: Driver private ops for this object
 	 */
 	const struct vm_operations_struct *gem_vm_ops;
-#endif
 
 	/** @major: driver major number */
 	int major;
@@ -584,13 +667,18 @@ struct drm_driver {
 	/** @patchlevel: driver patch level */
 	int patchlevel;
 	/** @name: driver name */
-	const char *name;
+	char *name;
 	/** @desc: driver description */
-	const char *desc;
+	char *desc;
 	/** @date: driver date */
-	const char *date;
+	char *date;
 
-	/** @driver_features: driver features */
+	/**
+	 * @driver_features:
+	 * Driver features, see &enum drm_driver_feature. Drivers can disable
+	 * some features on a per-instance basis using
+	 * &drm_device.driver_features.
+	 */
 	u32 driver_features;
 
 	/**
@@ -624,9 +712,6 @@ struct drm_driver {
 	int (*dma_ioctl) (struct drm_device *dev, void *data, struct drm_file *file_priv);
 	int (*dma_quiescent) (struct drm_device *);
 	int (*context_dtor) (struct drm_device *dev, int context);
-	int (*set_busid)(struct drm_device *dev, struct drm_master *master);
-	int (*set_unique)(struct drm_device *dev, struct drm_master *master,
-	    struct drm_unique *);
 	int dev_priv_size;
 };
 
@@ -644,7 +729,6 @@ void drm_dev_unregister(struct drm_device *dev);
 
 void drm_dev_get(struct drm_device *dev);
 void drm_dev_put(struct drm_device *dev);
-void drm_dev_unref(struct drm_device *dev);
 void drm_put_dev(struct drm_device *dev);
 bool drm_dev_enter(struct drm_device *dev, int *idx);
 void drm_dev_exit(int idx);
@@ -658,6 +742,10 @@ void drm_dev_unplug(struct drm_device *dev);
  * Unplugging itself is singalled through drm_dev_unplug(). If a device is
  * unplugged, these two functions guarantee that any store before calling
  * drm_dev_unplug() is visible to callers of this function after it completes
+ *
+ * WARNING: This function fundamentally races against drm_dev_unplug(). It is
+ * recommended that drivers instead use the underlying drm_dev_enter() and
+ * drm_dev_exit() function pairs.
  */
 static inline bool drm_dev_is_unplugged(struct drm_device *dev)
 {
@@ -676,14 +764,14 @@ static inline bool drm_dev_is_unplugged(struct drm_device *dev)
  * @dev: DRM device to check
  * @feature: feature flag
  *
- * This checks @dev for driver features, see &drm_driver.driver_features and the
- * various DRIVER_\* flags.
+ * This checks @dev for driver features, see &drm_driver.driver_features,
+ * &drm_device.driver_features, and the various &enum drm_driver_feature flags.
  *
  * Returns true if the @feature is supported, false otherwise.
  */
-static inline bool drm_core_check_feature(struct drm_device *dev, int feature)
+static inline bool drm_core_check_feature(const struct drm_device *dev, u32 feature)
 {
-	return dev->driver->driver_features & feature;
+	return dev->driver->driver_features & dev->driver_features & feature;
 }
 
 /**
@@ -697,15 +785,11 @@ static inline bool drm_core_check_feature(struct drm_device *dev, int feature)
 static inline bool drm_drv_uses_atomic_modeset(struct drm_device *dev)
 {
 	return drm_core_check_feature(dev, DRIVER_ATOMIC) ||
-		dev->mode_config.funcs->atomic_commit != NULL;
+		(dev->mode_config.funcs && dev->mode_config.funcs->atomic_commit != NULL);
 }
 
 
 int drm_dev_set_unique(struct drm_device *dev, const char *name);
 
-#ifdef __NetBSD__
-int drm_limit_dma_space(struct drm_device *, resource_size_t, resource_size_t);
-int drm_guarantee_initialized(void);
-#endif
 
 #endif

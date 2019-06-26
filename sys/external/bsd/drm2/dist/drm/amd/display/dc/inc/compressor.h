@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012-15 Advanced Micro Devices, Inc.
  *
@@ -79,6 +77,7 @@ struct compressor_funcs {
 };
 struct compressor {
 	struct dc_context *ctx;
+	/* CONTROLLER_ID_D0 + instance, CONTROLLER_ID_UNDEFINED = 0 */
 	uint32_t attached_inst;
 	bool is_enabled;
 	const struct compressor_funcs *funcs;

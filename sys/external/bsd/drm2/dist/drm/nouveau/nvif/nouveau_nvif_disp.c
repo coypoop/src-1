@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2018 Red Hat Inc.
  *
@@ -21,9 +19,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <nvif/disp.h>
 #include <nvif/device.h>
 
@@ -39,6 +34,7 @@ int
 nvif_disp_ctor(struct nvif_device *device, s32 oclass, struct nvif_disp *disp)
 {
 	static const struct nvif_mclass disps[] = {
+		{ TU102_DISP, -1 },
 		{ GV100_DISP, -1 },
 		{ GP102_DISP, -1 },
 		{ GP100_DISP, -1 },

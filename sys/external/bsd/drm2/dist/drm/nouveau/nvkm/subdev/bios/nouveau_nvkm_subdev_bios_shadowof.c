@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -22,16 +20,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "priv.h"
 
 #include <core/pci.h>
-
-#ifdef __NetBSD__
-#  define	__iomem	__of_rom_iomem
-#endif
 
 #if defined(__powerpc__)
 struct priv {

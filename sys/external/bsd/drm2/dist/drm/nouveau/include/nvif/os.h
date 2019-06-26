@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NOUVEAU_OS_H__
 #define __NOUVEAU_OS_H__
@@ -31,32 +29,9 @@
 #include <linux/reset.h>
 #include <linux/iommu.h>
 #include <linux/of_device.h>
-#include <linux/atomic.h>
-#include <linux/bug.h>
-#include <linux/kernel.h>
-#include <linux/kref.h>
-#include <linux/list.h>
-#include <linux/spinlock.h>
-#include <linux/math64.h>
-#include <linux/errno.h>
-#include <linux/workqueue.h>
-#include <linux/device.h>
-#include <linux/ktime.h>
-#include <linux/err.h>
-#include <linux/bitmap.h>
-#include <linux/jiffies.h>
-#include <linux/io.h>
 
-#include <asm/barrier.h>
-#include <asm/byteorder.h>
-#include <asm/io.h>
 #include <asm/unaligned.h>
 
 #include <soc/tegra/fuse.h>
 #include <soc/tegra/pmc.h>
-
-#ifdef __NetBSD__
-#include <drm/drm_os_netbsd.h>	/* drm_waitqueue_t, IRQ_HANDLED */
-#endif
-
 #endif

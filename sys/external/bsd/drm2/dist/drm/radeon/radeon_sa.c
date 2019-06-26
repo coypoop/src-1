@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2011 Red Hat Inc.
  * All Rights Reserved.
@@ -43,9 +41,6 @@
  * If we are asked to block we wait on all the oldest fence of all
  * rings. We just wait for any of those fence to complete.
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/drmP.h>
 #include "radeon.h"
 
@@ -58,12 +53,7 @@ int radeon_sa_bo_manager_init(struct radeon_device *rdev,
 {
 	int i, r;
 
-#ifdef __NetBSD__
-	spin_lock_init(&sa_manager->wq_lock);
-	DRM_INIT_WAITQUEUE(&sa_manager->wq, "radsabom");
-#else
 	init_waitqueue_head(&sa_manager->wq);
-#endif
 	sa_manager->bo = NULL;
 	sa_manager->size = size;
 	sa_manager->domain = domain;
@@ -101,10 +91,6 @@ void radeon_sa_bo_manager_fini(struct radeon_device *rdev,
 	}
 	radeon_bo_unref(&sa_manager->bo);
 	sa_manager->size = 0;
-#ifdef __NetBSD__
-	DRM_DESTROY_WAITQUEUE(&sa_manager->wq);
-	spin_lock_destroy(&sa_manager->wq_lock);
-#endif
 }
 
 int radeon_sa_bo_manager_start(struct radeon_device *rdev,
@@ -344,11 +330,7 @@ int radeon_sa_bo_new(struct radeon_device *rdev,
 	INIT_LIST_HEAD(&(*sa_bo)->olist);
 	INIT_LIST_HEAD(&(*sa_bo)->flist);
 
-#ifdef __NetBSD__
-	spin_lock(&sa_manager->wq_lock);
-#else
 	spin_lock(&sa_manager->wq.lock);
-#endif
 	do {
 		for (i = 0; i < RADEON_NUM_RINGS; ++i) {
 			fences[i] = NULL;
@@ -360,11 +342,7 @@ int radeon_sa_bo_new(struct radeon_device *rdev,
 
 			if (radeon_sa_bo_try_alloc(sa_manager, *sa_bo,
 						   size, align)) {
-#ifdef __NetBSD__
-				spin_unlock(&sa_manager->wq_lock);
-#else
 				spin_unlock(&sa_manager->wq.lock);
-#endif
 				return 0;
 			}
 
@@ -374,18 +352,6 @@ int radeon_sa_bo_new(struct radeon_device *rdev,
 		for (i = 0; i < RADEON_NUM_RINGS; ++i)
 			radeon_fence_ref(fences[i]);
 
-#ifdef __NetBSD__
-		spin_unlock(&sa_manager->wq_lock);
-		r = radeon_fence_wait_any(rdev, fences, false);
-		for (i = 0; i < RADEON_NUM_RINGS; ++i)
-			radeon_fence_unref(&fences[i]);
-		spin_lock(&sa_manager->wq_lock);
-		/* if we have nothing to wait for block */
-		if (r == -ENOENT)
-			DRM_SPIN_WAIT_UNTIL(r, &sa_manager->wq,
-			    &sa_manager->wq_lock,
-			    radeon_sa_event(sa_manager, size, align));
-#else
 		spin_unlock(&sa_manager->wq.lock);
 		r = radeon_fence_wait_any(rdev, fences, false);
 		for (i = 0; i < RADEON_NUM_RINGS; ++i)
@@ -398,15 +364,10 @@ int radeon_sa_bo_new(struct radeon_device *rdev,
 				radeon_sa_event(sa_manager, size, align)
 			);
 		}
-#endif
 
 	} while (!r);
 
-#ifdef __NetBSD__
-	spin_unlock(&sa_manager->wq_lock);
-#else
 	spin_unlock(&sa_manager->wq.lock);
-#endif
 	kfree(*sa_bo);
 	*sa_bo = NULL;
 	return r;
@@ -422,11 +383,7 @@ void radeon_sa_bo_free(struct radeon_device *rdev, struct radeon_sa_bo **sa_bo,
 	}
 
 	sa_manager = (*sa_bo)->manager;
-#ifdef __NetBSD__
-	spin_lock(&sa_manager->wq_lock);
-#else
 	spin_lock(&sa_manager->wq.lock);
-#endif
 	if (fence && !radeon_fence_signaled(fence)) {
 		(*sa_bo)->fence = radeon_fence_ref(fence);
 		list_add_tail(&(*sa_bo)->flist,
@@ -434,13 +391,8 @@ void radeon_sa_bo_free(struct radeon_device *rdev, struct radeon_sa_bo **sa_bo,
 	} else {
 		radeon_sa_bo_remove_locked(*sa_bo);
 	}
-#ifdef __NetBSD__
-	DRM_SPIN_WAKEUP_ALL(&sa_manager->wq, &sa_manager->wq_lock);
-	spin_unlock(&sa_manager->wq_lock);
-#else
 	wake_up_all_locked(&sa_manager->wq);
 	spin_unlock(&sa_manager->wq.lock);
-#endif
 	*sa_bo = NULL;
 }
 

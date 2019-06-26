@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Created: Fri Jan 19 10:48:35 2001 by faith@acm.org
  *
@@ -28,17 +26,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
-#include <linux/err.h>
-#include <linux/export.h>
 #include <linux/debugfs.h>
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/mount.h>
-#include <linux/printk.h>
 #include <linux/slab.h>
 #include <linux/srcu.h>
 
@@ -49,7 +41,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "drm_crtc_internal.h"
 #include "drm_legacy.h"
 #include "drm_internal.h"
-#include "drm_crtc_internal.h"
 
 /*
  * drm_debug: Enable debug output.
@@ -72,13 +63,8 @@ MODULE_PARM_DESC(debug, "Enable debug output, where each bit enables a debug cat
 "\t\tBit 8 (0x100) will enable DP messages (displayport code)");
 module_param_named(debug, drm_debug, int, 0600);
 
-#ifdef __NetBSD__
-spinlock_t drm_minor_lock;
-struct idr drm_minors_idr;
-#else
 static DEFINE_SPINLOCK(drm_minor_lock);
 static struct idr drm_minors_idr;
-#endif
 
 /*
  * If the drm core fails to init for whatever reason,
@@ -89,9 +75,7 @@ static struct idr drm_minors_idr;
  */
 static bool drm_core_init_complete = false;
 
-#ifndef __NetBSD__
 static struct dentry *drm_debugfs_root;
-#endif
 
 DEFINE_STATIC_SRCU(drm_unplug_srcu);
 
@@ -149,18 +133,16 @@ static int drm_minor_alloc(struct drm_device *dev, unsigned int type)
 
 	minor->index = r;
 
-#ifndef __NetBSD__		/* XXX drm sysfs */
 	minor->kdev = drm_sysfs_minor_alloc(minor);
 	if (IS_ERR(minor->kdev)) {
 		r = PTR_ERR(minor->kdev);
 		goto err_index;
 	}
-#endif
 
 	*drm_minor_get_slot(dev, type) = minor;
 	return 0;
 
-err_index: __unused
+err_index:
 	spin_lock_irqsave(&drm_minor_lock, flags);
 	idr_remove(&drm_minors_idr, minor->index);
 	spin_unlock_irqrestore(&drm_minor_lock, flags);
@@ -179,9 +161,7 @@ static void drm_minor_free(struct drm_device *dev, unsigned int type)
 	if (!minor)
 		return;
 
-#ifndef __NetBSD__		/* XXX drm sysfs */
 	put_device(minor->kdev);
-#endif
 
 	spin_lock_irqsave(&drm_minor_lock, flags);
 	idr_remove(&drm_minors_idr, minor->index);
@@ -195,9 +175,7 @@ static int drm_minor_register(struct drm_device *dev, unsigned int type)
 {
 	struct drm_minor *minor;
 	unsigned long flags;
-#ifndef __NetBSD__
 	int ret;
-#endif
 
 	DRM_DEBUG("\n");
 
@@ -205,7 +183,6 @@ static int drm_minor_register(struct drm_device *dev, unsigned int type)
 	if (!minor)
 		return 0;
 
-#ifndef __NetBSD__
 	ret = drm_debugfs_init(minor, minor->index, drm_debugfs_root);
 	if (ret) {
 		DRM_ERROR("DRM: Failed to initialize /sys/kernel/debug/dri.\n");
@@ -215,7 +192,6 @@ static int drm_minor_register(struct drm_device *dev, unsigned int type)
 	ret = device_add(minor->kdev);
 	if (ret)
 		goto err_debugfs;
-#endif
 
 	/* replace NULL with @minor so lookups will succeed from now on */
 	spin_lock_irqsave(&drm_minor_lock, flags);
@@ -225,11 +201,9 @@ static int drm_minor_register(struct drm_device *dev, unsigned int type)
 	DRM_DEBUG("new minor registered %d\n", minor->index);
 	return 0;
 
-#ifndef __NetBSD__
 err_debugfs:
 	drm_debugfs_cleanup(minor);
 	return ret;
-#endif
 }
 
 static void drm_minor_unregister(struct drm_device *dev, unsigned int type)
@@ -238,11 +212,7 @@ static void drm_minor_unregister(struct drm_device *dev, unsigned int type)
 	unsigned long flags;
 
 	minor = *drm_minor_get_slot(dev, type);
-#ifdef __NetBSD__
-	if (!minor)
-#else
 	if (!minor || !device_is_registered(minor->kdev))
-#endif
 		return;
 
 	/* replace @minor with NULL so lookups will fail from now on */
@@ -250,11 +220,9 @@ static void drm_minor_unregister(struct drm_device *dev, unsigned int type)
 	idr_replace(&drm_minors_idr, NULL, minor->index);
 	spin_unlock_irqrestore(&drm_minor_lock, flags);
 
-#ifndef __NetBSD__
 	device_del(minor->kdev);
 	dev_set_drvdata(minor->kdev, NULL); /* safety belt */
 	drm_debugfs_cleanup(minor);
-#endif
 }
 
 /*
@@ -296,14 +264,13 @@ void drm_minor_release(struct drm_minor *minor)
  * DOC: driver instance overview
  *
  * A device instance for a drm driver is represented by &struct drm_device. This
- * is allocated with drm_dev_alloc(), usually from bus-specific ->probe()
+ * is initialized with drm_dev_init(), usually from bus-specific ->probe()
  * callbacks implemented by the driver. The driver then needs to initialize all
  * the various subsystems for the drm device like memory management, vblank
  * handling, modesetting support and intial output configuration plus obviously
- * initialize all the corresponding hardware bits. An important part of this is
- * also calling drm_dev_set_unique() to set the userspace-visible unique name of
- * this device instance. Finally when everything is up and running and ready for
- * userspace the device instance can be published using drm_dev_register().
+ * initialize all the corresponding hardware bits. Finally when everything is up
+ * and running and ready for userspace the device instance can be published
+ * using drm_dev_register().
  *
  * There is also deprecated support for initalizing device instances using
  * bus-specific helpers and the &drm_driver.load callback. But due to
@@ -319,9 +286,6 @@ void drm_minor_release(struct drm_minor *minor)
  * Note that the lifetime rules for &drm_device instance has still a lot of
  * historical baggage. Hence use the reference counting provided by
  * drm_dev_get() and drm_dev_put() only carefully.
- *
- * It is recommended that drivers embed &struct drm_device into their own device
- * structure, which is supported through drm_dev_init().
  */
 
 /**
@@ -412,31 +376,9 @@ void drm_dev_unplug(struct drm_device *dev)
 	synchronize_srcu(&drm_unplug_srcu);
 
 	drm_dev_unregister(dev);
-
-	mutex_lock(&drm_global_mutex);
-	if (dev->open_count == 0)
-		drm_dev_put(dev);
-	mutex_unlock(&drm_global_mutex);
+	drm_dev_put(dev);
 }
 EXPORT_SYMBOL(drm_dev_unplug);
-
-#ifdef __NetBSD__
-
-struct inode;
-
-static struct inode *
-drm_fs_inode_new(void)
-{
-	return NULL;
-}
-
-static void
-drm_fs_inode_free(struct inode *inode)
-{
-	KASSERT(inode == NULL);
-}
-
-#else
 
 /*
  * DRM internal mount
@@ -510,8 +452,6 @@ static void drm_fs_inode_free(struct inode *inode)
 	}
 }
 
-#endif
-
 /**
  * drm_dev_init - Initialise new DRM device
  * @dev: DRM device
@@ -527,7 +467,8 @@ static void drm_fs_inode_free(struct inode *inode)
  * The initial ref-count of the object is 1. Use drm_dev_get() and
  * drm_dev_put() to take and drop further ref-counts.
  *
- * Note that for purely virtual devices @parent can be NULL.
+ * It is recommended that drivers embed &struct drm_device into their own device
+ * structure.
  *
  * Drivers that do not want to allocate their own device struct
  * embedding &struct drm_device can call drm_dev_alloc() instead. For drivers
@@ -553,9 +494,14 @@ int drm_dev_init(struct drm_device *dev,
 		return -ENODEV;
 	}
 
+	BUG_ON(!parent);
+
 	kref_init(&dev->ref);
-	dev->dev = parent;
+	dev->dev = get_device(parent);
 	dev->driver = driver;
+
+	/* no per-device feature limits by default */
+	dev->driver_features = ~0u;
 
 	INIT_LIST_HEAD(&dev->filelist);
 	INIT_LIST_HEAD(&dev->filelist_internal);
@@ -567,19 +513,11 @@ int drm_dev_init(struct drm_device *dev,
 
 	spin_lock_init(&dev->buf_lock);
 	spin_lock_init(&dev->event_lock);
-#ifdef __NetBSD__
-	linux_mutex_init(&dev->struct_mutex);
-	linux_mutex_init(&dev->filelist_mutex);
-	linux_mutex_init(&dev->clientlist_mutex);
-	linux_mutex_init(&dev->ctxlist_mutex);
-	linux_mutex_init(&dev->master_mutex);
-#else
 	mutex_init(&dev->struct_mutex);
 	mutex_init(&dev->filelist_mutex);
 	mutex_init(&dev->clientlist_mutex);
 	mutex_init(&dev->ctxlist_mutex);
 	mutex_init(&dev->master_mutex);
-#endif
 
 	dev->anon_inode = drm_fs_inode_new();
 	if (IS_ERR(dev->anon_inode)) {
@@ -612,9 +550,7 @@ int drm_dev_init(struct drm_device *dev,
 		}
 	}
 
-	/* Use the parent device name as DRM device unique identifier, but fall
-	 * back to the driver name for virtual devices like vgem. */
-	ret = drm_dev_set_unique(dev, parent ? dev_name(parent) : driver->name);
+	ret = drm_dev_set_unique(dev, dev_name(parent));
 	if (ret)
 		goto err_setunique;
 
@@ -631,21 +567,12 @@ err_minors:
 	drm_minor_free(dev, DRM_MINOR_RENDER);
 	drm_fs_inode_free(dev->anon_inode);
 err_free:
-#ifdef __NetBSD__
-	linux_mutex_destroy(&dev->master_mutex);
-	linux_mutex_destroy(&dev->ctxlist_mutex);
-	linux_mutex_destroy(&dev->clientlist_mutex);
-	linux_mutex_destroy(&dev->filelist_mutex);
-	linux_mutex_destroy(&dev->struct_mutex);
-	spin_lock_destroy(&dev->event_lock);
-	spin_lock_destroy(&dev->buf_lock);
-#else
+	put_device(dev->dev);
 	mutex_destroy(&dev->master_mutex);
 	mutex_destroy(&dev->ctxlist_mutex);
 	mutex_destroy(&dev->clientlist_mutex);
 	mutex_destroy(&dev->filelist_mutex);
 	mutex_destroy(&dev->struct_mutex);
-#endif
 	return ret;
 }
 EXPORT_SYMBOL(drm_dev_init);
@@ -676,21 +603,13 @@ void drm_dev_fini(struct drm_device *dev)
 	drm_minor_free(dev, DRM_MINOR_PRIMARY);
 	drm_minor_free(dev, DRM_MINOR_RENDER);
 
-#ifdef __NetBSD__
-	linux_mutex_destroy(&dev->master_mutex);
-	linux_mutex_destroy(&dev->ctxlist_mutex);
-	linux_mutex_destroy(&dev->clientlist_mutex);
-	linux_mutex_destroy(&dev->filelist_mutex);
-	linux_mutex_destroy(&dev->struct_mutex);
-	spin_lock_destroy(&dev->event_lock);
-	spin_lock_destroy(&dev->buf_lock);
-#else
+	put_device(dev->dev);
+
 	mutex_destroy(&dev->master_mutex);
 	mutex_destroy(&dev->ctxlist_mutex);
 	mutex_destroy(&dev->clientlist_mutex);
 	mutex_destroy(&dev->filelist_mutex);
 	mutex_destroy(&dev->struct_mutex);
-#endif
 	kfree(dev->unique);
 }
 EXPORT_SYMBOL(drm_dev_fini);
@@ -782,19 +701,6 @@ void drm_dev_put(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_dev_put);
 
-/**
- * drm_dev_unref - Drop reference of a DRM device
- * @dev: device to drop reference of or NULL
- *
- * This is a compatibility alias for drm_dev_put() and should not be used by new
- * code.
- */
-void drm_dev_unref(struct drm_device *dev)
-{
-	drm_dev_put(dev);
-}
-EXPORT_SYMBOL(drm_dev_unref);
-
 static int create_compat_control_link(struct drm_device *dev)
 {
 	struct drm_minor *minor;
@@ -857,7 +763,7 @@ static void remove_compat_control_link(struct drm_device *dev)
  * @flags: Flags passed to the driver's .load() function
  *
  * Register the DRM device @dev with the system, advertise device to user-space
- * and start normal device operation. @dev must be allocated via drm_dev_alloc()
+ * and start normal device operation. @dev must be initialized via drm_dev_init()
  * previously.
  *
  * Never call this twice on any device!
@@ -876,9 +782,7 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 	struct drm_driver *driver = dev->driver;
 	int ret;
 
-#ifndef __NetBSD__
 	mutex_lock(&drm_global_mutex);
-#endif
 
 	ret = drm_minor_register(dev, DRM_MINOR_RENDER);
 	if (ret)
@@ -918,9 +822,7 @@ err_minors:
 	drm_minor_unregister(dev, DRM_MINOR_PRIMARY);
 	drm_minor_unregister(dev, DRM_MINOR_RENDER);
 out_unlock:
-#ifndef __NetBSD__
 	mutex_unlock(&drm_global_mutex);
-#endif
 	return ret;
 }
 EXPORT_SYMBOL(drm_dev_register);
@@ -956,10 +858,8 @@ void drm_dev_unregister(struct drm_device *dev)
 	if (dev->driver->unload)
 		dev->driver->unload(dev);
 
-#ifndef __NetBSD__		/* Moved to drm_pci.  */
 	if (dev->agp)
 		drm_pci_agp_destroy(dev);
-#endif
 
 	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
 		drm_legacy_rmmap(dev, r_list->map);
@@ -975,9 +875,9 @@ EXPORT_SYMBOL(drm_dev_unregister);
  * @dev: device of which to set the unique name
  * @name: unique name
  *
- * Sets the unique name of a DRM device using the specified string. Drivers
- * can use this at driver probe time if the unique name of the devices they
- * drive is static.
+ * Sets the unique name of a DRM device using the specified string. This is
+ * already done by drm_dev_init(), drivers should only override the default
+ * unique name for backwards compatibility reasons.
  *
  * Return: 0 on success or a negative error code on failure.
  */
@@ -989,8 +889,6 @@ int drm_dev_set_unique(struct drm_device *dev, const char *name)
 	return dev->unique ? 0 : -ENOMEM;
 }
 EXPORT_SYMBOL(drm_dev_set_unique);
-
-#ifndef __NetBSD__
 
 /*
  * DRM Core
@@ -1059,14 +957,12 @@ static void drm_core_exit(void)
 	drm_sysfs_destroy();
 	idr_destroy(&drm_minors_idr);
 	drm_connector_ida_destroy();
-	drm_global_release();
 }
 
 static int __init drm_core_init(void)
 {
 	int ret;
 
-	drm_global_init();
 	drm_connector_ida_init();
 	idr_init(&drm_minors_idr);
 
@@ -1099,5 +995,3 @@ error:
 
 module_init(drm_core_init);
 module_exit(drm_core_exit);
-
-#endif

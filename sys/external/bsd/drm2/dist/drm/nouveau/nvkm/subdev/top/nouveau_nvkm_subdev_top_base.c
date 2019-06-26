@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2016 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "priv.h"
 
 struct nvkm_top_device *
@@ -43,6 +38,22 @@ nvkm_top_device_new(struct nvkm_top *top)
 		list_add_tail(&info->head, &top->device);
 	}
 	return info;
+}
+
+u32
+nvkm_top_addr(struct nvkm_device *device, enum nvkm_devidx index)
+{
+	struct nvkm_top *top = device->top;
+	struct nvkm_top_device *info;
+
+	if (top) {
+		list_for_each_entry(info, &top->device, head) {
+			if (info->index == index)
+				return info->addr;
+		}
+	}
+
+	return 0;
 }
 
 u32

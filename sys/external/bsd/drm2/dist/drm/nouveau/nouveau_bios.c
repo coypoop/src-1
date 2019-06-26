@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2005-2006 Erik Waling
  * Copyright 2006 Stephane Marchesin
@@ -23,9 +21,6 @@
  * OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <drm/drmP.h>
 
@@ -1618,7 +1613,7 @@ void merge_like_dcb_entries(struct drm_device *dev, struct dcb_table *dcb)
 		for (j = i + 1; j < dcb->entries; j++) {
 			struct dcb_output *jent = &dcb->entry[j];
 
-			if (jent->type == DCB_OUTPUT_MERGED)
+			if (jent->type == 100) /* already merged entry */
 				continue;
 
 			/* merge heads field when all other fields the same */
@@ -1629,14 +1624,14 @@ void merge_like_dcb_entries(struct drm_device *dev, struct dcb_table *dcb)
 				NV_INFO(drm, "Merging DCB entries %d and %d\n",
 					 i, j);
 				ient->heads |= jent->heads;
-				jent->type = DCB_OUTPUT_MERGED;
+				jent->type = 100; /* dummy value */
 			}
 		}
 	}
 
 	/* Compact entries merged into others out of dcb */
 	for (i = 0; i < dcb->entries; i++) {
-		if (dcb->entry[i].type == DCB_OUTPUT_MERGED)
+		if (dcb->entry[i].type == 100)
 			continue;
 
 		if (newentries != i) {

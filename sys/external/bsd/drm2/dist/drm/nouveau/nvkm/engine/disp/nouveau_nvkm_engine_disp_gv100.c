@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2018 Red Hat Inc.
  *
@@ -21,9 +19,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "nv50.h"
 #include "head.h"
 #include "ior.h"
@@ -33,7 +28,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <core/gpuobj.h>
 #include <subdev/timer.h>
 
-static int
+int
 gv100_disp_wndw_cnt(struct nvkm_disp *disp, unsigned long *pmask)
 {
 	struct nvkm_device *device = disp->engine.subdev.device;
@@ -41,7 +36,7 @@ gv100_disp_wndw_cnt(struct nvkm_disp *disp, unsigned long *pmask)
 	return (nvkm_rd32(device, 0x610074) & 0x03f00000) >> 20;
 }
 
-static void
+void
 gv100_disp_super(struct work_struct *work)
 {
 	struct nv50_disp *disp =
@@ -108,10 +103,13 @@ gv100_disp_exception(struct nv50_disp *disp, int chid)
 	u32 mthd = (stat & 0x00000fff) << 2;
 	u32 data = nvkm_rd32(device, 0x611024 + (chid * 12));
 	u32 code = nvkm_rd32(device, 0x611028 + (chid * 12));
+	const struct nvkm_enum *reason =
+		nvkm_enum_find(nv50_disp_intr_error_type, type);
 
-	nvkm_error(subdev, "chid %d %08x [type %d mthd %04x] "
+	nvkm_error(subdev, "chid %d stat %08x reason %d [%s] mthd %04x "
 			   "data %08x code %08x\n",
-		   chid, stat, type, mthd, data, code);
+		   chid, stat, type, reason ? reason->name : "",
+		   mthd, data, code);
 
 	if (chid < ARRAY_SIZE(disp->chan) && disp->chan[chid]) {
 		switch (mthd) {
@@ -262,7 +260,7 @@ gv100_disp_intr_head_timing(struct nv50_disp *disp, int head)
 	}
 }
 
-static void
+void
 gv100_disp_intr(struct nv50_disp *disp)
 {
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
@@ -302,7 +300,7 @@ gv100_disp_intr(struct nv50_disp *disp)
 		nvkm_warn(subdev, "intr %08x\n", stat);
 }
 
-static void
+void
 gv100_disp_fini(struct nv50_disp *disp)
 {
 	struct nvkm_device *device = disp->base.engine.subdev.device;

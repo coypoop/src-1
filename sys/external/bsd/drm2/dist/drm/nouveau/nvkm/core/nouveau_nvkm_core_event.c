@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2013-2014 Red Hat Inc.
  *
@@ -21,9 +19,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <core/event.h>
 #include <core/notify.h>
 
@@ -83,8 +78,6 @@ nvkm_event_fini(struct nvkm_event *event)
 		kfree(event->refs);
 		event->refs = NULL;
 	}
-	spin_lock_destroy(&event->list_lock);
-	spin_lock_destroy(&event->refs_lock);
 }
 
 int

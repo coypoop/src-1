@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2017 Intel Corporation
  *
@@ -23,9 +21,6 @@
  * IN THE SOFTWARE.
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/slab.h>
 
@@ -97,7 +92,7 @@ void i915_syncmap_init(struct i915_syncmap **root)
 {
 	BUILD_BUG_ON_NOT_POWER_OF_2(KSYNCMAP);
 	BUILD_BUG_ON_NOT_POWER_OF_2(SHIFT);
-	BUILD_BUG_ON(KSYNCMAP > BITS_PER_BYTE * sizeof((*root)->bitmap));
+	BUILD_BUG_ON(KSYNCMAP > BITS_PER_TYPE((*root)->bitmap));
 	*root = NULL;
 }
 

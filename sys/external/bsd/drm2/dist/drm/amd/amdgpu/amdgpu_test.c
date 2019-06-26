@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
  * Copyright 2009 VMware, Inc.
@@ -24,9 +22,6 @@
  *
  * Authors: Michel Dänzer
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/drmP.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
@@ -121,7 +116,7 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 			goto out_lclean_unpin;
 		}
 
-		for (gart_start = gtt_map, gart_end = (void **)((char *)gtt_map + size);
+		for (gart_start = gtt_map, gart_end = gtt_map + size;
 		     gart_start < gart_end;
 		     gart_start++)
 			*gart_start = gart_start;
@@ -150,8 +145,8 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 			goto out_lclean_unpin;
 		}
 
-		for (gart_start = gtt_map, gart_end = (void **)((char *)gtt_map + size),
-		     vram_start = vram_map, vram_end = (void **)((char *)vram_map + size);
+		for (gart_start = gtt_map, gart_end = gtt_map + size,
+		     vram_start = vram_map, vram_end = vram_map + size;
 		     vram_start < vram_end;
 		     gart_start++, vram_start++) {
 			if (*vram_start != gart_start) {
@@ -161,10 +156,10 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 					  i, *vram_start, gart_start,
 					  (unsigned long long)
 					  (gart_addr - adev->gmc.gart_start +
-					   (char *)gart_start - (char *)gtt_map),
+					   (void*)gart_start - gtt_map),
 					  (unsigned long long)
 					  (vram_addr - adev->gmc.vram_start +
-					   (char *)gart_start - (char *)gtt_map));
+					   (void*)gart_start - gtt_map));
 				amdgpu_bo_kunmap(vram_obj);
 				goto out_lclean_unpin;
 			}
@@ -195,8 +190,8 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 			goto out_lclean_unpin;
 		}
 
-		for (gart_start = gtt_map, gart_end = (void **)((char *)gtt_map + size),
-		     vram_start = vram_map, vram_end = (void **)((char *)vram_map + size);
+		for (gart_start = gtt_map, gart_end = gtt_map + size,
+		     vram_start = vram_map, vram_end = vram_map + size;
 		     gart_start < gart_end;
 		     gart_start++, vram_start++) {
 			if (*gart_start != vram_start) {
@@ -206,10 +201,10 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 					  i, *gart_start, vram_start,
 					  (unsigned long long)
 					  (vram_addr - adev->gmc.vram_start +
-					   (char *)vram_start - (char *)vram_map),
+					   (void*)vram_start - vram_map),
 					  (unsigned long long)
 					  (gart_addr - adev->gmc.gart_start +
-					   (char *)vram_start - (char *)vram_map));
+					   (void*)vram_start - vram_map));
 				amdgpu_bo_kunmap(gtt_obj[i]);
 				goto out_lclean_unpin;
 			}
@@ -217,7 +212,7 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 
 		amdgpu_bo_kunmap(gtt_obj[i]);
 
-		DRM_INFO("Tested GTT->VRAM and VRAM->GTT copy for GTT offset 0x%"PRIx64"\n",
+		DRM_INFO("Tested GTT->VRAM and VRAM->GTT copy for GTT offset 0x%llx\n",
 			 gart_addr - adev->gmc.gart_start);
 		continue;
 

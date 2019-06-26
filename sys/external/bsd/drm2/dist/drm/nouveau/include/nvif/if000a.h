@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 #ifndef __NVIF_IF000A_H__
 #define __NVIF_IF000A_H__
 struct nvif_mem_v0 {

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * VCE_2_0 Register documentation
  *

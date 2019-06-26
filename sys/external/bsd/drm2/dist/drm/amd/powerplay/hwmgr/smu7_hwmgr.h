@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2015 Advanced Micro Devices, Inc.
  *
@@ -158,6 +156,7 @@ struct smu7_vbios_boot_state {
 struct smu7_display_timing {
 	uint32_t  min_clock_in_sr;
 	uint32_t  num_existing_displays;
+	uint32_t  vrefresh;
 };
 
 struct smu7_dpmlevel_enable_mask {

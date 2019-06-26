@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (c) 2010 Red Hat Inc.
  * Author : Dave Airlie <airlied@redhat.com>
@@ -8,9 +6,6 @@
  *
  * ATPX support for both Intel/ATI
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>

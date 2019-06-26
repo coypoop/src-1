@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_CLIENT_H__
 #define __NVKM_CLIENT_H__
@@ -13,11 +11,7 @@ struct nvkm_client {
 	u32 debug;
 
 	struct nvkm_client_notify *notify[32];
-#ifdef __NetBSD__
-	struct rb_tree objtree;
-#else
 	struct rb_root objroot;
-#endif
 
 	bool super;
 	void *data;
@@ -25,13 +19,6 @@ struct nvkm_client {
 
 	struct list_head umem;
 	spinlock_t lock;
-
-#ifdef __NetBSD__
-	bus_space_tag_t mmiot;
-	bus_space_handle_t mmioh;
-	bus_addr_t mmioaddr;
-	bus_size_t mmiosz;
-#endif
 };
 
 int  nvkm_client_new(const char *name, u64 device, const char *cfg,
@@ -50,7 +37,7 @@ int nvkm_client_notify_put(struct nvkm_client *, int index);
 #define nvif_printk(o,l,p,f,a...) do {                                         \
 	const struct nvkm_object *_object = (o);                               \
 	const struct nvkm_client *_client = _object->client;                   \
-	if (_client->debug == NV_DBG_##l || _client->debug > NV_DBG_##l)       \
+	if (_client->debug >= NV_DBG_##l)                                      \
 		printk(KERN_##p "nouveau: %s:%08x:%08x: "f, _client->name,     \
 		       _object->handle, _object->oclass, ##a);                 \
 } while(0)

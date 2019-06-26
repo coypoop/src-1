@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * UVD_6_0 Register documentation
  *

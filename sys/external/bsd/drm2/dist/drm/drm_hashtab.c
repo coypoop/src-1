@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /**************************************************************************
  *
  * Copyright 2006 Tungsten Graphics, Inc., Bismarck, ND. USA.
@@ -33,9 +31,6 @@
  * Authors:
  * Thomas Hellström <thomas-at-tungstengraphics-dot-com>
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <drm/drmP.h>
 #include <drm/drm_hashtab.h>

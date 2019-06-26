@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_TOP_PRIV_H__
 #define __NVKM_TOP_PRIV_H__

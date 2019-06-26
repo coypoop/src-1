@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2016 Intel Corporation
  *
@@ -23,9 +21,6 @@
  * IN THE SOFTWARE.
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/kernel.h>
 #include <asm/fpu/api.h>

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Created: Tue Feb  2 08:37:54 1999 by faith@valinux.com
  *
@@ -29,9 +27,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <drm/drmP.h>
 #include "drm_internal.h"
@@ -65,7 +60,6 @@ int drm_getmagic(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	struct drm_auth *auth = data;
 	int ret = 0;
 
-	idr_preload(GFP_KERNEL);
 	mutex_lock(&dev->master_mutex);
 	if (!file_priv->magic) {
 		ret = idr_alloc(&file_priv->master->magic_map, file_priv,
@@ -75,7 +69,6 @@ int drm_getmagic(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	}
 	auth->magic = file_priv->magic;
 	mutex_unlock(&dev->master_mutex);
-	idr_preload_end();
 
 	DRM_DEBUG("%u\n", auth->magic);
 
@@ -111,11 +104,7 @@ struct drm_master *drm_master_create(struct drm_device *dev)
 
 	kref_init(&master->refcount);
 	spin_lock_init(&master->lock.spinlock);
-#ifdef __NetBSD__
-	DRM_INIT_WAITQUEUE(&master->lock.lock_queue, "drmlockq");
-#else
 	init_waitqueue_head(&master->lock.lock_queue);
-#endif
 	idr_init(&master->magic_map);
 	master->dev = dev;
 
@@ -153,6 +142,7 @@ static int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
 
 	lockdep_assert_held_once(&dev->master_mutex);
 
+	WARN_ON(fpriv->is_master);
 	old_master = fpriv->master;
 	fpriv->master = drm_master_create(dev);
 	if (!fpriv->master) {
@@ -181,6 +171,7 @@ out_err:
 	/* drop references and restore old master on failure */
 	drm_master_put(&fpriv->master);
 	fpriv->master = old_master;
+	fpriv->is_master = 0;
 
 	return ret;
 }
@@ -360,10 +351,6 @@ static void drm_master_destroy(struct kref *kref)
 	idr_destroy(&master->magic_map);
 	idr_destroy(&master->leases);
 	idr_destroy(&master->lessee_idr);
-#ifdef __NetBSD__
-	DRM_DESTROY_WAITQUEUE(&master->lock.lock_queue);
-	spin_lock_destroy(&master->lock.spinlock);
-#endif
 
 	kfree(master->unique);
 	kfree(master);

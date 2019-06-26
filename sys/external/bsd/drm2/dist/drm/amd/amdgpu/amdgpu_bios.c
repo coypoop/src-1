@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2008 Advanced Micro Devices, Inc.
  * Copyright 2008 Red Hat Inc.
@@ -27,9 +25,6 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/drmP.h>
 #include "amdgpu.h"
 #include "atom.h"
@@ -93,38 +88,15 @@ static bool check_atom_bios(uint8_t *bios, size_t size)
  */
 static bool igp_read_bios_from_vram(struct amdgpu_device *adev)
 {
-#ifdef __NetBSD__
-	bus_space_tag_t bst;
-	bus_space_handle_t bsh;
-	bus_size_t size;
-#else
 	uint8_t __iomem *bios;
 	resource_size_t vram_base;
 	resource_size_t size = 256 * 1024; /* ??? */
-#endif
 
 	if (!(adev->flags & AMD_IS_APU))
 		if (amdgpu_device_need_post(adev))
 			return false;
 
 	adev->bios = NULL;
-#ifdef __NetBSD__
-	if (pci_mapreg_map(&adev->pdev->pd_pa, PCI_BAR(0),
-		/* XXX Dunno what type to expect here; fill me in...  */
-		pci_mapreg_type(adev->pdev->pd_pa.pa_pc,
-		    adev->pdev->pd_pa.pa_tag, PCI_BAR(0)),
-		BUS_SPACE_MAP_PREFETCHABLE, &bst, &bsh, NULL, &size))
-		return false;
-	if ((size == 0) ||
-	    (size < 256 * 1024) ||
-	    ((adev->bios = kmalloc(size, GFP_KERNEL)) == NULL)) {
-		bus_space_unmap(bst, bsh, size);
-		return false;
-	}
-	adev->bios_size = MIN(size, 256 * 1024);
-	bus_space_read_region_1(bst, bsh, 0, adev->bios, size);
-	bus_space_unmap(bst, bsh, size);
-#else
 	vram_base = pci_resource_start(adev->pdev, 0);
 	bios = ioremap_wc(vram_base, size);
 	if (!bios) {
@@ -139,7 +111,6 @@ static bool igp_read_bios_from_vram(struct amdgpu_device *adev)
 	adev->bios_size = size;
 	memcpy_fromio(adev->bios, bios, size);
 	iounmap(bios);
-#endif
 
 	if (!check_atom_bios(adev->bios, size)) {
 		kfree(adev->bios);
@@ -148,10 +119,6 @@ static bool igp_read_bios_from_vram(struct amdgpu_device *adev)
 
 	return true;
 }
-
-#ifdef __NetBSD__
-#  define	__iomem	__pci_rom_iomem
-#endif
 
 bool amdgpu_read_bios(struct amdgpu_device *adev)
 {
@@ -171,13 +138,7 @@ bool amdgpu_read_bios(struct amdgpu_device *adev)
 		return false;
 	}
 	adev->bios_size = size;
-#ifdef __NetBSD__
-	const bus_space_tag_t bst = adev->pdev->pd_rom_bst;
-	const bus_space_handle_t bsh = adev->pdev->pd_rom_found_bsh;
-	bus_space_read_region_1(bst, bsh, 0, adev->bios, size);
-#else
 	memcpy_fromio(adev->bios, bios, size);
-#endif
 	pci_unmap_rom(adev->pdev, bios);
 
 	if (!check_atom_bios(adev->bios, size)) {
@@ -228,15 +189,8 @@ static bool amdgpu_read_bios_from_rom(struct amdgpu_device *adev)
 	return true;
 }
 
-#ifdef __NetBSD__
-#  undef	__iomem
-#endif
-
 static bool amdgpu_read_platform_bios(struct amdgpu_device *adev)
 {
-#ifdef __NetBSD__		/* XXX amdgpu platform bios */
-	return false;
-#else
 	uint8_t __iomem *bios;
 	size_t size;
 
@@ -261,10 +215,8 @@ static bool amdgpu_read_platform_bios(struct amdgpu_device *adev)
 	adev->bios_size = size;
 
 	return true;
-#endif	/* __NetBSD__ */
 }
 
-/* XXX amdgpu acpi */
 #ifdef CONFIG_ACPI
 /* ATRM is used to get the BIOS on the discrete cards in
  * dual-gpu systems.

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVMXM_MXMS_H__
 #define __NVMXM_MXMS_H__

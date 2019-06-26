@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2006 Intel Corporation
  *
@@ -30,9 +28,6 @@
  *    Thomas Richter <thor@math.tu-berlin.de>
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include "dvo.h"
 

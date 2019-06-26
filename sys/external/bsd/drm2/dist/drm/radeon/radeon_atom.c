@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2008 Advanced Micro Devices, Inc.
  *
@@ -24,13 +22,12 @@
  * Author: Stanislaw Skowronek
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
+
+#include <drm/drm_util.h>
 
 #define ATOM_DEBUG
 
@@ -97,15 +94,6 @@ static void debug_print_spaces(int n)
 	while (n--)
 		printk("   ");
 }
-
-#ifdef __NetBSD__		/* XXX */
-/*
- * Kludge: NetBSD defines DEBUG to mean debugging is enabled.  Since
- * we're not going to include any more header files, it's OK for it to
- * be defined unconditionally after this.
- */
-#undef	DEBUG
-#endif
 
 #define DEBUG(...) do if (atom_debug) { printk(KERN_DEBUG __VA_ARGS__); } while (0)
 #define SDEBUG(...) do if (atom_debug) { printk(KERN_DEBUG); debug_print_spaces(debug_depth); printk(__VA_ARGS__); } while (0)

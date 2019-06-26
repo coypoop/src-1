@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_MEMORY_H__
 #define __NVKM_MEMORY_H__
@@ -27,15 +25,11 @@ struct nvkm_memory {
 	struct nvkm_tags *tags;
 };
 
-#ifdef __NetBSD__
-#  define	__nvkm_memory_iomem
-#  define	__iomem			__nvkm_memory_iomem
-#endif
-
 struct nvkm_memory_func {
 	void *(*dtor)(struct nvkm_memory *);
 	enum nvkm_memory_target (*target)(struct nvkm_memory *);
 	u8 (*page)(struct nvkm_memory *);
+	u64 (*bar2)(struct nvkm_memory *);
 	u64 (*addr)(struct nvkm_memory *);
 	u64 (*size)(struct nvkm_memory *);
 	void (*boot)(struct nvkm_memory *, struct nvkm_vmm *);
@@ -50,10 +44,6 @@ struct nvkm_memory_ptrs {
 	void (*wr32)(struct nvkm_memory *, u64 offset, u32 data);
 };
 
-#ifdef __NetBSD__
-#  undef	__iomem
-#endif
-
 void nvkm_memory_ctor(const struct nvkm_memory_func *, struct nvkm_memory *);
 int nvkm_memory_new(struct nvkm_device *, enum nvkm_memory_target,
 		    u64 size, u32 align, bool zero, struct nvkm_memory **);
@@ -67,6 +57,7 @@ void nvkm_memory_tags_put(struct nvkm_memory *, struct nvkm_device *,
 
 #define nvkm_memory_target(p) (p)->func->target(p)
 #define nvkm_memory_page(p) (p)->func->page(p)
+#define nvkm_memory_bar2(p) (p)->func->bar2(p)
 #define nvkm_memory_addr(p) (p)->func->addr(p)
 #define nvkm_memory_size(p) (p)->func->size(p)
 #define nvkm_memory_boot(p,v) (p)->func->boot((p),(v))

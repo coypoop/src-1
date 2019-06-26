@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2011 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "mxms.h"
 
 #include <subdev/bios.h>
@@ -164,7 +159,6 @@ mxm_dcb_sanitise_entry(struct nvkm_bios *bios, void *data, int idx, u16 pdcb)
 		break;
 	case 0x0e: /* eDP, falls through to DPint */
 		ctx.outp[1] |= 0x00010000;
-		/*FALLTHROUGH*/
 	case 0x07: /* DP internal, wtf is this?? HP8670w */
 		ctx.outp[1] |= 0x00000004; /* use_power_scripts? */
 		type = DCB_CONNECTOR_eDP;
@@ -185,7 +179,7 @@ mxm_show_unmatched(struct nvkm_mxm *mxm, u8 *data, void *info)
 	struct nvkm_subdev *subdev = &mxm->subdev;
 	u64 desc = *(u64 *)data;
 	if ((desc & 0xf0) != 0xf0)
-		nvkm_info(subdev, "unmatched output device %016"PRIx64"\n", desc);
+		nvkm_info(subdev, "unmatched output device %016llx\n", desc);
 	return true;
 }
 

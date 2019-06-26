@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2014 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include "nouveau_drv.h"
 #include "nouveau_usif.h"
@@ -117,11 +112,7 @@ usif_notify(const void *header, u32 length, const void *data, u32 size)
 		list_add_tail(&ntfy->p->base.link, &filp->event_list);
 		filp->event_space -= ntfy->p->e.base.length;
 	}
-#ifdef __NetBSD__
-	DRM_SPIN_WAKEUP_ONE(&filp->event_wait, &dev->event_lock);
-#else
 	wake_up_interruptible(&filp->event_wait);
-#endif
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 	atomic_set(&ntfy->enabled, 0);
 	return NVIF_NOTIFY_DROP;
@@ -358,9 +349,6 @@ usif_ioctl(struct drm_file *filp, void __user *user, u32 argc)
 	case NVIF_IOCTL_V0_NTFY_PUT:
 		ret = usif_notify_put(filp, data, size, argv, argc);
 		break;
-	case NVIF_IOCTL_V0_MAP_NETBSD:
-		/* Kernel-only kludge.  */
-		ret = -EINVAL;
 	default:
 		ret = nvif_client_ioctl(client, argv, argc);
 		break;

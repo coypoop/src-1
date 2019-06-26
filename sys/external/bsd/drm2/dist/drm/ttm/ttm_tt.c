@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
@@ -31,21 +29,16 @@
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #define pr_fmt(fmt) "[TTM] " fmt
 
 #include <linux/sched.h>
 #include <linux/pagemap.h>
 #include <linux/shmem_fs.h>
 #include <linux/file.h>
-#include <linux/printk.h>
 #include <drm/drm_cache.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_page_alloc.h>
 #include <drm/ttm/ttm_set_memory.h>
-#include <drm/bus_dma_hacks.h>
 
 /**
  * Allocates a ttm structure for the given BO.
@@ -83,16 +76,6 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
 	if (unlikely(bo->ttm == NULL))
 		return -ENOMEM;
 
-#ifdef __NetBSD__
-	/*
-	 * XXX This is gross.  We ought to do it the other way around:
-	 * set the uao to have the main uvm object's lock.  However,
-	 * uvm_obj_setlock is not safe on uvm_aobjs.
-	 */
-	mutex_obj_hold(bo->ttm->swap_storage->vmobjlock);
-	uvm_obj_setlock(&bo->uvmobj, bo->ttm->swap_storage->vmobjlock);
-#endif
-
 	return 0;
 }
 
@@ -110,20 +93,13 @@ static int ttm_tt_alloc_page_directory(struct ttm_tt *ttm)
 
 static int ttm_dma_tt_alloc_page_directory(struct ttm_dma_tt *ttm)
 {
-#ifdef __NetBSD__		/* dma addrs handled by bus_dma */
-	ttm->ttm.pages = kvmalloc_array(ttm->ttm.num_pages,
-	    sizeof(*ttm->ttm.pages), GFP_KERNEL | __GFP_ZERO);
-#else
 	ttm->ttm.pages = kvmalloc_array(ttm->ttm.num_pages,
 					  sizeof(*ttm->ttm.pages) +
 					  sizeof(*ttm->dma_address),
 					  GFP_KERNEL | __GFP_ZERO);
-#endif
 	if (!ttm->ttm.pages)
 		return -ENOMEM;
-#ifndef __NetBSD__
 	ttm->dma_address = (void *) (ttm->ttm.pages + ttm->ttm.num_pages);
-#endif
 	return 0;
 }
 
@@ -141,9 +117,6 @@ static int ttm_tt_set_page_caching(struct page *p,
 				   enum ttm_caching_state c_old,
 				   enum ttm_caching_state c_new)
 {
-#ifdef __NetBSD__
-	return 0;
-#else
 	int ret = 0;
 
 	if (PageHighMem(p))
@@ -164,7 +137,6 @@ static int ttm_tt_set_page_caching(struct page *p,
 		ret = ttm_set_pages_uc(p, 1);
 
 	return ret;
-#endif
 }
 
 /*
@@ -243,13 +215,11 @@ void ttm_tt_destroy(struct ttm_tt *ttm)
 	if (ttm->state == tt_unbound)
 		ttm_tt_unpopulate(ttm);
 
-#ifndef __NetBSD__
 	if (!(ttm->page_flags & TTM_PAGE_FLAG_PERSISTENT_SWAP) &&
 	    ttm->swap_storage)
 		fput(ttm->swap_storage);
 
 	ttm->swap_storage = NULL;
-#endif
 	ttm->func->destroy(ttm);
 }
 
@@ -261,16 +231,7 @@ void ttm_tt_init_fields(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
 	ttm->caching_state = tt_cached;
 	ttm->page_flags = page_flags;
 	ttm->state = tt_unpopulated;
-#ifdef __NetBSD__
-	WARN(size == 0, "zero-size allocation in %s, please file a NetBSD PR",
-	    __func__);	/* paranoia -- can't prove in five minutes */
-	size = MAX(size, 1);
-	ttm->swap_storage = uao_create(roundup2(size, PAGE_SIZE), 0);
-	uao_set_pgfl(ttm->swap_storage, bus_dmamem_pgfl(bdev->dmat));
-	TAILQ_INIT(&ttm->pglist);
-#else
 	ttm->swap_storage = NULL;
-#endif
 	ttm->sg = bo->sg;
 }
 
@@ -292,10 +253,6 @@ void ttm_tt_fini(struct ttm_tt *ttm)
 {
 	kvfree(ttm->pages);
 	ttm->pages = NULL;
-#ifdef __NetBSD__
-	uao_detach(ttm->swap_storage);
-	ttm->swap_storage = NULL;
-#endif
 }
 EXPORT_SYMBOL(ttm_tt_fini);
 
@@ -312,38 +269,7 @@ int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_buffer_object *bo,
 		pr_err("Failed allocating page table\n");
 		return -ENOMEM;
 	}
-#ifdef __NetBSD__
-    {
-	int error;
-
-	if (ttm->num_pages > (SIZE_MAX /
-		MIN(sizeof(ttm_dma->dma_segs[0]), PAGE_SIZE))) {
-		error = ENOMEM;
-		goto fail0;
-	}
-	ttm_dma->dma_segs = kmem_alloc((ttm->num_pages *
-		sizeof(ttm_dma->dma_segs[0])), KM_SLEEP);
-	error = bus_dmamap_create(ttm->bdev->dmat,
-	    (ttm->num_pages * PAGE_SIZE), ttm->num_pages, PAGE_SIZE, 0,
-	    BUS_DMA_WAITOK, &ttm_dma->dma_address);
-	if (error)
-		goto fail1;
-
 	return 0;
-
-fail2: __unused
-	bus_dmamap_destroy(ttm->bdev->dmat, ttm_dma->dma_address);
-fail1:	kmem_free(ttm_dma->dma_segs, (ttm->num_pages *
-		sizeof(ttm_dma->dma_segs[0])));
-	ttm_dma->dma_segs = NULL;
-fail0:	KASSERT(error);
-	ttm_tt_destroy(ttm);
-	/* XXX errno NetBSD->Linux */
-	return -error;
-    }
-#else
-	return 0;
-#endif
 }
 EXPORT_SYMBOL(ttm_dma_tt_init);
 
@@ -373,30 +299,18 @@ void ttm_dma_tt_fini(struct ttm_dma_tt *ttm_dma)
 {
 	struct ttm_tt *ttm = &ttm_dma->ttm;
 
-#ifdef __NetBSD__
-	bus_dmamap_destroy(ttm->bdev->dmat, ttm_dma->dma_address);
-	kmem_free(ttm_dma->dma_segs, (ttm->num_pages *
-		sizeof(ttm_dma->dma_segs[0])));
-#endif
-
 	if (ttm->pages)
 		kvfree(ttm->pages);
 	else
 		kvfree(ttm_dma->dma_address);
 	ttm->pages = NULL;
-
-#ifdef __NetBSD__
-	uao_detach(ttm->swap_storage);
-	ttm->swap_storage = NULL;
-#endif
-
 	ttm_dma->dma_address = NULL;
 }
 EXPORT_SYMBOL(ttm_dma_tt_fini);
 
 void ttm_tt_unbind(struct ttm_tt *ttm)
 {
-	int ret __diagused;
+	int ret;
 
 	if (ttm->state == tt_bound) {
 		ret = ttm->func->unbind(ttm);
@@ -430,75 +344,6 @@ int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem,
 }
 EXPORT_SYMBOL(ttm_tt_bind);
 
-#ifdef __NetBSD__
-/*
- * ttm_tt_wire(ttm)
- *
- *	Wire the uvm pages of ttm and fill the ttm page array.  ttm
- *	must be unpopulated, and must be marked swapped.  This does not
- *	change either state -- the caller is expected to include it
- *	among other operations for such a state transition.
- */
-int
-ttm_tt_wire(struct ttm_tt *ttm)
-{
-	struct uvm_object *uobj = ttm->swap_storage;
-	struct vm_page *page;
-	unsigned i;
-	int error;
-
-	KASSERTMSG((ttm->state == tt_unpopulated),
-	    "ttm_tt %p must be unpopulated for wiring, but state=%d",
-	    ttm, (int)ttm->state);
-	KASSERT(ISSET(ttm->page_flags, TTM_PAGE_FLAG_SWAPPED));
-	KASSERT(uobj != NULL);
-
-	error = uvm_obj_wirepages(uobj, 0, (ttm->num_pages << PAGE_SHIFT),
-	    &ttm->pglist);
-	if (error)
-		/* XXX errno NetBSD->Linux */
-		return -error;
-
-	i = 0;
-	TAILQ_FOREACH(page, &ttm->pglist, pageq.queue) {
-		KASSERT(i < ttm->num_pages);
-		KASSERT(ttm->pages[i] == NULL);
-		ttm->pages[i] = container_of(page, struct page, p_vmp);
-		i++;
-	}
-	KASSERT(i == ttm->num_pages);
-
-	/* Success!  */
-	return 0;
-}
-
-/*
- * ttm_tt_unwire(ttm)
- *
- *	Nullify the ttm page array and unwire the uvm pages of ttm.
- *	ttm must be unbound and must be marked swapped.  This does not
- *	change either state -- the caller is expected to include it
- *	among other operations for such a state transition.
- */
-void
-ttm_tt_unwire(struct ttm_tt *ttm)
-{
-	struct uvm_object *uobj = ttm->swap_storage;
-	unsigned i;
-
-	KASSERTMSG((ttm->state == tt_unbound),
-	    "ttm_tt %p must be unbound for unwiring, but state=%d",
-	    ttm, (int)ttm->state);
-	KASSERT(!ISSET(ttm->page_flags, TTM_PAGE_FLAG_SWAPPED));
-	KASSERT(uobj != NULL);
-
-	uvm_obj_unwirepages(uobj, 0, (ttm->num_pages << PAGE_SHIFT));
-	for (i = 0; i < ttm->num_pages; i++)
-		ttm->pages[i] = NULL;
-}
-#endif
-
-#ifndef __NetBSD__
 int ttm_tt_swapin(struct ttm_tt *ttm)
 {
 	struct address_space *swap_space;
@@ -540,24 +385,9 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 out_err:
 	return ret;
 }
-#endif
 
 int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistent_swap_storage)
 {
-#ifdef __NetBSD__
-
-	KASSERTMSG((ttm->state == tt_unpopulated || ttm->state == tt_unbound),
-	    "ttm_tt %p must be unpopulated or unbound for swapout,"
-	    " but state=%d",
-	    ttm, (int)ttm->state);
-	KASSERTMSG((ttm->caching_state == tt_cached),
-	    "ttm_tt %p must be cached for swapout, but caching_state=%d",
-	    ttm, (int)ttm->caching_state);
-	KASSERT(persistent_swap_storage == NULL);
-
-	ttm->bdev->driver->ttm_tt_swapout(ttm);
-	return 0;
-#else
 	struct address_space *swap_space;
 	struct file *swap_storage;
 	struct page *from_page;
@@ -614,7 +444,6 @@ out_err:
 		fput(swap_storage);
 
 	return ret;
-#endif
 }
 
 static void ttm_tt_add_mapping(struct ttm_tt *ttm)
@@ -646,7 +475,6 @@ int ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 
 static void ttm_tt_clear_mapping(struct ttm_tt *ttm)
 {
-#ifndef __NetBSD__
 	pgoff_t i;
 	struct page **page = ttm->pages;
 
@@ -657,7 +485,6 @@ static void ttm_tt_clear_mapping(struct ttm_tt *ttm)
 		(*page)->mapping = NULL;
 		(*page++)->index = 0;
 	}
-#endif
 }
 
 void ttm_tt_unpopulate(struct ttm_tt *ttm)

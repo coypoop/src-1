@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2017 Advanced Micro Devices, Inc.
  *
@@ -44,5 +42,7 @@ struct display_mode_lib {
 };
 
 void dml_init_instance(struct display_mode_lib *lib, enum dml_project project);
+
+const char *dml_get_status_message(enum dm_validation_status status);
 
 #endif

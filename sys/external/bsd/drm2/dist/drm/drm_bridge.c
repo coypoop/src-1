@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (c) 2014 Samsung Electronics Co., Ltd
  *
@@ -22,9 +20,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/err.h>
 #include <linux/module.h>
@@ -65,13 +60,8 @@ __KERNEL_RCSID(0, "$NetBSD$");
  * Both legacy CRTC helpers and the new atomic modeset helpers support bridges.
  */
 
-#ifdef __NetBSD__
-static struct mutex bridge_lock;
-static struct list_head bridge_list = LIST_HEAD_INIT(bridge_list);
-#else
 static DEFINE_MUTEX(bridge_lock);
 static LIST_HEAD(bridge_list);
-#endif
 
 /**
  * drm_bridge_add - add the given bridge to the global bridge list
@@ -113,6 +103,10 @@ EXPORT_SYMBOL(drm_bridge_remove);
  *
  * If non-NULL the previous bridge must be already attached by a call to this
  * function.
+ *
+ * Note that bridges attached to encoders are auto-detached during encoder
+ * cleanup in drm_encoder_cleanup(), so drm_bridge_attach() should generally
+ * *not* be balanced with a drm_bridge_detach() in driver code.
  *
  * RETURNS:
  * Zero on success, error code on failure
@@ -300,8 +294,8 @@ EXPORT_SYMBOL(drm_bridge_post_disable);
  * Note: the bridge passed should be the one closest to the encoder
  */
 void drm_bridge_mode_set(struct drm_bridge *bridge,
-			struct drm_display_mode *mode,
-			struct drm_display_mode *adjusted_mode)
+			 const struct drm_display_mode *mode,
+			 const struct drm_display_mode *adjusted_mode)
 {
 	if (!bridge)
 		return;

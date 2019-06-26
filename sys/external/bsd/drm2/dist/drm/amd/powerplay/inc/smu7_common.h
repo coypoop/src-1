@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2014 Advanced Micro Devices, Inc.
  *
@@ -38,10 +36,6 @@
 
 #include "gmc/gmc_8_1_d.h"
 #include "gmc/gmc_8_1_sh_mask.h"
-
-#include "bif/bif_5_0_d.h"
-#include "bif/bif_5_0_sh_mask.h"
-
 
 #include "bif/bif_5_0_d.h"
 #include "bif/bif_5_0_sh_mask.h"

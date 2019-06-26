@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (c) 2016, NVIDIA CORPORATION. All rights reserved.
  *
@@ -22,9 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include "ls_ucode.h"
 #include "acr.h"

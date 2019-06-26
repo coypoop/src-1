@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * 32-bit ioctl compatibility routines for the i915 DRM.
  *
@@ -28,13 +26,10 @@
  *
  * Author: Alan Hourihane <alanh@fairlite.demon.co.uk>
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/compat.h>
 
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
+#include <drm/drm_ioctl.h>
 #include "i915_drv.h"
 
 struct drm_i915_getparam32 {
@@ -57,7 +52,7 @@ static int compat_i915_getparam(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	request = compat_alloc_user_space(sizeof(*request));
-	if (!access_ok(VERIFY_WRITE, request, sizeof(*request)) ||
+	if (!access_ok(request, sizeof(*request)) ||
 	    __put_user(req32.param, &request->param) ||
 	    __put_user((void __user *)(unsigned long)req32.value,
 		       &request->value))

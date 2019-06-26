@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
@@ -114,7 +109,6 @@ nv84_fence_context_del(struct nouveau_channel *chan)
 int
 nv84_fence_context_new(struct nouveau_channel *chan)
 {
-	struct nouveau_cli *cli = (void *)chan->user.client;
 	struct nv84_fence_priv *priv = chan->drm->fence;
 	struct nv84_fence_chan *fctx;
 	int ret;
@@ -132,7 +126,7 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 	fctx->base.sequence = nv84_fence_read(chan);
 
 	mutex_lock(&priv->mutex);
-	ret = nouveau_vma_new(priv->bo, &cli->vmm, &fctx->vma);
+	ret = nouveau_vma_new(priv->bo, chan->vmm, &fctx->vma);
 	mutex_unlock(&priv->mutex);
 
 	if (ret)
@@ -178,11 +172,6 @@ nv84_fence_destroy(struct nouveau_drm *drm)
 		nouveau_bo_unpin(priv->bo);
 	nouveau_bo_ref(NULL, &priv->bo);
 	drm->fence = NULL;
-#ifdef __NetBSD__
-	linux_mutex_destroy(&priv->mutex);
-#else
-	mutex_destroy(&priv->mutex);
-#endif
 	kfree(priv);
 }
 
@@ -205,11 +194,7 @@ nv84_fence_create(struct nouveau_drm *drm)
 
 	priv->base.uevent = true;
 
-#ifdef __NetBSD__
-	linux_mutex_init(&priv->mutex);
-#else
 	mutex_init(&priv->mutex);
-#endif
 
 	/* Use VRAM if there is any ; otherwise fallback to system memory */
 	domain = drm->client.device.info.ram_size != 0 ? TTM_PL_FLAG_VRAM :

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2014 Advanced Micro Devices, Inc.
  *
@@ -41,9 +39,6 @@
  * The fixed-size internal queue means that it's possible for us to lose
  * interrupts because we have no back-pressure to the hardware.
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/slab.h>
 #include <linux/device.h>

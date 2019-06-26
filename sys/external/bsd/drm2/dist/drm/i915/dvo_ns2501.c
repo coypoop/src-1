@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  *
  * Copyright (c) 2012 Gilles Dartiguelongue, Thomas Richter
@@ -27,9 +25,6 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include "dvo.h"
 #include "i915_reg.h"

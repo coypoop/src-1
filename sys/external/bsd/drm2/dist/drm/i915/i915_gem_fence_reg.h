@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2016 Intel Corporation
  *
@@ -52,4 +50,3 @@ struct drm_i915_fence_reg {
 };
 
 #endif
-

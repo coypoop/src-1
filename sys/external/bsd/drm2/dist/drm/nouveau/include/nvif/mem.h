@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 #ifndef __NVIF_MEM_H__
 #define __NVIF_MEM_H__
 #include "mmu.h"

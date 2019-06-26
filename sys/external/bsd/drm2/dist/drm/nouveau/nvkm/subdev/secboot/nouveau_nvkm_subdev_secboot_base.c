@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (c) 2016, NVIDIA CORPORATION. All rights reserved.
  *
@@ -82,9 +80,6 @@
  * 5) The managed falcons remain in LS mode and can be started.
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include "priv.h"
 #include "acr.h"

@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "user.h"
 
 #include <core/client.h>
@@ -93,7 +88,7 @@ nvkm_dmaobj_ctor(const struct nvkm_dmaobj_func *func, struct nvkm_dma *dma,
 	nvif_ioctl(parent, "create dma size %d\n", *psize);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
 		nvif_ioctl(parent, "create dma vers %d target %d access %d "
-				   "start %016"PRIx64" limit %016"PRIx64"\n",
+				   "start %016llx limit %016llx\n",
 			   args->v0.version, args->v0.target, args->v0.access,
 			   args->v0.start, args->v0.limit);
 		dmaobj->target = args->v0.target;

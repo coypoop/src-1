@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2012 Red Hat
  *
@@ -28,9 +26,6 @@
  *
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/export.h>
 #include <linux/dma-buf.h>
 #include <linux/rbtree.h>
@@ -39,103 +34,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <drm/drmP.h>
 
 #include "drm_internal.h"
-
-#ifdef __NetBSD__
-
-#include <drm/bus_dma_hacks.h>
-
-/*
- * We use struct sg_table just to pass around an array of pages from
- * one device to another in drm prime.  Since this is _not_ a complete
- * implementation of Linux's sg table abstraction (e.g., it does not
- * remember DMA addresses and RAM pages separately, and it doesn't
- * support the nested chained iteration of Linux scatterlists), we
- * isolate it to this file and make all callers go through a few extra
- * subroutines (drm_prime_sg_size, drm_prime_sg_free, &c.) to use it.
- * Don't use this outside drm prime!
- */
-
-struct sg_table {
-	paddr_t		*sgt_pgs;
-	unsigned	sgt_npgs;
-};
-
-static int
-sg_alloc_table_from_pages(struct sg_table *sgt, struct page **pages,
-    unsigned npages, bus_size_t offset, bus_size_t size, gfp_t gfp)
-{
-	unsigned i;
-
-	KASSERT(offset == 0);
-	KASSERT(size == npages << PAGE_SHIFT);
-
-	sgt->sgt_pgs = kcalloc(npages, sizeof(sgt->sgt_pgs[0]), gfp);
-	if (sgt->sgt_pgs == NULL)
-		return -ENOMEM;
-	sgt->sgt_npgs = npages;
-
-	for (i = 0; i < npages; i++)
-		sgt->sgt_pgs[i] = VM_PAGE_TO_PHYS(&pages[i]->p_vmp);
-
-	return 0;
-}
-
-static int
-sg_alloc_table_from_pglist(struct sg_table *sgt, const struct pglist *pglist,
-    unsigned npages, bus_size_t offset, bus_size_t size, gfp_t gfp)
-{
-	struct vm_page *pg;
-	unsigned i;
-
-	KASSERT(offset == 0);
-	KASSERT(size == npages << PAGE_SHIFT);
-
-	sgt->sgt_pgs = kcalloc(npages, sizeof(sgt->sgt_pgs[0]), gfp);
-	if (sgt->sgt_pgs == NULL)
-		return -ENOMEM;
-	sgt->sgt_npgs = npages;
-
-	i = 0;
-	TAILQ_FOREACH(pg, pglist, pageq.queue) {
-		KASSERT(i < npages);
-		sgt->sgt_pgs[i] = VM_PAGE_TO_PHYS(pg);
-	}
-	KASSERT(i == npages);
-
-	return 0;
-}
-
-static int
-sg_alloc_table_from_bus_dmamem(struct sg_table *sgt, bus_dma_tag_t dmat,
-    const bus_dma_segment_t *segs, int nsegs, gfp_t gfp)
-{
-	int ret;
-
-	KASSERT(nsegs > 0);
-	sgt->sgt_pgs = kcalloc(nsegs, sizeof(sgt->sgt_pgs[0]), gfp);
-	if (sgt->sgt_pgs == NULL)
-		return -ENOMEM;
-	sgt->sgt_npgs = nsegs;
-
-	/* XXX errno NetBSD->Linux */
-	ret = -bus_dmamem_export_pages(dmat, segs, nsegs, sgt->sgt_pgs,
-	    sgt->sgt_npgs);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-static void
-sg_free_table(struct sg_table *sgt)
-{
-
-	kfree(sgt->sgt_pgs);
-	sgt->sgt_pgs = NULL;
-	sgt->sgt_npgs = 0;
-}
-
-#endif	/* __NetBSD__ */
 
 /*
  * DMA-BUF/GEM Object references and lifetime overview:
@@ -301,7 +199,6 @@ int drm_gem_map_attach(struct dma_buf *dma_buf,
 {
 	struct drm_prime_attachment *prime_attach;
 	struct drm_gem_object *obj = dma_buf->priv;
-	struct drm_device *dev = obj->dev;
 
 	prime_attach = kzalloc(sizeof(*prime_attach), GFP_KERNEL);
 	if (!prime_attach)
@@ -310,10 +207,7 @@ int drm_gem_map_attach(struct dma_buf *dma_buf,
 	prime_attach->dir = DMA_NONE;
 	attach->priv = prime_attach;
 
-	if (!dev->driver->gem_prime_pin)
-		return 0;
-
-	return dev->driver->gem_prime_pin(obj);
+	return drm_gem_pin(obj);
 }
 EXPORT_SYMBOL(drm_gem_map_attach);
 
@@ -330,19 +224,16 @@ void drm_gem_map_detach(struct dma_buf *dma_buf,
 {
 	struct drm_prime_attachment *prime_attach = attach->priv;
 	struct drm_gem_object *obj = dma_buf->priv;
-	struct drm_device *dev = obj->dev;
 
 	if (prime_attach) {
 		struct sg_table *sgt = prime_attach->sgt;
 
 		if (sgt) {
-#ifndef __NetBSD__		/* We map/unmap elsewhere.  */
 			if (prime_attach->dir != DMA_NONE)
 				dma_unmap_sg_attrs(attach->dev, sgt->sgl,
 						   sgt->nents,
 						   prime_attach->dir,
 						   DMA_ATTR_SKIP_CPU_SYNC);
-#endif
 			sg_free_table(sgt);
 		}
 
@@ -351,8 +242,7 @@ void drm_gem_map_detach(struct dma_buf *dma_buf,
 		attach->priv = NULL;
 	}
 
-	if (dev->driver->gem_prime_unpin)
-		dev->driver->gem_prime_unpin(obj);
+	drm_gem_unpin(obj);
 }
 EXPORT_SYMBOL(drm_gem_map_detach);
 
@@ -414,12 +304,12 @@ struct sg_table *drm_gem_map_dma_buf(struct dma_buf_attachment *attach,
 	if (WARN_ON(prime_attach->dir != DMA_NONE))
 		return ERR_PTR(-EBUSY);
 
-	sgt = obj->dev->driver->gem_prime_get_sg_table(obj);
+	if (obj->funcs)
+		sgt = obj->funcs->get_sg_table(obj);
+	else
+		sgt = obj->dev->driver->gem_prime_get_sg_table(obj);
+
 	if (!IS_ERR(sgt)) {
-#ifdef __NetBSD__		/* We map/unmap elsewhere.  */
-		prime_attach->sgt = sgt;
-		prime_attach->dir = dir;
-#else
 		if (!dma_map_sg_attrs(attach->dev, sgt->sgl, sgt->nents, dir,
 				      DMA_ATTR_SKIP_CPU_SYNC)) {
 			sg_free_table(sgt);
@@ -429,7 +319,6 @@ struct sg_table *drm_gem_map_dma_buf(struct dma_buf_attachment *attach,
 			prime_attach->sgt = sgt;
 			prime_attach->dir = dir;
 		}
-#endif
 	}
 
 	return sgt;
@@ -514,12 +403,13 @@ EXPORT_SYMBOL(drm_gem_dmabuf_release);
 void *drm_gem_dmabuf_vmap(struct dma_buf *dma_buf)
 {
 	struct drm_gem_object *obj = dma_buf->priv;
-	struct drm_device *dev = obj->dev;
+	void *vaddr;
 
-	if (dev->driver->gem_prime_vmap)
-		return dev->driver->gem_prime_vmap(obj);
-	else
-		return NULL;
+	vaddr = drm_gem_vmap(obj);
+	if (IS_ERR(vaddr))
+		vaddr = NULL;
+
+	return vaddr;
 }
 EXPORT_SYMBOL(drm_gem_dmabuf_vmap);
 
@@ -534,40 +424,10 @@ EXPORT_SYMBOL(drm_gem_dmabuf_vmap);
 void drm_gem_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
 {
 	struct drm_gem_object *obj = dma_buf->priv;
-	struct drm_device *dev = obj->dev;
 
-	if (dev->driver->gem_prime_vunmap)
-		dev->driver->gem_prime_vunmap(obj, vaddr);
+	drm_gem_vunmap(obj, vaddr);
 }
 EXPORT_SYMBOL(drm_gem_dmabuf_vunmap);
-
-/**
- * drm_gem_dmabuf_kmap - map implementation for GEM
- * @dma_buf: buffer to be mapped
- * @page_num: page number within the buffer
- *
- * Not implemented. This can be used as the &dma_buf_ops.map callback.
- */
-void *drm_gem_dmabuf_kmap(struct dma_buf *dma_buf, unsigned long page_num)
-{
-	return NULL;
-}
-EXPORT_SYMBOL(drm_gem_dmabuf_kmap);
-
-/**
- * drm_gem_dmabuf_kunmap - unmap implementation for GEM
- * @dma_buf: buffer to be unmapped
- * @page_num: page number within the buffer
- * @addr: virtual address of the buffer
- *
- * Not implemented. This can be used as the &dma_buf_ops.unmap callback.
- */
-void drm_gem_dmabuf_kunmap(struct dma_buf *dma_buf, unsigned long page_num,
-			   void *addr)
-{
-
-}
-EXPORT_SYMBOL(drm_gem_dmabuf_kunmap);
 
 /**
  * drm_gem_dmabuf_mmap - dma_buf mmap implementation for GEM
@@ -579,14 +439,7 @@ EXPORT_SYMBOL(drm_gem_dmabuf_kunmap);
  *
  * Returns 0 on success or a negative error code on failure.
  */
-#ifdef __NetBSD__
-int
-drm_gem_dmabuf_mmap(struct dma_buf *dma_buf, off_t *offp, size_t size,
-    int prot, int *flagsp, int *advicep, struct uvm_object **uobjp,
-    int *maxprotp)
-#else
 int drm_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)
-#endif
 {
 	struct drm_gem_object *obj = dma_buf->priv;
 	struct drm_device *dev = obj->dev;
@@ -594,12 +447,7 @@ int drm_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)
 	if (!dev->driver->gem_prime_mmap)
 		return -ENOSYS;
 
-#ifdef __NetBSD__
-	return dev->driver->gem_prime_mmap(obj, offp, size, prot, flagsp,
-	    advicep, uobjp, maxprotp);
-#else
 	return dev->driver->gem_prime_mmap(obj, vma);
-#endif
 }
 EXPORT_SYMBOL(drm_gem_dmabuf_mmap);
 
@@ -609,8 +457,6 @@ static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {
 	.map_dma_buf = drm_gem_map_dma_buf,
 	.unmap_dma_buf = drm_gem_unmap_dma_buf,
 	.release = drm_gem_dmabuf_release,
-	.map = drm_gem_dmabuf_kmap,
-	.unmap = drm_gem_dmabuf_kunmap,
 	.mmap = drm_gem_dmabuf_mmap,
 	.vmap = drm_gem_dmabuf_vmap,
 	.vunmap = drm_gem_dmabuf_vunmap,
@@ -652,10 +498,8 @@ struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
 				     int flags)
 {
 	struct dma_buf_export_info exp_info = {
-#ifndef __NetBSD__
 		.exp_name = KBUILD_MODNAME, /* white lie for debug */
 		.owner = dev->driver->fops->owner,
-#endif
 		.ops = &drm_gem_prime_dmabuf_ops,
 		.size = obj->size,
 		.flags = flags,
@@ -681,7 +525,12 @@ static struct dma_buf *export_and_register_object(struct drm_device *dev,
 		return dmabuf;
 	}
 
-	dmabuf = dev->driver->gem_prime_export(dev, obj, flags);
+	if (obj->funcs && obj->funcs->export)
+		dmabuf = obj->funcs->export(obj, flags);
+	else if (dev->driver->gem_prime_export)
+		dmabuf = dev->driver->gem_prime_export(dev, obj, flags);
+	else
+		dmabuf = drm_gem_prime_export(dev, obj, flags);
 	if (IS_ERR(dmabuf)) {
 		/* normally the created dma-buf takes ownership of the ref,
 		 * but if that fails then drop the ref
@@ -801,6 +650,52 @@ out_unlock:
 EXPORT_SYMBOL(drm_gem_prime_handle_to_fd);
 
 /**
+ * drm_gem_prime_mmap - PRIME mmap function for GEM drivers
+ * @obj: GEM object
+ * @vma: Virtual address range
+ *
+ * This function sets up a userspace mapping for PRIME exported buffers using
+ * the same codepath that is used for regular GEM buffer mapping on the DRM fd.
+ * The fake GEM offset is added to vma->vm_pgoff and &drm_driver->fops->mmap is
+ * called to set up the mapping.
+ *
+ * Drivers can use this as their &drm_driver.gem_prime_mmap callback.
+ */
+int drm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
+{
+	struct drm_file *priv;
+	struct file *fil;
+	int ret;
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	fil = kzalloc(sizeof(*fil), GFP_KERNEL);
+	if (!priv || !fil) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* Used by drm_gem_mmap() to lookup the GEM object */
+	priv->minor = obj->dev->primary;
+	fil->private_data = priv;
+
+	ret = drm_vma_node_allow(&obj->vma_node, priv);
+	if (ret)
+		goto out;
+
+	vma->vm_pgoff += drm_vma_node_start(&obj->vma_node);
+
+	ret = obj->dev->driver->fops->mmap(fil, vma);
+
+	drm_vma_node_revoke(&obj->vma_node, priv);
+out:
+	kfree(priv);
+	kfree(fil);
+
+	return ret;
+}
+EXPORT_SYMBOL(drm_gem_prime_mmap);
+
+/**
  * drm_gem_prime_import_dev - core implementation of the import callback
  * @dev: drm_device to import into
  * @dma_buf: dma-buf object to import
@@ -914,7 +809,10 @@ int drm_gem_prime_fd_to_handle(struct drm_device *dev,
 
 	/* never seen this one, need to import */
 	mutex_lock(&dev->object_name_lock);
-	obj = dev->driver->gem_prime_import(dev, dma_buf);
+	if (dev->driver->gem_prime_import)
+		obj = dev->driver->gem_prime_import(dev, dma_buf);
+	else
+		obj = drm_gem_prime_import(dev, dma_buf);
 	if (IS_ERR(obj)) {
 		ret = PTR_ERR(obj);
 		goto out_unlock;
@@ -966,7 +864,7 @@ int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
 	struct drm_prime_handle *args = data;
 
 	if (!drm_core_check_feature(dev, DRIVER_PRIME))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (!dev->driver->prime_handle_to_fd)
 		return -ENOSYS;
@@ -985,7 +883,7 @@ int drm_prime_fd_to_handle_ioctl(struct drm_device *dev, void *data,
 	struct drm_prime_handle *args = data;
 
 	if (!drm_core_check_feature(dev, DRIVER_PRIME))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (!dev->driver->prime_fd_to_handle)
 		return -ENOSYS;
@@ -1025,125 +923,6 @@ out:
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL(drm_prime_pages_to_sg);
-
-#ifdef __NetBSD__
-
-struct sg_table *
-drm_prime_bus_dmamem_to_sg(bus_dma_tag_t dmat, const bus_dma_segment_t *segs,
-    int nsegs)
-{
-	struct sg_table *sg;
-	int ret;
-
-	sg = kmalloc(sizeof(*sg), GFP_KERNEL);
-	if (sg == NULL) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	ret = sg_alloc_table_from_bus_dmamem(sg, dmat, segs, nsegs,
-	    GFP_KERNEL);
-	if (ret)
-		goto out;
-
-	return sg;
-out:
-	kfree(sg);
-	return ERR_PTR(ret);
-}
-
-struct sg_table *
-drm_prime_pglist_to_sg(struct pglist *pglist, unsigned npages)
-{
-	struct sg_table *sg;
-	int ret;
-
-	sg = kmalloc(sizeof(*sg), GFP_KERNEL);
-	if (sg == NULL) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	ret = sg_alloc_table_from_pglist(sg, pglist, 0, npages << PAGE_SHIFT,
-	    npages, GFP_KERNEL);
-	if (ret)
-		goto out;
-
-	return sg;
-
-out:
-	kfree(sg);
-	return ERR_PTR(ret);
-}
-
-bus_size_t
-drm_prime_sg_size(struct sg_table *sg)
-{
-
-	return sg->sgt_npgs << PAGE_SHIFT;
-}
-
-void
-drm_prime_sg_free(struct sg_table *sg)
-{
-
-	sg_free_table(sg);
-	kfree(sg);
-}
-
-int
-drm_prime_sg_to_bus_dmamem(bus_dma_tag_t dmat, bus_dma_segment_t *segs,
-    int nsegs, int *rsegs, const struct sg_table *sgt)
-{
-
-	/* XXX errno NetBSD->Linux */
-	return -bus_dmamem_import_pages(dmat, segs, nsegs, rsegs, sgt->sgt_pgs,
-	    sgt->sgt_npgs);
-}
-
-int
-drm_prime_bus_dmamap_load_sgt(bus_dma_tag_t dmat, bus_dmamap_t map,
-    struct sg_table *sgt)
-{
-	bus_dma_segment_t *segs;
-	bus_size_t size = drm_prime_sg_size(sgt);
-	int nsegs = sgt->sgt_npgs;
-	int ret;
-
-	segs = kcalloc(sgt->sgt_npgs, sizeof(segs[0]), GFP_KERNEL);
-	if (segs == NULL) {
-		ret = -ENOMEM;
-		goto out0;
-	}
-
-	ret = drm_prime_sg_to_bus_dmamem(dmat, segs, nsegs, &nsegs, sgt);
-	if (ret)
-		goto out1;
-	KASSERT(nsegs <= sgt->sgt_npgs);
-
-	/* XXX errno NetBSD->Linux */
-	ret = -bus_dmamap_load_raw(dmat, map, segs, nsegs, size,
-	    BUS_DMA_NOWAIT);
-	if (ret)
-		goto out1;
-
-out1:	kfree(segs);
-out0:	return ret;
-}
-
-bool
-drm_prime_sg_importable(bus_dma_tag_t dmat, struct sg_table *sgt)
-{
-	unsigned i;
-
-	for (i = 0; i < sgt->sgt_npgs; i++) {
-		if (bus_dmatag_bounces_paddr(dmat, sgt->sgt_pgs[i]))
-			return false;
-	}
-	return true;
-}
-
-#else  /* !__NetBSD__ */
 
 /**
  * drm_prime_sg_to_page_addr_arrays - convert an sg table into a page array
@@ -1188,8 +967,6 @@ int drm_prime_sg_to_page_addr_arrays(struct sg_table *sgt, struct page **pages,
 }
 EXPORT_SYMBOL(drm_prime_sg_to_page_addr_arrays);
 
-#endif	/* __NetBSD__ */
-
 /**
  * drm_prime_gem_destroy - helper to clean up a PRIME-imported GEM object
  * @obj: GEM object which was created from a dma-buf
@@ -1214,11 +991,7 @@ EXPORT_SYMBOL(drm_prime_gem_destroy);
 
 void drm_prime_init_file_private(struct drm_prime_file_private *prime_fpriv)
 {
-#ifdef __NetBSD__
-	linux_mutex_init(&prime_fpriv->lock);
-#else
 	mutex_init(&prime_fpriv->lock);
-#endif
 	prime_fpriv->dmabufs = RB_ROOT;
 	prime_fpriv->handles = RB_ROOT;
 }
@@ -1227,9 +1000,4 @@ void drm_prime_destroy_file_private(struct drm_prime_file_private *prime_fpriv)
 {
 	/* by now drm_gem_release should've made sure the list is empty */
 	WARN_ON(!RB_EMPTY_ROOT(&prime_fpriv->dmabufs));
-#ifdef __NetBSD__
-	linux_mutex_destroy(&prime_fpriv->lock);
-#else
-	mutex_destroy(&prime_fpriv->lock);
-#endif
 }

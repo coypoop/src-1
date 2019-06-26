@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NOUVEAU_DRV_H__
 #define __NOUVEAU_DRV_H__
@@ -62,11 +60,7 @@
 struct nouveau_channel;
 struct platform_device;
 
-#ifdef _LP64
 #define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
-#else
-#define DRM_FILE_PAGE_OFFSET (0xa0000000UL >> PAGE_SHIFT)
-#endif
 
 #include "nouveau_fence.h"
 #include "nouveau_bios.h"
@@ -102,6 +96,7 @@ struct nouveau_cli {
 	struct nvif_device device;
 	struct nvif_mmu mmu;
 	struct nouveau_vmm vmm;
+	struct nouveau_vmm svm;
 	const struct nvif_mclass *mem;
 
 	struct list_head head;
@@ -152,8 +147,6 @@ struct nouveau_drm {
 
 	/* TTM interface support */
 	struct {
-		struct drm_global_reference mem_global_ref;
-		struct ttm_bo_global_ref bo_global_ref;
 		struct ttm_bo_device bdev;
 		atomic_t validate_sequence;
 		int (*move)(struct nouveau_channel *,
@@ -189,7 +182,6 @@ struct nouveau_drm {
 	struct nouveau_fbdev *fbcon;
 	struct nvif_object nvsw;
 	struct nvif_object ntfy;
-	struct nvif_notify flip;
 
 	/* nv10-nv40 tiling regions */
 	struct {
@@ -200,8 +192,6 @@ struct nouveau_drm {
 	/* modesetting */
 	struct nvbios vbios;
 	struct nouveau_display *display;
-	struct backlight_device *backlight;
-	struct list_head bl_connectors;
 	struct work_struct hpd_work;
 	struct work_struct fbcon_work;
 	int fbcon_new_state;
@@ -220,6 +210,10 @@ struct nouveau_drm {
 	bool have_disp_power_ref;
 
 	struct dev_pm_domain vga_pm_domain;
+
+	struct nouveau_svm *svm;
+
+	struct nouveau_dmem *dmem;
 };
 
 static inline struct nouveau_drm *
@@ -235,13 +229,8 @@ nouveau_drm_use_coherent_gpu_mapping(struct nouveau_drm *drm)
 	return !(mmu->type[drm->ttm.type_host[0]].type & NVIF_MEM_UNCACHED);
 }
 
-#ifdef __NetBSD__
-int nouveau_pmops_suspend(struct drm_device *);
-int nouveau_pmops_resume(struct drm_device *);
-#else
 int nouveau_pmops_suspend(struct device *);
 int nouveau_pmops_resume(struct device *);
-#endif
 bool nouveau_pmops_runtime(void);
 
 #include <nvkm/core/tegra.h>
@@ -255,10 +244,12 @@ void nouveau_drm_device_remove(struct drm_device *dev);
 	struct nouveau_cli *_cli = (c);                                        \
 	dev_##l(_cli->drm->dev->dev, "%s: "f, _cli->name, ##a);                \
 } while(0)
+
 #define NV_FATAL(drm,f,a...) NV_PRINTK(crit, &(drm)->client, f, ##a)
 #define NV_ERROR(drm,f,a...) NV_PRINTK(err, &(drm)->client, f, ##a)
 #define NV_WARN(drm,f,a...) NV_PRINTK(warn, &(drm)->client, f, ##a)
 #define NV_INFO(drm,f,a...) NV_PRINTK(info, &(drm)->client, f, ##a)
+
 #define NV_DEBUG(drm,f,a...) do {                                              \
 	if (unlikely(drm_debug & DRM_UT_DRIVER))                               \
 		NV_PRINTK(info, &(drm)->client, f, ##a);                       \
@@ -267,6 +258,12 @@ void nouveau_drm_device_remove(struct drm_device *dev);
 	if (unlikely(drm_debug & DRM_UT_ATOMIC))                               \
 		NV_PRINTK(info, &(drm)->client, f, ##a);                       \
 } while(0)
+
+#define NV_PRINTK_ONCE(l,c,f,a...) NV_PRINTK(l##_once,c,f, ##a)
+
+#define NV_ERROR_ONCE(drm,f,a...) NV_PRINTK_ONCE(err, &(drm)->client, f, ##a)
+#define NV_WARN_ONCE(drm,f,a...) NV_PRINTK_ONCE(warn, &(drm)->client, f, ##a)
+#define NV_INFO_ONCE(drm,f,a...) NV_PRINTK_ONCE(info, &(drm)->client, f, ##a)
 
 extern int nouveau_modeset;
 

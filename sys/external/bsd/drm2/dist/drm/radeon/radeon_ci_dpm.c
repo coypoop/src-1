@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2013 Advanced Micro Devices, Inc.
  *
@@ -22,9 +20,6 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/firmware.h>
 #include <drm/drmP.h>
@@ -69,7 +64,7 @@ static const struct ci_pt_defaults defaults_bonaire_xt =
 	{ 0x17C, 0x172, 0x180, 0x1BC, 0x1B3, 0x1BD, 0x206, 0x200, 0x203, 0x25D, 0x25A, 0x255, 0x2C3, 0x2C5, 0x2B4 }
 };
 
-static const struct ci_pt_defaults defaults_bonaire_pro __unused =
+static const struct ci_pt_defaults defaults_bonaire_pro =
 {
 	1, 0xF, 0xFD, 0x19, 5, 45, 0, 0x65062,
 	{ 0x8C,  0x23F, 0x244, 0xA6,  0x83,  0x85,  0x86,  0x86,  0x83,  0xDB,  0xDB,  0xDA,  0x67,  0x60,  0x5F  },
@@ -83,7 +78,7 @@ static const struct ci_pt_defaults defaults_saturn_xt =
 	{ 0x187, 0x187, 0x187, 0x1C7, 0x1C7, 0x1C7, 0x210, 0x210, 0x210, 0x266, 0x266, 0x266, 0x2C9, 0x2C9, 0x2C9 }
 };
 
-static const struct ci_pt_defaults defaults_saturn_pro __unused =
+static const struct ci_pt_defaults defaults_saturn_pro =
 {
 	1, 0xF, 0xFD, 0x19, 5, 55, 0, 0x30000,
 	{ 0x96,  0x21D, 0x23B, 0xA1,  0x85,  0x87,  0x83,  0x84,  0x81,  0xE6,  0xE6,  0xE6,  0x71,  0x6A,  0x6A  },
@@ -387,29 +382,29 @@ static int ci_min_max_v_gnbl_pm_lid_from_bapm_vddc(struct radeon_device *rdev)
 	struct ci_power_info *pi = ci_get_pi(rdev);
 	u8 *hi_vid = pi->smc_powertune_table.BapmVddCVidHiSidd;
 	u8 *lo_vid = pi->smc_powertune_table.BapmVddCVidLoSidd;
-	int i, vmin, vmax;
+	int i, min, max;
 
-	vmin = vmax = hi_vid[0];
+	min = max = hi_vid[0];
 	for (i = 0; i < 8; i++) {
 		if (0 != hi_vid[i]) {
-			if (vmin > hi_vid[i])
-				vmin = hi_vid[i];
-			if (vmax < hi_vid[i])
-				vmax = hi_vid[i];
+			if (min > hi_vid[i])
+				min = hi_vid[i];
+			if (max < hi_vid[i])
+				max = hi_vid[i];
 		}
 
 		if (0 != lo_vid[i]) {
-			if (vmin > lo_vid[i])
-				vmin = lo_vid[i];
-			if (vmax < lo_vid[i])
-				vmax = lo_vid[i];
+			if (min > lo_vid[i])
+				min = lo_vid[i];
+			if (max < lo_vid[i])
+				max = lo_vid[i];
 		}
 	}
 
-	if ((vmin == 0) || (vmax == 0))
+	if ((min == 0) || (max == 0))
 		return -EINVAL;
-	pi->smc_powertune_table.GnbLPMLMaxVid = (u8)vmax;
-	pi->smc_powertune_table.GnbLPMLMinVid = (u8)vmin;
+	pi->smc_powertune_table.GnbLPMLMaxVid = (u8)max;
+	pi->smc_powertune_table.GnbLPMLMinVid = (u8)min;
 
 	return 0;
 }
@@ -1414,8 +1409,6 @@ static void ci_set_dpm_event_sources(struct radeon_device *rdev, u32 sources)
 		tmp &= DPM_EVENT_SRC_MASK;
 		tmp |= DPM_EVENT_SRC(dpm_event_src);
 		WREG32_SMC(CG_THERMAL_CTRL, tmp);
-#else
-		(void)dpm_event_src;
 #endif
 
 		tmp = RREG32_SMC(GENERAL_PWRMGT);
@@ -2459,15 +2452,15 @@ static u8 ci_get_sleep_divider_id_from_clock(struct radeon_device *rdev,
 {
 	u32 i;
 	u32 tmp;
-	u32 vmin = (min_sclk_in_sr > CISLAND_MINIMUM_ENGINE_CLOCK) ?
+	u32 min = (min_sclk_in_sr > CISLAND_MINIMUM_ENGINE_CLOCK) ?
 		min_sclk_in_sr : CISLAND_MINIMUM_ENGINE_CLOCK;
 
-	if (sclk < vmin)
+	if (sclk < min)
 		return 0;
 
 	for (i = CISLAND_MAX_DEEPSLEEP_DIVIDER_ID;  ; i--) {
 		tmp = sclk / (1 << i);
-		if (tmp >= vmin || i == 0)
+		if (tmp >= min || i == 0)
 			break;
 	}
 
@@ -4876,10 +4869,12 @@ static void ci_request_link_speed_change_before_state_change(struct radeon_devic
 			pi->force_pcie_gen = RADEON_PCIE_GEN2;
 			if (current_link_speed == RADEON_PCIE_GEN2)
 				break;
+			/* fall through */
 		case RADEON_PCIE_GEN2:
 			if (radeon_acpi_pcie_performance_request(rdev, PCIE_PERF_REQ_PECI_GEN2, false) == 0)
 				break;
 #endif
+			/* fall through */
 		default:
 			pi->force_pcie_gen = ci_get_current_pcie_speed(rdev);
 			break;
@@ -5683,10 +5678,8 @@ int ci_dpm_init(struct radeon_device *rdev)
 	u16 data_offset, size;
 	u8 frev, crev;
 	struct ci_power_info *pi;
-#ifndef __NetBSD__		/* XXX radeon pcie */
-	enum pci_bus_speed speed_cap;
+	enum pci_bus_speed speed_cap = PCI_SPEED_UNKNOWN;
 	struct pci_dev *root = rdev->pdev->bus->self;
-#endif
 	int ret;
 
 	pi = kzalloc(sizeof(struct ci_power_info), GFP_KERNEL);
@@ -5694,8 +5687,8 @@ int ci_dpm_init(struct radeon_device *rdev)
 		return -ENOMEM;
 	rdev->pm.dpm.priv = pi;
 
-#ifndef __NetBSD__		/* XXX radeon pcie */
-	speed_cap = pcie_get_speed_cap(root);
+	if (!pci_is_root_bus(rdev->pdev->bus))
+		speed_cap = pcie_get_speed_cap(root);
 	if (speed_cap == PCI_SPEED_UNKNOWN) {
 		pi->sys_pcie_mask = 0;
 	} else {
@@ -5709,7 +5702,6 @@ int ci_dpm_init(struct radeon_device *rdev)
 		else
 			pi->sys_pcie_mask = RADEON_PCIE_SPEED_25;
 	}
-#endif
 	pi->force_pcie_gen = RADEON_PCIE_GEN_INVALID;
 
 	pi->pcie_gen_performance.max = RADEON_PCIE_GEN1;
@@ -5945,7 +5937,6 @@ int ci_dpm_init(struct radeon_device *rdev)
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
 void ci_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 						    struct seq_file *m)
 {
@@ -5959,7 +5950,6 @@ void ci_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 	seq_printf(m, "power level avg    sclk: %u mclk: %u\n",
 		   sclk, mclk);
 }
-#endif
 
 void ci_dpm_print_power_state(struct radeon_device *rdev,
 			      struct radeon_ps *rps)

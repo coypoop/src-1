@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * drm_irq.c IRQ and vblank support
  *
@@ -53,9 +51,6 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/drm_irq.h>
 #include <drm/drmP.h>
 
@@ -63,21 +58,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/vgaarb.h>
 #include <linux/export.h>
-#include <linux/moduleparam.h>
-
-#include <linux/atomic.h>
-#include <linux/ktime.h>
-#include <linux/math64.h>
-#include <linux/preempt.h>
-#include <linux/sched.h>
-
-#include <asm/bug.h>
-#include <asm/param.h>
-
-#ifdef __NetBSD__		/* XXX hurk -- selnotify &c. */
-#include <sys/poll.h>
-#include <sys/select.h>
-#endif
 
 #include "drm_internal.h"
 
@@ -118,22 +98,13 @@ __KERNEL_RCSID(0, "$NetBSD$");
  * Returns:
  * Zero on success or a negative error code on failure.
  */
-#ifdef __NetBSD__
-int drm_irq_install(struct drm_device *dev)
-#else
 int drm_irq_install(struct drm_device *dev, int irq)
-#endif
 {
 	int ret;
 	unsigned long sh_flags = 0;
 
-	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
-		return -EINVAL;
-
-#ifndef __NetBSD__
 	if (irq == 0)
 		return -EINVAL;
-#endif
 
 	/* Driver must have been initialized */
 	if (!dev->dev_private)
@@ -143,24 +114,18 @@ int drm_irq_install(struct drm_device *dev, int irq)
 		return -EBUSY;
 	dev->irq_enabled = true;
 
-#ifndef __NetBSD__
 	DRM_DEBUG("irq=%d\n", irq);
-#endif
 
 	/* Before installing handler */
 	if (dev->driver->irq_preinstall)
 		dev->driver->irq_preinstall(dev);
 
-	/* Install handler */
-	if (drm_core_check_feature(dev, DRIVER_IRQ_SHARED))
+	/* PCI devices require shared interrupts. */
+	if (dev->pdev)
 		sh_flags = IRQF_SHARED;
 
-#ifdef __NetBSD__
-	ret = (*dev->driver->request_irq)(dev, sh_flags);
-#else
 	ret = request_irq(irq, dev->driver->irq_handler,
 			  sh_flags, dev->driver->name, dev);
-#endif
 
 	if (ret < 0) {
 		dev->irq_enabled = false;
@@ -175,15 +140,9 @@ int drm_irq_install(struct drm_device *dev, int irq)
 		dev->irq_enabled = false;
 		if (drm_core_check_feature(dev, DRIVER_LEGACY))
 			vga_client_register(dev->pdev, NULL, NULL, NULL);
-#ifdef __NetBSD__
-		(*dev->driver->free_irq)(dev);
-#else
 		free_irq(irq, dev);
-#endif
 	} else {
-#ifndef __NetBSD__
 		dev->irq = irq;
-#endif
 	}
 
 	return ret;
@@ -212,9 +171,6 @@ int drm_irq_uninstall(struct drm_device *dev)
 	bool irq_enabled;
 	int i;
 
-	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
-		return -EINVAL;
-
 	irq_enabled = dev->irq_enabled;
 	dev->irq_enabled = false;
 
@@ -235,11 +191,7 @@ int drm_irq_uninstall(struct drm_device *dev)
 			WARN_ON(drm_core_check_feature(dev, DRIVER_MODESET));
 
 			drm_vblank_disable_and_save(dev, i);
-#ifdef __NetBSD__
-			DRM_SPIN_WAKEUP_ONE(&vblank->queue, &dev->vbl_lock);
-#else
 			wake_up(&vblank->queue);
-#endif
 		}
 		spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 	}
@@ -255,11 +207,7 @@ int drm_irq_uninstall(struct drm_device *dev)
 	if (dev->driver->irq_uninstall)
 		dev->driver->irq_uninstall(dev);
 
-#ifdef __NetBSD__
-	(*dev->driver->free_irq)(dev);
-#else
 	free_irq(dev->irq, dev);
-#endif
 
 	return 0;
 }
@@ -285,21 +233,13 @@ int drm_legacy_irq_control(struct drm_device *dev, void *data,
 
 	switch (ctl->func) {
 	case DRM_INST_HANDLER:
-#ifdef __NetBSD__
-		irq = ctl->irq;
-#else
 		irq = dev->pdev->irq;
-#endif
 
 		if (dev->if_version < DRM_IF_VERSION(1, 2) &&
 		    ctl->irq != irq)
 			return -EINVAL;
 		mutex_lock(&dev->struct_mutex);
-#ifdef __NetBSD__
-		ret = drm_irq_install(dev);
-#else
 		ret = drm_irq_install(dev, irq);
-#endif
 		mutex_unlock(&dev->struct_mutex);
 
 		return ret;

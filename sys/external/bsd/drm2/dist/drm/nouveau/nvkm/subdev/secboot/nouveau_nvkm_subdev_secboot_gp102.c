@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (c) 2017, NVIDIA CORPORATION. All rights reserved.
  *
@@ -21,9 +19,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include "acr.h"
 #include "gm200.h"
@@ -64,10 +59,10 @@ gp102_run_secure_scrub(struct nvkm_secboot *sb)
 
 	nvkm_debug(subdev, "running VPR scrubber binary on NVDEC...\n");
 
-	engine = nvkm_engine_ref(&device->nvdec->engine);
+	engine = nvkm_engine_ref(&device->nvdec[0]->engine);
 	if (IS_ERR(engine))
 		return PTR_ERR(engine);
-	falcon = device->nvdec->falcon;
+	falcon = device->nvdec[0]->falcon;
 
 	nvkm_falcon_get(falcon, &sb->subdev);
 

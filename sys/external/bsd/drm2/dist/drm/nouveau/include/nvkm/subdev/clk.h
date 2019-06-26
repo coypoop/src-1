@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_CLK_H__
 #define __NVKM_CLK_H__
@@ -93,12 +91,7 @@ struct nvkm_clk {
 	int state_nr;
 
 	struct work_struct work;
-#ifdef __NetBSD__
-	drm_waitqueue_t wait;
-	spinlock_t lock;
-#else
 	wait_queue_head_t wait;
-#endif
 	atomic_t waiting;
 
 	struct nvkm_notify pwrsrc_ntfy;

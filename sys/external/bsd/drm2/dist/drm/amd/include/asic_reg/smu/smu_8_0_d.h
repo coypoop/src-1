@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * SMU_8_0 Register documentation
  *

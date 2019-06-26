@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2014 Intel Corporation
  *
@@ -62,10 +60,6 @@
  * functions is deprecated and should be avoided.
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
-#include <drm/drmP.h>
 
 #include "intel_drv.h"
 #include "intel_frontbuffer.h"

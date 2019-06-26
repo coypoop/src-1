@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2011 Advanced Micro Devices, Inc.
  *
@@ -24,9 +22,6 @@
  * Authors: Alex Deucher
  *
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/drmP.h>
 #include <drm/radeon_drm.h>
 #include "radeon.h"
@@ -40,7 +35,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 static int radeon_process_i2c_ch(struct radeon_i2c_chan *chan,
 				 u8 slave_addr, u8 flags,
-				 u8 *buf, u8 num)
+				 u8 *buf, int num)
 {
 	struct drm_device *dev = chan->dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -73,8 +68,11 @@ static int radeon_process_i2c_ch(struct radeon_i2c_chan *chan,
 			memcpy(&out, &buf[1], num);
 		args.lpI2CDataOut = cpu_to_le16(out);
 	} else {
-		CTASSERT(ATOM_MAX_HW_I2C_READ <
-		    (uintmax_t)1 << (CHAR_BIT*sizeof(num)));
+		if (num > ATOM_MAX_HW_I2C_READ) {
+			DRM_ERROR("hw i2c: tried to read too many bytes (%d vs 255)\n", num);
+			r = -EINVAL;
+			goto done;
+		}
 		args.ucRegIndex = 0;
 		args.lpI2CDataOut = 0;
 	}

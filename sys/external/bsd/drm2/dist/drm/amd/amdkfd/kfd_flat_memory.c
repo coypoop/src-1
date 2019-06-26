@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2014 Advanced Micro Devices, Inc.
  *
@@ -22,9 +20,6 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/device.h>
 #include <linux/export.h>
@@ -402,9 +397,12 @@ int kfd_init_apertures(struct kfd_process *process)
 			case CHIP_FIJI:
 			case CHIP_POLARIS10:
 			case CHIP_POLARIS11:
+			case CHIP_POLARIS12:
 				kfd_init_apertures_vi(pdd, id);
 				break;
 			case CHIP_VEGA10:
+			case CHIP_VEGA12:
+			case CHIP_VEGA20:
 			case CHIP_RAVEN:
 				kfd_init_apertures_v9(pdd, id);
 				break;

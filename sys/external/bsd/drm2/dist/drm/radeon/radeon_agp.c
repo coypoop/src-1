@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2008 Red Hat Inc.
  * Copyright 2009 Jerome Glisse.
@@ -26,9 +24,6 @@
  *    Dave Airlie
  *    Jerome Glisse <glisse@freedesktop.org>
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/drmP.h>
 #include "radeon.h"
 #include <drm/radeon_drm.h>
@@ -154,11 +149,11 @@ int radeon_agp_init(struct radeon_device *rdev)
 		return ret;
 	}
 
-	if (rdev->ddev->agp->agp_info.aki_info.ai_aperture_size >> 20 < 32) {
+	if (rdev->ddev->agp->agp_info.aper_size < 32) {
 		drm_agp_release(rdev->ddev);
 		dev_warn(rdev->dev, "AGP aperture too small (%zuM) "
 			"need at least 32M, disabling AGP\n",
-			rdev->ddev->agp->agp_info.aki_info.ai_aperture_size >> 20);
+			rdev->ddev->agp->agp_info.aper_size);
 		return -EINVAL;
 	}
 
@@ -246,16 +241,12 @@ int radeon_agp_init(struct radeon_device *rdev)
 		return ret;
 	}
 
-	rdev->mc.agp_base = rdev->ddev->agp->agp_info.aki_info.ai_aperture_base;
-	rdev->mc.gtt_size = rdev->ddev->agp->agp_info.aki_info.ai_aperture_size;
+	rdev->mc.agp_base = rdev->ddev->agp->agp_info.aper_base;
+	rdev->mc.gtt_size = rdev->ddev->agp->agp_info.aper_size << 20;
 	rdev->mc.gtt_start = rdev->mc.agp_base;
 	rdev->mc.gtt_end = rdev->mc.gtt_start + rdev->mc.gtt_size - 1;
-	dev_info(rdev->dev, "GTT: %"PRIu64"M 0x%08"PRIX64" - 0x%08"PRIX64"\n",
+	dev_info(rdev->dev, "GTT: %lluM 0x%08llX - 0x%08llX\n",
 		rdev->mc.gtt_size >> 20, rdev->mc.gtt_start, rdev->mc.gtt_end);
-
-#ifdef __NetBSD__
-	pmap_pv_track(rdev->mc.agp_base, rdev->mc.gtt_size);
-#endif
 
 	/* workaround some hw issues */
 	if (rdev->family < CHIP_R200) {
@@ -283,9 +274,6 @@ void radeon_agp_fini(struct radeon_device *rdev)
 {
 #if IS_ENABLED(CONFIG_AGP)
 	if (rdev->ddev->agp && rdev->ddev->agp->acquired) {
-#ifdef __NetBSD__
-		pmap_pv_untrack(rdev->mc.agp_base, rdev->mc.gtt_size);
-#endif
 		drm_agp_release(rdev->ddev);
 	}
 #endif

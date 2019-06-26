@@ -1,6 +1,4 @@
-/*	$NetBSD$	*/
-
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: MIT
 /* utility to create the register check tables
  * this includes inlined list.h safe for userspace.
  *
@@ -11,9 +9,6 @@
  * 	Jerome Glisse
  * 	Dave Airlie
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <sys/types.h>
 #include <stdlib.h>

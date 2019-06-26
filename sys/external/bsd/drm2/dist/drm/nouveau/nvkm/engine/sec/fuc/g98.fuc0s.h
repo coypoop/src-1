@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /* SPDX-License-Identifier: GPL-2.0 */
 static uint32_t g98_sec_data[] = {
 /* 0x0000: ctx_dma */

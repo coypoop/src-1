@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2007-8 Advanced Micro Devices, Inc.
  * Copyright 2008 Red Hat Inc.
@@ -26,9 +24,6 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <drm/drmP.h>
 #include <drm/radeon_drm.h>
 #include "radeon.h"
@@ -41,10 +36,10 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #define DP_LINK_CONFIGURATION_SIZE 9
 #define DP_DPCD_SIZE DP_RECEIVER_CAP_SIZE
 
-static const char *voltage_names[] = {
+static char *voltage_names[] = {
 	"0.4V", "0.6V", "0.8V", "1.2V"
 };
-static const char *pre_emph_names[] = {
+static char *pre_emph_names[] = {
 	"0dB", "3.5dB", "6dB", "9.5dB"
 };
 
@@ -246,11 +241,6 @@ void radeon_dp_aux_init(struct radeon_connector *radeon_connector)
 		radeon_connector->ddc_bus->aux.transfer = radeon_dp_aux_transfer_atom;
 	}
 
-#ifdef __NetBSD__
-	/* XXX dervied from sysfs/i2c on linux. */
-	radeon_connector->ddc_bus->aux.name = "radeon_dp_aux";
-#endif
-
 	ret = drm_dp_aux_register(&radeon_connector->ddc_bus->aux);
 	if (!ret)
 		radeon_connector->ddc_bus->has_aux = true;
@@ -385,11 +375,11 @@ static void radeon_dp_probe_oui(struct radeon_connector *radeon_connector)
 		return;
 
 	if (drm_dp_dpcd_read(&radeon_connector->ddc_bus->aux, DP_SINK_OUI, buf, 3) == 3)
-		DRM_DEBUG_KMS("Sink OUI: %02hhx%02hhx%02hhx\n",
+		DRM_DEBUG_KMS("Sink OUI: %02hx%02hx%02hx\n",
 			      buf[0], buf[1], buf[2]);
 
 	if (drm_dp_dpcd_read(&radeon_connector->ddc_bus->aux, DP_BRANCH_OUI, buf, 3) == 3)
-		DRM_DEBUG_KMS("Branch OUI: %02hhx%02hhx%02hhx\n",
+		DRM_DEBUG_KMS("Branch OUI: %02hx%02hx%02hx\n",
 			      buf[0], buf[1], buf[2]);
 }
 
@@ -422,6 +412,7 @@ int radeon_dp_get_panel_mode(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+	struct radeon_connector_atom_dig *dig_connector;
 	int panel_mode = DP_PANEL_MODE_EXTERNAL_DP_MODE;
 	u16 dp_bridge = radeon_connector_encoder_get_dp_bridge_encoder_id(connector);
 	u8 tmp;
@@ -431,6 +422,8 @@ int radeon_dp_get_panel_mode(struct drm_encoder *encoder,
 
 	if (!radeon_connector->con_priv)
 		return panel_mode;
+
+	dig_connector = radeon_connector->con_priv;
 
 	if (dp_bridge != ENCODER_OBJECT_ID_NONE) {
 		/* DP bridge chips */

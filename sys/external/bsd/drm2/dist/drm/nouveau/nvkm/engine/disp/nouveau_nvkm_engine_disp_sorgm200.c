@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Red Hat Inc.
  *
@@ -23,9 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include "ior.h"
 
 void
@@ -104,6 +99,7 @@ gm200_sor = {
 	.clock = gf119_sor_clock,
 	.hdmi = {
 		.ctrl = gk104_hdmi_ctrl,
+		.scdc = gm200_hdmi_scdc,
 	},
 	.dp = {
 		.lanes = { 0, 1, 2, 3 },

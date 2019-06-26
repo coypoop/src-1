@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright(c) 2011-2016 Intel Corporation. All rights reserved.
  *
@@ -29,9 +27,6 @@
  *    Changbin Du <changbin.du@intel.com>
  *
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/firmware.h>
 #include <linux/crc32.h>

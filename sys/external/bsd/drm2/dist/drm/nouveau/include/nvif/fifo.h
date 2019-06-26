@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 #ifndef __NVIF_FIFO_H__
 #define __NVIF_FIFO_H__
 #include <nvif/device.h>

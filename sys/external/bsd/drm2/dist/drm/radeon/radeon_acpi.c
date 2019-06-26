@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2012 Advanced Micro Devices, Inc.
  *
@@ -23,9 +21,6 @@
  *
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
 #include <linux/pci.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
@@ -34,6 +29,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <acpi/video.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include "radeon.h"
 #include "radeon_acpi.h"
 #include "atom.h"

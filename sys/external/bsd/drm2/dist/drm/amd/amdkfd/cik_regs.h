@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright 2014 Advanced Micro Devices, Inc.
  *
@@ -69,7 +67,5 @@
 #define	AQL_ENABLE					1
 
 #define GRBM_GFX_INDEX					0x30800
-
-#define	ATC_VMID_PASID_MAPPING_VALID			(1U << 31)
 
 #endif

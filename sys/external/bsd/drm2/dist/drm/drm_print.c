@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright (C) 2016 Red Hat
  *
@@ -24,9 +22,6 @@
  * Authors:
  * Rob Clark <robdclark@gmail.com>
  */
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
 
 #define DEBUG /* for pr_debug() */
 
@@ -243,18 +238,6 @@ void drm_dbg(unsigned int category, const char *format, ...)
 }
 EXPORT_SYMBOL(drm_dbg);
 
-#ifdef __NetBSD__
-void
-drm_err(const char *file, int line, const char *func, const char *format, ...)
-{
-	va_list args;
-
-	va_start(args, format);
-	printf(KERN_ERR "[" DRM_NAME ":(%s:%d)%s] *ERROR* ", file, line, func);
-	vprintf(format, args);
-	va_end(args);
-}
-#else
 void drm_err(const char *format, ...)
 {
 	struct va_format vaf;
@@ -269,5 +252,4 @@ void drm_err(const char *format, ...)
 
 	va_end(args);
 }
-#endif
 EXPORT_SYMBOL(drm_err);

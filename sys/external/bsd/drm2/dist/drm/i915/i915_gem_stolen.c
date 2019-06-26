@@ -1,5 +1,3 @@
-/*	$NetBSD$	*/
-
 /*
  * Copyright © 2008-2012 Intel Corporation
  *
@@ -28,12 +26,6 @@
  *
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD$");
-
-#include <linux/printk.h>
-#include <linux/err.h>
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
@@ -91,9 +83,7 @@ static int i915_adjust_stolen(struct drm_i915_private *dev_priv,
 			      struct resource *dsm)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-#ifndef __NetBSD__
 	struct resource *r;
-#endif
 
 	if (dsm->start == 0 || dsm->end <= dsm->start)
 		return -EINVAL;
@@ -103,7 +93,6 @@ static int i915_adjust_stolen(struct drm_i915_private *dev_priv,
 	 * end of stolen. With that assumption we could simplify this.
 	 */
 
-#ifndef __NetBSD__		/* XXX stolen resource */
 	/* Make sure we don't clobber the GTT if it's within stolen memory */
 	if (INTEL_GEN(dev_priv) <= 4 &&
 	    !IS_G33(dev_priv) && !IS_PINEVIEW(dev_priv) && !IS_G4X(dev_priv)) {
@@ -112,7 +101,7 @@ static int i915_adjust_stolen(struct drm_i915_private *dev_priv,
 		resource_size_t ggtt_start;
 
 		ggtt_start = I915_READ(PGTBL_CTL);
-		if (IS_GEN4(dev_priv))
+		if (IS_GEN(dev_priv, 4))
 			ggtt_start = (ggtt_start & PGTBL_ADDRESS_LO_MASK) |
 				     (ggtt_start & PGTBL_ADDRESS_HI_MASK) << 28;
 		else
@@ -166,30 +155,21 @@ static int i915_adjust_stolen(struct drm_i915_private *dev_priv,
 		 * GEN3 firmware likes to smash pci bridges into the stolen
 		 * range. Apparently this works.
 		 */
-		if (r == NULL && !IS_GEN3(dev_priv)) {
+		if (r == NULL && !IS_GEN(dev_priv, 3)) {
 			DRM_ERROR("conflict detected with stolen region: %pR\n",
 				  dsm);
 
 			return -EBUSY;
 		}
 	}
-#endif
 
 	return 0;
 }
 
-void i915_gem_cleanup_stolen(struct drm_device *dev)
+void i915_gem_cleanup_stolen(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
 		return;
-
-#ifdef __NetBSD__
-	linux_mutex_destroy(&dev_priv->mm.stolen_lock);
-#else
-	mutex_destroy(&dev_priv->mm.stolen_lock);
-#endif
 
 	drm_mm_takedown(&dev_priv->mm.stolen);
 }
@@ -213,7 +193,8 @@ static void g4x_get_stolen_reserved(struct drm_i915_private *dev_priv,
 	 * Whether ILK really reuses the ELK register for this is unclear.
 	 * Let's see if we catch anyone with this supposedly enabled on ILK.
 	 */
-	WARN(IS_GEN5(dev_priv), "ILK stolen reserved found? 0x%08x\n", reg_val);
+	WARN(IS_GEN(dev_priv, 5), "ILK stolen reserved found? 0x%08x\n",
+	     reg_val);
 
 	if (!(reg_val & G4X_STOLEN_RESERVED_ADDR2_MASK))
 		return;
@@ -395,11 +376,7 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 	resource_size_t reserved_base, stolen_top;
 	resource_size_t reserved_total, reserved_size;
 
-#ifdef __NetBSD__
-	linux_mutex_init(&dev_priv->mm.stolen_lock);
-#else
 	mutex_init(&dev_priv->mm.stolen_lock);
-#endif
 
 	if (intel_vgpu_active(dev_priv)) {
 		DRM_INFO("iGVT-g active, disabling use of stolen memory\n");
@@ -505,56 +482,6 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
-#ifdef __NetBSD__
-static bus_dmamap_t
-i915_pages_create_for_stolen(struct drm_device *dev, u32 offset, u32 size)
-{
-	struct drm_i915_private *const dev_priv = dev->dev_private;
-	bus_dmamap_t dmamap = NULL;
-	bus_dma_segment_t *seg;
-	int nseg, i;
-	int ret;
-
-	KASSERT((size % PAGE_SIZE) == 0);
-	nseg = size / PAGE_SIZE;
-	seg = kmem_alloc(nseg * sizeof(seg[0]), KM_SLEEP);
-
-	/*
-	 * x86 bus_dmamap_load_raw fails to respect the maxsegsz we
-	 * pass to bus_dmamap_create, so we have to create page-sized
-	 * segments to begin with.
-	 */
-	for (i = 0; i < nseg; i++) {
-		seg[i].ds_addr = (bus_addr_t)dev_priv->mm.stolen_base +
-		    offset + i*PAGE_SIZE;
-		seg[i].ds_len = PAGE_SIZE;
-	}
-
-	/* XXX errno NetBSD->Linux */
-	ret = -bus_dmamap_create(dev->dmat, size, nseg, PAGE_SIZE,
-	    0, BUS_DMA_WAITOK, &dmamap);
-	if (ret) {
-		DRM_ERROR("failed to create DMA map for stolen object: %d\n",
-		    ret);
-fail0:		dmamap = NULL;	/* paranoia */
-		goto out;
-	}
-
-	/* XXX errno NetBSD->Liux */
-	ret = -bus_dmamap_load_raw(dev->dmat, dmamap, seg, nseg, size,
-	    BUS_DMA_WAITOK);
-	if (ret) {
-		DRM_ERROR("failed to load DMA map for stolen object: %d\n",
-		    ret);
-fail1: __unused
-		bus_dmamap_destroy(dev->dmat, dmamap);
-		goto fail0;
-	}
-
-out:	kmem_free(seg, nseg*sizeof(seg[0]));
-	return dmamap;
-}
-#else
 static struct sg_table *
 i915_pages_create_for_stolen(struct drm_device *dev,
 			     resource_size_t offset, resource_size_t size)
@@ -588,7 +515,6 @@ i915_pages_create_for_stolen(struct drm_device *dev,
 
 	return st;
 }
-#endif
 
 static int i915_gem_object_get_pages_stolen(struct drm_i915_gem_object *obj)
 {
@@ -604,22 +530,12 @@ static int i915_gem_object_get_pages_stolen(struct drm_i915_gem_object *obj)
 	return 0;
 }
 
-#ifdef __NetBSD__
-static void i915_gem_object_put_pages_stolen(struct drm_i915_gem_object *obj,
-					     bus_dmamap_t dmamap)
-#else
 static void i915_gem_object_put_pages_stolen(struct drm_i915_gem_object *obj,
 					     struct sg_table *pages)
-#endif
 {
 	/* Should only be called from i915_gem_object_release_stolen() */
-#ifdef __NetBSD__
-	bus_dmamap_unload(obj->base.dev->dmat, dmamap);
-	bus_dmamap_destroy(obj->base.dev->dmat, dmamap);
-#else
 	sg_free_table(pages);
 	kfree(pages);
-#endif
 }
 
 static void
@@ -785,7 +701,10 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	vma->pages = obj->mm.pages;
 	vma->flags |= I915_VMA_GLOBAL_BIND;
 	__i915_vma_set_map_and_fenceable(vma);
-	list_move_tail(&vma->vm_link, &ggtt->vm.inactive_list);
+
+	mutex_lock(&ggtt->vm.mutex);
+	list_move_tail(&vma->vm_link, &ggtt->vm.bound_list);
+	mutex_unlock(&ggtt->vm.mutex);
 
 	spin_lock(&dev_priv->mm.obj_lock);
 	list_move_tail(&obj->mm.link, &dev_priv->mm.bound_list);
