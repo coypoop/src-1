@@ -1,6 +1,6 @@
 #	$NetBSD: files.radeon,v 1.21 2018/08/27 16:06:01 riastradh Exp $
 
-version	20180827
+version	20190626
 
 define	radeonfbbus	{ }
 device	radeon: drmkms, drmkms_pci, drmkms_ttm, radeonfbbus, firmload
@@ -18,6 +18,8 @@ makeoptions	radeon	CPPFLAGS+="-I$S/external/bsd/drm2/radeon"
 makeoptions	radeon	CPPFLAGS+="-I$S/external/bsd/drm2/dist/drm/amd/include"
 makeoptions	radeon	CPPFLAGS+="-I$S/external/bsd/drm2/dist/drm/radeon"
 
+makeoptions	radeon	"CPPFLAGS.radeon"+="-DCONFIG_AGP=1"
+
 makeoptions	radeon	"CWARNFLAGS.radeon"+="-Wno-missing-field-initializers"
 makeoptions	radeon	"CWARNFLAGS.radeon"+="-Wno-missing-prototypes"
 makeoptions	radeon	"CWARNFLAGS.radeon"+="-Wno-shadow"
@@ -29,7 +31,7 @@ file	external/bsd/drm2/radeon/radeon_pci.c			radeon
 file	external/bsd/drm2/radeon/radeondrmkmsfb.c		radeondrmkmsfb
 
 # Generated from radeon2netbsd.
-#file	external/bsd/drm2/dist/drm/radeon/radeon_acpi.c	radeon
+file	external/bsd/drm2/dist/drm/radeon/radeon_acpi.c	radeon
 file	external/bsd/drm2/dist/drm/radeon/radeon_agp.c	radeon
 file	external/bsd/drm2/dist/drm/radeon/radeon_asic.c	radeon
 file	external/bsd/drm2/dist/drm/radeon/radeon_atom.c	radeon
@@ -74,7 +76,6 @@ file	external/bsd/drm2/dist/drm/radeon/radeon_gem.c	radeon
 file	external/bsd/drm2/dist/drm/radeon/radeon_i2c.c	radeon
 file	external/bsd/drm2/dist/drm/radeon/radeon_ib.c	radeon
 file	external/bsd/drm2/dist/drm/radeon/radeon_irq_kms.c	radeon
-file	external/bsd/drm2/dist/drm/radeon/radeon_kfd.c	radeon
 file	external/bsd/drm2/dist/drm/radeon/radeon_kms.c	radeon
 file	external/bsd/drm2/dist/drm/radeon/radeon_kv_dpm.c	radeon
 file	external/bsd/drm2/dist/drm/radeon/radeon_kv_smc.c	radeon
