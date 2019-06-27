@@ -30,8 +30,8 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "atom.h"
@@ -39,6 +39,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "atombios_dp.h"
 #include "amdgpu_connectors.h"
 #include "amdgpu_i2c.h"
+#include "amdgpu_display.h"
 
 #include <linux/pm_runtime.h>
 

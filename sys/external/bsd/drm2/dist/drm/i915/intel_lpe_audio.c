@@ -70,6 +70,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <linux/irq.h>
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
+#include <linux/platform_device.h>
 
 #include "i915_drv.h"
 #include <linux/delay.h>
@@ -302,8 +303,10 @@ void intel_lpe_audio_teardown(struct drm_i915_private *dev_priv)
 	lpe_audio_platdev_destroy(dev_priv);
 
 	irq_free_desc(dev_priv->lpe_audio.irq);
-}
 
+	dev_priv->lpe_audio.irq = -1;
+	dev_priv->lpe_audio.platdev = NULL;
+}
 
 /**
  * intel_lpe_audio_notify() - notify lpe audio event

@@ -62,6 +62,8 @@ unsigned long intel_gvt_get_device_type(struct intel_gvt *gvt)
 		return D_KBL;
 	else if (IS_BROXTON(gvt->dev_priv))
 		return D_BXT;
+	else if (IS_COFFEELAKE(gvt->dev_priv))
+		return D_CFL;
 
 	return 0;
 }
@@ -281,14 +283,12 @@ static int mul_force_wake_write(struct intel_vgpu *vgpu,
 		unsigned int offset, void *p_data, unsigned int bytes)
 {
 	u32 old, new;
-	uint32_t ack_reg_offset;
+	u32 ack_reg_offset;
 
 	old = vgpu_vreg(vgpu, offset);
 	new = CALC_MODE_MASK_REG(old, *(u32 *)p_data);
 
-	if (IS_SKYLAKE(vgpu->gvt->dev_priv)
-		|| IS_KABYLAKE(vgpu->gvt->dev_priv)
-		|| IS_BROXTON(vgpu->gvt->dev_priv)) {
+	if (INTEL_GEN(vgpu->gvt->dev_priv)  >=  9) {
 		switch (offset) {
 		case FORCEWAKE_RENDER_GEN9_REG:
 			ack_reg_offset = FORCEWAKE_ACK_RENDER_GEN9_REG;
@@ -480,6 +480,7 @@ static i915_reg_t force_nonpriv_white_list[] = {
 	_MMIO(0x7704),
 	_MMIO(0x7708),
 	_MMIO(0x770c),
+	_MMIO(0x83a8),
 	_MMIO(0xb110),
 	GEN8_L3SQCREG4,//_MMIO(0xb118)
 	_MMIO(0xe100),
@@ -837,7 +838,7 @@ static int dp_aux_ch_ctl_trans_done(struct intel_vgpu *vgpu, u32 value,
 }
 
 static void dp_aux_ch_ctl_link_training(struct intel_vgpu_dpcd_data *dpcd,
-		uint8_t t)
+		u8 t)
 {
 	if ((t & DPCD_TRAINING_PATTERN_SET_MASK) == DPCD_TRAINING_PATTERN_1) {
 		/* training pattern 1 for CR */
@@ -893,9 +894,7 @@ static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
 	write_vreg(vgpu, offset, p_data, bytes);
 	data = vgpu_vreg(vgpu, offset);
 
-	if ((IS_SKYLAKE(vgpu->gvt->dev_priv)
-		|| IS_KABYLAKE(vgpu->gvt->dev_priv)
-		|| IS_BROXTON(vgpu->gvt->dev_priv))
+	if ((INTEL_GEN(vgpu->gvt->dev_priv) >= 9)
 		&& offset != _REG_SKL_DP_AUX_CH_CTL(port_index)) {
 		/* SKL DPB/C/D aux ctl register changed */
 		return 0;
@@ -923,7 +922,7 @@ static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
 
 	if (op == GVT_AUX_NATIVE_WRITE) {
 		int t;
-		uint8_t buf[16];
+		u8 buf[16];
 
 		if ((addr + len + 1) >= DPCD_SIZE) {
 			/*
@@ -1292,12 +1291,26 @@ static int power_well_ctl_mmio_write(struct intel_vgpu *vgpu,
 {
 	write_vreg(vgpu, offset, p_data, bytes);
 
-	if (vgpu_vreg(vgpu, offset) & HSW_PWR_WELL_CTL_REQ(HSW_DISP_PW_GLOBAL))
+	if (vgpu_vreg(vgpu, offset) &
+	    HSW_PWR_WELL_CTL_REQ(HSW_PW_CTL_IDX_GLOBAL))
 		vgpu_vreg(vgpu, offset) |=
-			HSW_PWR_WELL_CTL_STATE(HSW_DISP_PW_GLOBAL);
+			HSW_PWR_WELL_CTL_STATE(HSW_PW_CTL_IDX_GLOBAL);
 	else
 		vgpu_vreg(vgpu, offset) &=
-			~HSW_PWR_WELL_CTL_STATE(HSW_DISP_PW_GLOBAL);
+			~HSW_PWR_WELL_CTL_STATE(HSW_PW_CTL_IDX_GLOBAL);
+	return 0;
+}
+
+static int gen9_dbuf_ctl_mmio_write(struct intel_vgpu *vgpu,
+		unsigned int offset, void *p_data, unsigned int bytes)
+{
+	write_vreg(vgpu, offset, p_data, bytes);
+
+	if (vgpu_vreg(vgpu, offset) & DBUF_POWER_REQUEST)
+		vgpu_vreg(vgpu, offset) |= DBUF_POWER_STATE;
+	else
+		vgpu_vreg(vgpu, offset) &= ~DBUF_POWER_STATE;
+
 	return 0;
 }
 
@@ -1397,7 +1410,8 @@ static int mailbox_write(struct intel_vgpu *vgpu, unsigned int offset,
 	switch (cmd) {
 	case GEN9_PCODE_READ_MEM_LATENCY:
 		if (IS_SKYLAKE(vgpu->gvt->dev_priv)
-			 || IS_KABYLAKE(vgpu->gvt->dev_priv)) {
+			 || IS_KABYLAKE(vgpu->gvt->dev_priv)
+			 || IS_COFFEELAKE(vgpu->gvt->dev_priv)) {
 			/**
 			 * "Read memory latency" command on gen9.
 			 * Below memory latency values are read
@@ -1421,7 +1435,8 @@ static int mailbox_write(struct intel_vgpu *vgpu, unsigned int offset,
 		break;
 	case SKL_PCODE_CDCLK_CONTROL:
 		if (IS_SKYLAKE(vgpu->gvt->dev_priv)
-			 || IS_KABYLAKE(vgpu->gvt->dev_priv))
+			 || IS_KABYLAKE(vgpu->gvt->dev_priv)
+			 || IS_COFFEELAKE(vgpu->gvt->dev_priv))
 			*data0 = SKL_CDCLK_READY_FOR_CHANGE;
 		break;
 	case GEN6_PCODE_READ_RC6VIDS:
@@ -1530,9 +1545,15 @@ static int bxt_phy_ctl_family_write(struct intel_vgpu *vgpu,
 	u32 v = *(u32 *)p_data;
 	u32 data = v & COMMON_RESET_DIS ? BXT_PHY_LANE_ENABLED : 0;
 
-	vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_A) = data;
-	vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_B) = data;
-	vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_C) = data;
+	switch (offset) {
+	case _PHY_CTL_FAMILY_EDP:
+		vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_A) = data;
+		break;
+	case _PHY_CTL_FAMILY_DDI:
+		vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_B) = data;
+		vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_C) = data;
+		break;
+	}
 
 	vgpu_vreg(vgpu, offset) = v;
 
@@ -1594,7 +1615,7 @@ static int bxt_gt_disp_pwron_write(struct intel_vgpu *vgpu,
 	return 0;
 }
 
-static int bxt_edp_psr_imr_iir_write(struct intel_vgpu *vgpu,
+static int edp_psr_imr_iir_write(struct intel_vgpu *vgpu,
 		unsigned int offset, void *p_data, unsigned int bytes)
 {
 	vgpu_vreg(vgpu, offset) = 0;
@@ -2123,7 +2144,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 
 	MMIO_F(PCH_GMBUS0, 4 * 4, 0, 0, 0, D_ALL, gmbus_mmio_read,
 		gmbus_mmio_write);
-	MMIO_F(PCH_GPIOA, 6 * 4, F_UNALIGN, 0, 0, D_ALL, NULL, NULL);
+	MMIO_F(PCH_GPIO_BASE, 6 * 4, F_UNALIGN, 0, 0, D_ALL, NULL, NULL);
 	MMIO_F(_MMIO(0xe4f00), 0x28, 0, 0, 0, D_ALL, NULL, NULL);
 
 	MMIO_F(_MMIO(_PCH_DPB_AUX_CH_CTL), 6 * 4, 0, 0, 0, D_PRE_SKL, NULL,
@@ -2448,17 +2469,10 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(GEN6_RC6p_THRESHOLD, D_ALL);
 	MMIO_D(GEN6_RC6pp_THRESHOLD, D_ALL);
 	MMIO_D(GEN6_PMINTRMSK, D_ALL);
-	/*
-	 * Use an arbitrary power well controlled by the PWR_WELL_CTL
-	 * register.
-	 */
-	MMIO_DH(HSW_PWR_WELL_CTL_BIOS(HSW_DISP_PW_GLOBAL), D_BDW, NULL,
-		power_well_ctl_mmio_write);
-	MMIO_DH(HSW_PWR_WELL_CTL_DRIVER(HSW_DISP_PW_GLOBAL), D_BDW, NULL,
-		power_well_ctl_mmio_write);
-	MMIO_DH(HSW_PWR_WELL_CTL_KVMR, D_BDW, NULL, power_well_ctl_mmio_write);
-	MMIO_DH(HSW_PWR_WELL_CTL_DEBUG(HSW_DISP_PW_GLOBAL), D_BDW, NULL,
-		power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_CTL1, D_BDW, NULL, power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_CTL2, D_BDW, NULL, power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_CTL3, D_BDW, NULL, power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_CTL4, D_BDW, NULL, power_well_ctl_mmio_write);
 	MMIO_DH(HSW_PWR_WELL_CTL5, D_BDW, NULL, power_well_ctl_mmio_write);
 	MMIO_DH(HSW_PWR_WELL_CTL6, D_BDW, NULL, power_well_ctl_mmio_write);
 
@@ -2599,6 +2613,9 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_DFH(_MMIO(0x1a178), D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(_MMIO(0x1a17c), D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(_MMIO(0x2217c), D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
+
+	MMIO_DH(EDP_PSR_IMR, D_BDW_PLUS, NULL, edp_psr_imr_iir_write);
+	MMIO_DH(EDP_PSR_IIR, D_BDW_PLUS, NULL, edp_psr_imr_iir_write);
 	return 0;
 }
 
@@ -2787,6 +2804,7 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 	MMIO_DFH(_MMIO(0xe2a0), D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(_MMIO(0xe2b0), D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(_MMIO(0xe2c0), D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
+	MMIO_DFH(_MMIO(0x21f0), D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
 	return 0;
 }
 
@@ -2809,13 +2827,10 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_F(_MMIO(_DPD_AUX_CH_CTL), 6 * 4, 0, 0, 0, D_SKL_PLUS, NULL,
 						dp_aux_ch_ctl_mmio_write);
 
-	/*
-	 * Use an arbitrary power well controlled by the PWR_WELL_CTL
-	 * register.
-	 */
-	MMIO_D(HSW_PWR_WELL_CTL_BIOS(SKL_DISP_PW_MISC_IO), D_SKL_PLUS);
-	MMIO_DH(HSW_PWR_WELL_CTL_DRIVER(SKL_DISP_PW_MISC_IO), D_SKL_PLUS, NULL,
-		skl_power_well_ctl_write);
+	MMIO_D(HSW_PWR_WELL_CTL1, D_SKL_PLUS);
+	MMIO_DH(HSW_PWR_WELL_CTL2, D_SKL_PLUS, NULL, skl_power_well_ctl_write);
+
+	MMIO_DH(DBUF_CTL, D_SKL_PLUS, NULL, gen9_dbuf_ctl_mmio_write);
 
 	MMIO_D(_MMIO(0xa210), D_SKL_PLUS);
 	MMIO_D(GEN9_MEDIA_PG_IDLE_HYSTERESIS, D_SKL_PLUS);
@@ -2992,8 +3007,6 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 		NULL, gen9_trtte_write);
 	MMIO_DH(_MMIO(0x4dfc), D_SKL_PLUS, NULL, gen9_trtt_chicken_write);
 
-	MMIO_D(_MMIO(0x45008), D_SKL_PLUS);
-
 	MMIO_D(_MMIO(0x46430), D_SKL_PLUS);
 
 	MMIO_D(_MMIO(0x46520), D_SKL_PLUS);
@@ -3030,10 +3043,12 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(_MMIO(0x44500), D_SKL_PLUS);
 	MMIO_DFH(GEN9_CSFE_CHICKEN1_RCS, D_SKL_PLUS, F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(GEN8_HDC_CHICKEN1, D_SKL_PLUS, F_MODE_MASK | F_CMD_ACCESS,
-		NULL, NULL);
+		 NULL, NULL);
+	MMIO_DFH(GEN9_WM_CHICKEN3, D_SKL_PLUS, F_MODE_MASK | F_CMD_ACCESS,
+		 NULL, NULL);
 
-	MMIO_D(_MMIO(0x4ab8), D_KBL);
-	MMIO_D(_MMIO(0x2248), D_KBL | D_SKL);
+	MMIO_D(_MMIO(0x4ab8), D_KBL | D_CFL);
+	MMIO_D(_MMIO(0x2248), D_SKL_PLUS);
 
 	return 0;
 }
@@ -3194,13 +3209,11 @@ static int init_bxt_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(BXT_DSI_PLL_ENABLE, D_BXT);
 
 	MMIO_D(GEN9_CLKGATE_DIS_0, D_BXT);
+	MMIO_D(GEN9_CLKGATE_DIS_4, D_BXT);
 
 	MMIO_D(HSW_TVIDEO_DIP_GCP(TRANSCODER_A), D_BXT);
 	MMIO_D(HSW_TVIDEO_DIP_GCP(TRANSCODER_B), D_BXT);
 	MMIO_D(HSW_TVIDEO_DIP_GCP(TRANSCODER_C), D_BXT);
-
-	MMIO_DH(EDP_PSR_IMR, D_BXT, NULL, bxt_edp_psr_imr_iir_write);
-	MMIO_DH(EDP_PSR_IIR, D_BXT, NULL, bxt_edp_psr_imr_iir_write);
 
 	MMIO_D(RC6_CTX_BASE, D_BXT);
 
@@ -3295,7 +3308,8 @@ int intel_gvt_setup_mmio_info(struct intel_gvt *gvt)
 		if (ret)
 			goto err;
 	} else if (IS_SKYLAKE(dev_priv)
-		|| IS_KABYLAKE(dev_priv)) {
+		|| IS_KABYLAKE(dev_priv)
+		|| IS_COFFEELAKE(dev_priv)) {
 		ret = init_broadwell_mmio_info(gvt);
 		if (ret)
 			goto err;
@@ -3439,6 +3453,7 @@ bool intel_gvt_in_force_nonpriv_whitelist(struct intel_gvt *gvt,
  * @offset: register offset
  * @pdata: data buffer
  * @bytes: data length
+ * @is_read: read or write
  *
  * Returns:
  * Zero on success, negative error code if failed.
