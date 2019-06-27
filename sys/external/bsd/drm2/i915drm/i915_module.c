@@ -43,17 +43,13 @@ __KERNEL_RCSID(0, "$NetBSD: i915_module.c,v 1.8 2018/08/28 03:35:08 riastradh Ex
 #include <drm/drm_sysctl.h>
 
 #include "i915_drv.h"
+#include "i915_gem_clflush.h"
 
 MODULE(MODULE_CLASS_DRIVER, i915drmkms, "drmkms,drmkms_pci"); /* XXX drmkms_i2c */
 
 #ifdef _MODULE
 #include "ioconf.c"
 #endif
-
-/* XXX Kludge to get these from i915_drv.c.  */
-extern struct drm_driver *const i915_drm_driver;
-extern const struct pci_device_id *const i915_device_ids;
-extern const size_t i915_n_device_ids;
 
 struct drm_sysctl_def i915_def = DRM_SYSCTL_INIT();
 
@@ -66,12 +62,9 @@ i915drmkms_init(void)
 	if (error)
 		return error;
 
-	i915_drm_driver->num_ioctls = i915_max_ioctl;
-	i915_drm_driver->driver_features |= DRIVER_MODESET;
-	i915_drm_driver->driver_features &= ~DRIVER_USE_AGP;
-
 	drm_sysctl_init(&i915_def);
 	spin_lock_init(&mchdev_lock);
+	spin_lock_init(&i915_gem_clflush_lock);
 
 	return 0;
 }
@@ -93,6 +86,7 @@ static void
 i915drmkms_fini(void)
 {
 
+	spin_lock_destroy(&i915_gem_clflush_lock);
 	spin_lock_destroy(&mchdev_lock);
 	drm_sysctl_fini(&i915_def);
 }

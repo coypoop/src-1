@@ -63,11 +63,44 @@ copy_to_user(void *user_addr, const void *kernel_addr, size_t len)
 	return -copyout(kernel_addr, user_addr, len);
 }
 
-#define	get_user(KERNEL_LOC, USER_ADDR)					\
-	copy_from_user(&(KERNEL_LOC), (USER_ADDR), sizeof(KERNEL_LOC))
+#define	get_user(KERNEL_LVAL, USER_PTR)					      \
+	copy_from_user(&(KERNEL_LVAL), (USER_PTR), sizeof(*(USER_PTR)) +      \
+	    0*sizeof(&(KERNEL_LVAL) - (USER_PTR)))
 
-#define	put_user(KERNEL_LOC, USER_ADDR)					\
-	copy_to_user((USER_ADDR), &(KERNEL_LOC), sizeof(KERNEL_LOC))
+#define	put_user(KERNEL_RVAL, USER_PTR)	({				      \
+	const typeof(*(USER_PTR)) __put_user_tmp = (KERNEL_RVAL);	      \
+	copy_to_user((USER_PTR), &__put_user_tmp, sizeof(__put_user_tmp));    \
+})
+
+#define	__get_user	get_user
+#define	__put_user	put_user
+
+#define	user_access_begin()	__nothing
+#define	user_access_end()	__nothing
+
+#define	unsafe_put_user(KERNEL_RVAL, USER_PTR, LABEL)	do {		      \
+	if (__put_user(KERNEL_RVAL, USER_PTR))				      \
+		goto LABEL;						      \
+} while (0)
+
+static inline size_t
+clear_user(void __user *user_ptr, size_t size)
+{
+	char __user *p = user_ptr;
+	size_t n = size;
+
+	/*
+	 * This loop which sets up a fault handler on every iteration
+	 * is not going to win any speed records, but it'll do to copy
+	 * out an int.
+	 */
+	while (n --> 0) {
+		if (subyte(p, 0) != 0)
+			return ++n;
+	}
+
+	return 0;
+}
 
 #if 0
 /*

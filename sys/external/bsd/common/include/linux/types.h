@@ -82,6 +82,8 @@ typedef bus_addr_t resource_size_t;
 
 typedef paddr_t phys_addr_t;
 
+typedef bus_addr_t dma_addr_t;
+
 /* XXX Is this the right type?  */
 typedef unsigned long long cycles_t;
 
@@ -94,5 +96,10 @@ typedef off_t loff_t;
 
 /* Definition copied in <linux/kernel.h> for convenience.  */
 #define	__user
+
+struct list_head {
+	struct list_head *prev;
+	struct list_head *next;
+};
 
 #endif  /* _LINUX_TYPES_H_ */

@@ -452,7 +452,7 @@ struct intel_fbc {
 		unsigned long flags;
 
 		struct {
-			enum pipe pipe;
+			enum i915_pipe pipe;
 			enum i9xx_plane_id i9xx_plane;
 			unsigned int fence_y_offset;
 		} crtc;
@@ -1262,9 +1262,11 @@ struct i915_oa_config {
 	const struct i915_oa_reg *flex_regs;
 	u32 flex_regs_len;
 
+#ifndef __NetBSD__		/* XXX sysfs */
 	struct attribute_group sysfs_metric;
 	struct attribute *attrs[2];
 	struct device_attribute sysfs_metric_id;
+#endif
 
 	atomic_t ref_count;
 };
@@ -1293,9 +1295,13 @@ struct i915_perf_stream_ops {
 	 * @poll_wait: Call poll_wait, passing a wait queue that will be woken
 	 * once there is something ready to read() for the stream
 	 */
+#ifdef __NetBSD__
+	/* XXX fill me in */
+#else
 	void (*poll_wait)(struct i915_perf_stream *stream,
 			  struct file *file,
 			  poll_table *wait);
+#endif
 
 	/**
 	 * @wait_unlocked: For handling a blocking read, wait until there is
@@ -1881,7 +1887,11 @@ struct drm_i915_private {
 			u32 specific_ctx_id_mask;
 
 			struct hrtimer poll_check_timer;
+#ifdef __NetBSD__
+			drm_waitqueue_t poll_wq;
+#else
 			wait_queue_head_t poll_wq;
+#endif
 			bool pollin;
 
 			/**
@@ -2072,7 +2082,7 @@ struct dram_channel_info {
 
 static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 {
-	return container_of(dev, struct drm_i915_private, drm);
+	return __UNCONST(const_container_of(dev, struct drm_i915_private, drm));
 }
 
 static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
@@ -2228,6 +2238,7 @@ static inline unsigned int i915_sg_page_sizes(struct scatterlist *sg)
 	return page_sizes;
 }
 
+#ifndef __NetBSD__
 static inline unsigned int i915_sg_segment_size(void)
 {
 	unsigned int size = swiotlb_max_segment();
@@ -2242,6 +2253,7 @@ static inline unsigned int i915_sg_segment_size(void)
 
 	return size;
 }
+#endif
 
 #define INTEL_INFO(dev_priv)	(&(dev_priv)->__info)
 #define RUNTIME_INFO(dev_priv)	(&(dev_priv)->__runtime)
@@ -2697,7 +2709,7 @@ static inline bool intel_vgpu_active(struct drm_i915_private *dev_priv)
 }
 
 u32 i915_pipestat_enable_mask(struct drm_i915_private *dev_priv,
-			      enum pipe pipe);
+			      enum i915_pipe pipe);
 void
 i915_enable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 		     u32 status_mask);
@@ -2860,6 +2872,7 @@ void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
 
 void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv);
 
+#ifndef __NetBSD__
 static inline int __sg_page_count(const struct scatterlist *sg)
 {
 	return sg->length >> PAGE_SHIFT;
@@ -2868,6 +2881,7 @@ static inline int __sg_page_count(const struct scatterlist *sg)
 struct scatterlist *
 i915_gem_object_get_sg(struct drm_i915_gem_object *obj,
 		       unsigned int n, unsigned int *offset);
+#endif
 
 struct page *
 i915_gem_object_get_page(struct drm_i915_gem_object *obj,
@@ -3110,10 +3124,17 @@ void i915_gem_revoke_fences(struct drm_i915_private *dev_priv);
 void i915_gem_restore_fences(struct drm_i915_private *dev_priv);
 
 void i915_gem_detect_bit_6_swizzle(struct drm_i915_private *dev_priv);
+#ifdef __NetBSD__
+void i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj,
+				       struct pglist *pages);
+void i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj,
+					 struct pglist *pages);
+#else
 void i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj,
 				       struct sg_table *pages);
 void i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj,
 					 struct sg_table *pages);
+#endif
 
 static inline struct i915_gem_context *
 __i915_gem_context_lookup_rcu(struct drm_i915_file_private *file_priv, u32 id)
@@ -3266,7 +3287,7 @@ int  intel_lpe_audio_init(struct drm_i915_private *dev_priv);
 void intel_lpe_audio_teardown(struct drm_i915_private *dev_priv);
 void intel_lpe_audio_irq_handler(struct drm_i915_private *dev_priv);
 void intel_lpe_audio_notify(struct drm_i915_private *dev_priv,
-			    enum pipe pipe, enum port port,
+			    enum i915_pipe pipe, enum port port,
 			    const void *eld, int ls_clock, bool dp_output);
 
 /* intel_i2c.c */
@@ -3635,9 +3656,11 @@ bool i915_memcpy_from_wc(void *dst, const void *src, unsigned long len);
 	i915_memcpy_from_wc(NULL, NULL, 0)
 
 /* i915_mm.c */
+#ifndef __NetBSD__
 int remap_io_mapping(struct vm_area_struct *vma,
 		     unsigned long addr, unsigned long pfn, unsigned long size,
 		     struct io_mapping *iomap);
+#endif
 
 static inline int intel_hws_csb_write_index(struct drm_i915_private *i915)
 {

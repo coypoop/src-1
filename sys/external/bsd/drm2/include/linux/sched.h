@@ -33,6 +33,7 @@
 #define _LINUX_SCHED_H_
 
 #include <sys/param.h>
+#include <sys/cdefs.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 
@@ -44,6 +45,8 @@
 #define	TASK_COMM_LEN	MAXCOMLEN
 
 #define	MAX_SCHEDULE_TIMEOUT	(INT_MAX/2)	/* paranoia */
+
+#define	TASK_UNINTERRUPTIBLE	__BIT(0)
 
 #define	current	curproc
 
@@ -60,25 +63,40 @@ schedule_timeout_uninterruptible(long timeout)
 	int start, end;
 
 	if (cold) {
-		DELAY(timeout);
+		unsigned us;
+		if (hz <= 1000) {
+			unsigned ms = hztoms(MIN(timeout, mstohz(INT_MAX)));
+			us = MIN(ms, INT_MAX/1000)*1000;
+		} else if (hz <= 1000000) {
+			us = MIN(timeout, (INT_MAX/1000000)/hz)*hz*1000000;
+		} else {
+			us = timeout/(1000000/hz);
+		}
+		DELAY(us);
 		return 0;
 	}
 
 	start = hardclock_ticks;
-	/* XXX Integer truncation...not likely to matter here.  */
-	(void)kpause("loonix", false /*!intr*/, timeout, NULL);
+	/* Caller is expected to loop anyway, so no harm in truncating.  */
+	(void)kpause("loonix", false /*!intr*/, MIN(timeout, INT_MAX), NULL);
 	end = hardclock_ticks;
 
 	remain = timeout - (end - start);
 	return remain > 0 ? remain : 0;
 }
 
+static inline bool
+need_resched(void)
+{
+	return (curcpu()->ci_schedstate.spc_flags & SPCF_SHOULDYIELD);
+}
+
 static inline void
 cond_resched(void)
 {
 
-	if (curcpu()->ci_schedstate.spc_flags & SPCF_SHOULDYIELD)
-		preempt();
+	if (need_resched())
+		yield();
 }
 
 #endif  /* _LINUX_SCHED_H_ */

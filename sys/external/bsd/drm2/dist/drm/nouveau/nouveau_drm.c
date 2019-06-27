@@ -1051,6 +1051,36 @@ nouveau_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(NOUVEAU_GEM_INFO, nouveau_gem_ioctl_info, DRM_AUTH|DRM_RENDER_ALLOW),
 };
 
+#ifdef __NetBSD__
+#include <sys/file.h>
+#include <sys/ioccom.h>
+static int			/* XXX expose to ioc32 */
+nouveau_ioctl_override(struct file *fp, unsigned long cmd, void *data)
+{
+	struct drm_file *file = fp->f_data;
+	struct drm_device *dev = file->minor->dev;
+	int ret;
+
+	ret = pm_runtime_get_sync(dev->dev);
+	if (ret < 0 && ret != -EACCES)
+		/* XXX errno Linux->NetBSD */
+		return -ret;
+
+	switch (DRM_IOCTL_NR(cmd) - DRM_COMMAND_BASE) {
+	case DRM_NOUVEAU_NVIF:
+		/* XXX errno Linux->NetBSD */
+		ret = -usif_ioctl(file, data, IOCPARM_LEN(cmd));
+		break;
+	default:
+		ret = drm_ioctl(fp, cmd, data);
+		break;
+	}
+
+	pm_runtime_mark_last_busy(dev->dev);
+	pm_runtime_put_autosuspend(dev->dev);
+	return ret;
+}
+#else
 long
 nouveau_drm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -1075,7 +1105,9 @@ nouveau_drm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	pm_runtime_put_autosuspend(dev->dev);
 	return ret;
 }
+#endif
 
+#ifndef __NetBSD__
 static const struct file_operations
 nouveau_driver_fops = {
 	.owner = THIS_MODULE,
@@ -1115,6 +1147,12 @@ driver_stub = {
 
 	.ioctls = nouveau_ioctls,
 	.num_ioctls = ARRAY_SIZE(nouveau_ioctls),
+#ifdef __NetBSD__
+	.fops = NULL,
+	.mmap_object = &nouveau_ttm_mmap_object,
+	.gem_uvm_ops = &nouveau_gem_uvm_ops,
+	.ioctl_override = nouveau_ioctl_override,
+#else
 	.fops = &nouveau_driver_fops,
 
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,

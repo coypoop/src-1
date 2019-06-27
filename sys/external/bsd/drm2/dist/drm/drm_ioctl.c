@@ -28,6 +28,11 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#ifdef __NetBSD__
+#include <sys/types.h>
+#include <sys/file.h>
+#endif
+
 #include <drm/drm_ioctl.h>
 #include <drm/drmP.h>
 #include <drm/drm_auth.h>
@@ -144,8 +149,8 @@ static int drm_set_busid(struct drm_device *dev, struct drm_file *file_priv)
 	if (master->unique != NULL)
 		drm_unset_busid(dev, master);
 
-	if (dev->dev && dev_is_pci(dev->dev)) {
-		ret = drm_pci_set_busid(dev, master);
+	if (dev->driver->set_busid) {
+		ret = dev->driver->set_busid(dev, master);
 		if (ret) {
 			drm_unset_busid(dev, master);
 			return ret;
@@ -741,7 +746,11 @@ static const struct drm_ioctl_desc drm_ioctls[] = {
 long drm_ioctl_kernel(struct file *file, drm_ioctl_t *func, void *kdata,
 		      u32 flags)
 {
+#ifdef __NetBSD__
+	struct drm_file *file_priv = file->f_data;
+#else
 	struct drm_file *file_priv = file->private_data;
+#endif
 	struct drm_device *dev = file_priv->minor->dev;
 	int retcode;
 
@@ -778,6 +787,87 @@ EXPORT_SYMBOL(drm_ioctl_kernel);
  * Returns:
  * Zero on success, negative error code on failure.
  */
+<<<<<<< HEAD
+=======
+#ifdef __NetBSD__
+#include <sys/file.h>
+int
+drm_ioctl(struct file *fp, unsigned long cmd, void *data)
+{
+	char stackbuf[128];
+	char *buf = stackbuf;
+	void *data0 = data;
+	struct drm_file *const file = fp->f_data;
+	const unsigned int nr = DRM_IOCTL_NR(cmd);
+	int error;
+
+	switch (cmd) {
+	case FIONBIO:
+	case FIOASYNC:
+		return 0;
+	default:
+		break;
+	}
+
+	if (IOCGROUP(cmd) != DRM_IOCTL_BASE)
+		return EINVAL;
+
+	KASSERT(file != NULL);
+	KASSERT(file->minor != NULL);
+	KASSERT(file->minor->dev != NULL);
+	struct drm_device *const dev = file->minor->dev;
+	const struct drm_ioctl_desc *ioctl;
+
+	if (drm_dev_is_unplugged(dev))
+		return ENXIO;
+
+	const bool is_driver_ioctl =
+	    (DRM_COMMAND_BASE <= nr) && (nr < DRM_COMMAND_END);
+
+	if (is_driver_ioctl) {
+		const unsigned int driver_nr = nr - DRM_COMMAND_BASE;
+		if (driver_nr >= dev->driver->num_ioctls)
+			return EINVAL;
+		ioctl = &dev->driver->ioctls[driver_nr];
+	} else {
+		if (nr >= __arraycount(drm_ioctls))
+			return EINVAL;
+		ioctl = &drm_ioctls[nr];
+	}
+
+	if (ioctl->func)
+		return EINVAL;
+
+	/* If userland passed in too few bytes, zero-pad them.  */
+	if (IOCPARM_LEN(cmd) < IOCPARM_LEN(ioctl->cmd)) {
+		/* 12-bit quantity, according to <sys/ioccom.h> */
+		KASSERT(IOCPARM_LEN(ioctl->cmd) <= 4096);
+		if (IOCPARM_LEN(ioctl->cmd) > sizeof stackbuf) {
+			buf = kmem_alloc(IOCPARM_LEN(ioctl->cmd), KM_NOSLEEP);
+			if (buf == NULL)
+				return ENOMEM;
+		}
+		memcpy(buf, data, IOCPARM_LEN(cmd));
+		memset(buf + IOCPARM_LEN(cmd), 0,
+		    IOCPARM_LEN(ioctl->cmd) - IOCPARM_LEN(cmd));
+		data0 = buf;
+	}
+
+	/* XXX errno Linux->NetBSD */
+	error = -drm_ioctl_kernel(fp, ioctl->func, data0, ioctl->flags);
+
+	/* If we used a temporary buffer, copy it back out.  */
+	if (data != data0)
+		memcpy(data, data0, IOCPARM_LEN(cmd));
+
+	/* If we had to allocate a heap buffer, free it.  */
+	if (buf != stackbuf)
+		kmem_free(buf, IOCPARM_LEN(ioctl->cmd));
+
+	return error;
+}
+#else
+>>>>>>> bef9a481623... Fix up drm ioctl.
 long drm_ioctl(struct file *filp,
 	      unsigned int cmd, unsigned long arg)
 {

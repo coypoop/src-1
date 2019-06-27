@@ -47,6 +47,12 @@ static struct sg_table *i915_gem_map_dma_buf(struct dma_buf_attachment *attachme
 	if (ret)
 		goto err;
 
+#ifdef __NetBSD__
+	st = drm_prime_pglist_to_sg(&obj->mm.pageq,
+	    obj->base.size >> PAGE_SHIFT);
+	if (IS_ERR(st))
+		goto err_unpin_pages;
+#else
 	/* Copy sg so that we make an independent mapping */
 	st = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
 	if (st == NULL) {
@@ -70,6 +76,7 @@ static struct sg_table *i915_gem_map_dma_buf(struct dma_buf_attachment *attachme
 		ret = -ENOMEM;
 		goto err_free_sg;
 	}
+#endif
 
 	return st;
 
@@ -140,7 +147,12 @@ static void i915_gem_dmabuf_kunmap(struct dma_buf *dma_buf, unsigned long page_n
 {
 	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
 
+#ifdef __NetBSD__		/* XXX vtophys */
+	kunmap(container_of(PHYS_TO_VM_PAGE(vtophys((vaddr_t)addr)),
+		struct page, p_vmp));
+#else
 	kunmap(virt_to_page(addr));
+#endif
 	i915_gem_object_unpin_pages(obj);
 }
 
@@ -149,6 +161,18 @@ static int i915_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *
 	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
 	int ret;
 
+#ifdef __NetBSD__
+	__USE(ret);
+	if (obj->base.size < size)
+		return -EINVAL;
+	if (!obj->base.filp)
+		return -ENODEV;
+	/* XXX review mmap refcount */
+	drm_gem_object_reference(&obj->base);
+	*advicep = UVM_ADV_RANDOM;
+	*uobjp = &obj->base.gemo_uvmobj;
+	*maxprotp = prot;
+#else
 	if (obj->base.size < vma->vm_end - vma->vm_start)
 		return -EINVAL;
 
@@ -161,6 +185,7 @@ static int i915_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *
 
 	fput(vma->vm_file);
 	vma->vm_file = get_file(obj->base.filp);
+#endif
 
 	return 0;
 }
@@ -246,6 +271,43 @@ struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 
 static int i915_gem_object_get_pages_dmabuf(struct drm_i915_gem_object *obj)
 {
+#ifdef __NetBSD__
+	struct drm_device *dev = obj->base.dev;
+	struct sg_table *sg;
+	bus_dmamap_t pages;
+	bus_size_t page_sizes;
+	unsigned seg;
+	int ret;
+
+	sg = dma_buf_map_attachment(obj->base.import_attach,
+	    DMA_BIDIRECTIONAL);
+	if (IS_ERR(sg))
+		return PTR_ERR(sg);
+
+	ret = -bus_dmamap_create(dev->dmat, obj->base.size,
+	    obj->base.size >> PAGE_SHIFT, obj->base.size, 0, BUS_DMA_NOWAIT,
+	    &pages);
+	if (ret) {
+fail0:		dma_buf_unmap_attachment(obj->base.import_attach, sg,
+		    DMA_BIDIRECTIONAL);
+		return ret;
+	}
+	ret = drm_prime_bus_dmamap_load_sgt(dev->dmat, pages, sg);
+	if (ret) {
+fail1: __unused
+		bus_dmamap_destroy(dev->dmat, pages);
+		goto fail0;
+	}
+
+	page_sizes = 0;
+	for (seg = 0; seg < pages->dm_nsegs; seg++)
+		page_sizes |= pages->dm_segs[seg].ds_len;
+
+	__i915_gem_object_set_pages(obj, pages, page_sizes);
+	obj->mm.sg = sg;
+
+	return 0;
+#else
 	struct sg_table *pages;
 	unsigned int sg_page_sizes;
 
@@ -259,6 +321,7 @@ static int i915_gem_object_get_pages_dmabuf(struct drm_i915_gem_object *obj)
 	__i915_gem_object_set_pages(obj, pages, sg_page_sizes);
 
 	return 0;
+#endif
 }
 
 static void i915_gem_object_put_pages_dmabuf(struct drm_i915_gem_object *obj,

@@ -38,6 +38,7 @@
 
 #include <asm/page.h>
 #include <linux/shrinker.h>
+#include <linux/slab.h>
 
 struct file;
 
@@ -64,6 +65,14 @@ si_meminfo(struct sysinfo *si)
 	/* XXX Fill in more as needed.  */
 }
 
+static inline size_t
+si_mem_available(void)
+{
+
+	/* XXX ? */
+	return uvmexp.free;
+}
+
 static inline unsigned long
 vm_mmap(struct file *file __unused, unsigned long base __unused,
     unsigned long size __unused, unsigned long prot __unused,
@@ -77,6 +86,23 @@ static inline unsigned long
 get_num_physpages(void)
 {
 	return uvmexp.npages;
+}
+
+static inline void *
+kvzalloc(size_t size, gfp_t gfp)
+{
+
+	return kmalloc(size, gfp | __GFP_ZERO);
+}
+
+static inline void *
+kvmalloc_array(size_t nelem, size_t elemsize, gfp_t gfp)
+{
+
+	KASSERT(elemsize != 0);
+	if (nelem > SIZE_MAX/elemsize)
+		return NULL;
+	return kmalloc(nelem * elemsize, gfp);
 }
 
 /*

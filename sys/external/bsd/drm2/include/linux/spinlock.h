@@ -36,11 +36,10 @@
 #include <sys/mutex.h>
 
 #include <machine/limits.h>
-#include <linux/irqflags.h>
-#include <linux/preempt.h>
 
-#define	__acquires(lock)	/* XXX lockdep stuff */
-#define	__releases(lock)	/* XXX lockdep stuff */
+#include <linux/irqflags.h>
+#include <linux/lockdep.h>
+#include <linux/preempt.h>
 
 typedef struct spinlock {
 	kmutex_t sl_lock;
@@ -87,6 +86,12 @@ static inline void
 spin_unlock_irqrestore(spinlock_t *spinlock, unsigned long __unused flags)
 {
 	mutex_exit(&spinlock->sl_lock);
+}
+
+static inline void
+spin_lock_nested(spinlock_t *spinlock, int subclass)
+{
+	spin_lock(spinlock);
 }
 
 static inline void

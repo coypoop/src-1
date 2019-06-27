@@ -478,6 +478,20 @@ static u64 execlists_update_context(struct i915_request *rq)
 
 static inline void write_desc(struct intel_engine_execlists *execlists, u64 desc, u32 port)
 {
+#ifdef __NetBSD__
+	if (execlists->has_ctrl_reg) {
+		bus_space_write_4(execlists->regt, execlists->regh,
+		    execlists->submit_reg + 4*(port*2), lower_32_bits(desc));
+		bus_space_write_4(execlists->regt, execlists->regh,
+		    execlists->submit_reg + 4*(port*2 + 1),
+		    upper_32_bits(desc));
+	} else {
+		bus_space_write_4(execlists->regt, execlists->regh,
+		    execlists->submit_reg, lower_32_bits(desc));
+		bus_space_write_4(execlists->regt, execlists->regh,
+		    execlists->submit_reg, upper_32_bits(desc));
+	}
+#else
 	if (execlists->ctrl_reg) {
 		writel(lower_32_bits(desc), execlists->submit_reg + port * 2);
 		writel(upper_32_bits(desc), execlists->submit_reg + port * 2 + 1);
@@ -485,6 +499,7 @@ static inline void write_desc(struct intel_engine_execlists *execlists, u64 desc
 		writel(upper_32_bits(desc), execlists->submit_reg);
 		writel(lower_32_bits(desc), execlists->submit_reg);
 	}
+#endif
 }
 
 static void execlists_submit_ports(struct intel_engine_cs *engine)
@@ -2243,6 +2258,7 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 
 	engine->i915 = NULL;
 	dev_priv->engine[engine->id] = NULL;
+	seqlock_destroy(&engine->stats.lock);
 	kfree(engine);
 }
 
@@ -2356,6 +2372,21 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 
 	intel_engine_init_workarounds(engine);
 
+#ifdef __NetBSD__
+	execlists->regt = i915->regs_bst;
+	execlists->regh = i915->regs_bsh;
+	if (HAS_LOGICAL_RING_ELSQ(i915)) {
+		execlists->submit_reg =
+		    i915_mmio_reg_offset(RING_EXECLIST_SQ_CONTENTS(engine));
+		execlists->ctrl_reg =
+		    i915_mmio_reg_offset(RING_EXECLIST_CONTROL(engine));
+		execlists->has_ctrl_reg = true;
+	} else {
+		execlists->submit_reg =
+		    i915_mmio_reg_offset(RING_ELSP(engine));
+		execlists->has_ctrl_reg = false;
+	}
+#else
 	if (HAS_LOGICAL_RING_ELSQ(i915)) {
 		execlists->submit_reg = i915->regs +
 			i915_mmio_reg_offset(RING_EXECLIST_SQ_CONTENTS(engine));
@@ -2365,6 +2396,7 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 		execlists->submit_reg = i915->regs +
 			i915_mmio_reg_offset(RING_ELSP(engine));
 	}
+#endif
 
 	execlists->preempt_complete_status = ~0u;
 	if (i915->preempt_context) {

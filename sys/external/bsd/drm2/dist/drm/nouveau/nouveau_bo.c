@@ -560,6 +560,47 @@ nouveau_bo_validate(struct nouveau_bo *nvbo, bool interruptible,
 	return 0;
 }
 
+#ifdef __NetBSD__
+/*
+ * XXX Can't use bus_space here because this is all mapped through the
+ * radeon_bo abstraction.  Can't assume we're x86 because this is
+ * Nouveau, not Intel.
+ */
+
+#  define	__iomem			volatile
+#  define	__force
+#  define	ioread32_native		fake_ioread32_native
+#  define	iowrite16_native	fake_iowrite16_native
+#  define	iowrite32_native	fake_iowrite32_native
+
+static inline uint32_t
+ioread32_native(const void __iomem *ptr)
+{
+	uint32_t v;
+
+	v = *(const uint32_t __iomem *)ptr;
+	membar_consumer();
+
+	return v;
+}
+
+static inline void
+iowrite16_native(uint16_t v, void __iomem *ptr)
+{
+
+	membar_producer();
+	*(uint16_t __iomem *)ptr = v;
+}
+
+static inline void
+iowrite32_native(uint32_t v, void __iomem *ptr)
+{
+
+	membar_producer();
+	*(uint32_t __iomem *)ptr = v;
+}
+#endif
+
 void
 nouveau_bo_wr16(struct nouveau_bo *nvbo, unsigned index, u16 val)
 {
@@ -601,6 +642,14 @@ nouveau_bo_wr32(struct nouveau_bo *nvbo, unsigned index, u32 val)
 	else
 		*mem = val;
 }
+
+#ifdef __NetBSD__
+#  undef	__iomem
+#  undef	__force
+#  undef	ioread32_native
+#  undef	iowrite16_native
+#  undef	iowrite32_native
+#endif
 
 static struct ttm_tt *
 nouveau_ttm_tt_create(struct ttm_buffer_object *bo, uint32_t page_flags)

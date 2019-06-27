@@ -1,4 +1,4 @@
-/* $NetBSD: drm_gem_cma_helper.c,v 1.6 2018/08/27 15:27:43 riastradh Exp $ */
+/* $NetBSD: drm_gem_cma_helper.c,v 1.7 2019/03/08 02:53:22 mrg Exp $ */
 
 /*-
  * Copyright (c) 2015-2017 Jared McNeill <jmcneill@invisible.ca>
@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD: drm_gem_cma_helper.c,v 1.6 2018/08/27 15:27:43 riastradh Exp $");
+__KERNEL_RCSID(0, "$NetBSD: drm_gem_cma_helper.c,v 1.7 2019/03/08 02:53:22 mrg Exp $");
 
 #include <drm/drmP.h>
 #include <drm/drm_gem_cma_helper.h>
@@ -146,36 +146,6 @@ drm_gem_cma_dumb_create(struct drm_file *file_priv, struct drm_device *ddev,
 	return 0;
 }
 
-int
-drm_gem_cma_dumb_map_offset(struct drm_file *file_priv, struct drm_device *ddev,
-    uint32_t handle, uint64_t *offset)
-{
-	struct drm_gem_object *gem_obj;
-	struct drm_gem_cma_object *obj;
-	int error;
-
-	gem_obj = drm_gem_object_lookup(ddev, file_priv, handle);
-	if (gem_obj == NULL)
-		return -ENOENT;
-
-	obj = to_drm_gem_cma_obj(gem_obj);
-
-	if (drm_vma_node_has_offset(&obj->base.vma_node) == 0) {
-		error = drm_gem_create_mmap_offset(&obj->base);
-		if (error)
-			goto done;
-	} else {
-		error = 0;
-	}
-
-	*offset = drm_vma_node_offset_addr(&obj->base.vma_node);
-
-done:
-	drm_gem_object_unreference_unlocked(&obj->base);
-
-	return error;
-}
-
 static int
 drm_gem_cma_fault(struct uvm_faultinfo *ufi, vaddr_t vaddr,
     struct vm_page **pps, int npages, int centeridx, vm_prot_t access_type,
@@ -194,7 +164,7 @@ drm_gem_cma_fault(struct uvm_faultinfo *ufi, vaddr_t vaddr,
 	vm_prot_t mapprot;
 
 	if (UVM_ET_ISCOPYONWRITE(entry))
-		return -EIO;
+		return EIO;
 
 	curr_offset = entry->offset + (vaddr - entry->start);
 	curr_va = vaddr;
@@ -210,7 +180,7 @@ drm_gem_cma_fault(struct uvm_faultinfo *ufi, vaddr_t vaddr,
 		mdpgno = bus_dmamem_mmap(obj->dmat, obj->dmasegs, 1,
 		    curr_offset, access_type, BUS_DMA_PREFETCHABLE);
 		if (mdpgno == -1) {
-			retval = -EIO;
+			retval = EIO;
 			break;
 		}
 		paddr = pmap_phys_address(mdpgno);
@@ -222,7 +192,7 @@ drm_gem_cma_fault(struct uvm_faultinfo *ufi, vaddr_t vaddr,
 			pmap_update(ufi->orig_map->pmap);
 			uvmfault_unlockall(ufi, ufi->entry->aref.ar_amap, uobj);
 			uvm_wait("drm_gem_cma_fault");
-			return -ERESTART;
+			return ERESTART;
 		}
 	}
 

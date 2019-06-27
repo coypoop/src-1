@@ -32,4 +32,7 @@
 #ifndef _LINUX_FS_H_
 #define _LINUX_FS_H_
 
+#include <linux/capability.h>
+#include <linux/wait_bit.h>
+
 #endif  /* _LINUX_FS_H_ */

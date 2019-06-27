@@ -62,6 +62,7 @@ struct acpi_devnode;
 #endif
 
 #include <linux/dma-mapping.h>
+#include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 
@@ -109,7 +110,11 @@ CTASSERT(PCI_CLASS_BRIDGE_ISA == 0x0601);
 #define	PCI_VENDOR_ID_SONY	PCI_VENDOR_SONY
 #define	PCI_VENDOR_ID_VIA	PCI_VENDOR_VIATECH
 
+#define	PCI_SUBVENDOR_ID_REDHAT_QUMRANET	0x1af4
+
 #define	PCI_DEVICE_ID_ATI_RADEON_QY	PCI_PRODUCT_ATI_RADEON_RV100_QY
+
+#define	PCI_SUBDEVICE_ID_QEMU		0x1100
 
 #define	PCI_DEVFN(DEV, FN)						\
 	(__SHIFTIN((DEV), __BITS(3, 7)) | __SHIFTIN((FN), __BITS(0, 2)))
@@ -143,7 +148,7 @@ struct pci_dev {
 	bus_size_t		pd_rom_found_size;
 	void			*pd_rom_vaddr;
 	device_t		pd_dev;
-	struct drm_device	*pd_drm_dev; /* XXX Nouveau kludge!  */
+	void			*pd_drvdata;
 	struct {
 		pcireg_t		type;
 		bus_addr_t		addr;
@@ -194,13 +199,14 @@ struct pci_dev {
 #define	pci_enable_msi			linux_pci_enable_msi
 #define	pci_enable_rom			linux_pci_enable_rom
 #define	pci_find_capability		linux_pci_find_capability
-#define	pci_get_bus_and_slot		linux_pci_get_bus_and_slot
 #define	pci_get_class			linux_pci_get_class
+#define	pci_get_domain_bus_and_slot	linux_pci_get_domain_bus_and_slot
 #define	pci_get_drvdata			linux_pci_get_drvdata
 #define	pci_iomap			linux_pci_iomap
 #define	pci_iounmap			linux_pci_iounmap
 #define	pci_is_pcie			linux_pci_is_pcie
 #define	pci_is_root_bus			linux_pci_is_root_bus
+#define	pci_is_thunderbolt_attached	linux_pci_is_thunderbolt_attached
 #define	pci_map_rom			linux_pci_map_rom
 #define	pci_platform_rom		linux_pci_platform_rom
 #define	pci_read_config_byte		linux_pci_read_config_byte
@@ -212,6 +218,7 @@ struct pci_dev {
 #define	pci_resource_start		linux_pci_resource_start
 #define	pci_restore_state		linux_pci_restore_state
 #define	pci_save_state			linux_pci_save_state
+#define	pci_set_drvdata			linux_pci_set_drvdata
 #define	pci_set_master			linux_pci_set_master
 #define	pci_unmap_rom			linux_pci_unmap_rom
 #define	pci_write_config_byte		linux_pci_write_config_byte
@@ -232,12 +239,13 @@ bool		pci_is_root_bus(struct pci_bus *);
 int		pci_domain_nr(struct pci_bus *);
 
 device_t	pci_dev_dev(struct pci_dev *);
-struct drm_device *		/* XXX Nouveau kludge!  */
-		pci_get_drvdata(struct pci_dev *);
+void		pci_set_drvdata(struct pci_dev *, void *);
+void *		pci_get_drvdata(struct pci_dev *);
 
 int		pci_find_capability(struct pci_dev *, int);
 bool		pci_is_pcie(struct pci_dev *);
 bool		pci_dma_supported(struct pci_dev *, uintmax_t);
+bool		pci_is_thunderbolt_attached(struct pci_dev *);
 
 int		pci_read_config_dword(struct pci_dev *, int, uint32_t *);
 int		pci_read_config_word(struct pci_dev *, int, uint16_t *);
@@ -272,7 +280,7 @@ int		pci_bus_alloc_resource(struct pci_bus *, struct resource *,
 			bus_size_t), struct pci_dev *);
 
 /* XXX Kludges only -- do not use without checking the implementation!  */
-struct pci_dev *pci_get_bus_and_slot(int, int);
+struct pci_dev *pci_get_domain_bus_and_slot(int, int, int);
 struct pci_dev *pci_get_class(uint32_t, struct pci_dev *); /* i915 kludge */
 void		pci_dev_put(struct pci_dev *);
 

@@ -1,7 +1,7 @@
-/*	$NetBSD: drm_copy_netbsd.h,v 1.2 2014/03/18 18:20:43 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
 /*-
- * Copyright (c) 2013 The NetBSD Foundation, Inc.
+ * Copyright (c) 2018 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -29,24 +29,27 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _DRM_DRM_COPY_NETBSD_H_
-#define _DRM_DRM_COPY_NETBSD_H_
+#ifndef	_LINUX_SORT_H_
+#define	_LINUX_SORT_H_
 
-#include <sys/types.h>
-#include <sys/systm.h>
+#include <sys/kmem.h>
 
-static inline int
-DRM_COPY_FROM_USER(void *kernel_addr, const void *user_addr, size_t len)
+#include <lib/libkern/libkern.h>
+
+static inline void
+sort(void *array, size_t nelem, size_t elemsize,
+    int (*cmp)(const void *, const void *),
+    void (*swap)(void *, void *, int))
 {
-	/* XXX errno NetBSD->Linux */
-	return -copyin(user_addr, kernel_addr, len);
+	void *tmp;
+
+	KASSERT(swap == NULL);	/* XXX */
+	KASSERT(elemsize != 0);
+	KASSERT(nelem <= SIZE_MAX/elemsize);
+
+	tmp = kmem_alloc(nelem*elemsize, KM_SLEEP);
+	kheapsort(array, nelem, elemsize, cmp, tmp);
+	kmem_free(tmp, nelem*elemsize);
 }
 
-static inline int
-DRM_COPY_TO_USER(void *user_addr, const void *kernel_addr, size_t len)
-{
-	/* XXX errno NetBSD->Linux */
-	return -copyout(kernel_addr, user_addr, len);
-}
-
-#endif  /* _DRM_DRM_OS_NETBSD_H_ */
+#endif	/* _LINUX_SORT_H_ */

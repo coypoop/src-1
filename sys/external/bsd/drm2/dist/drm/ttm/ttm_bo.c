@@ -1689,10 +1689,37 @@ bool ttm_mem_reg_is_pci(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 
 void ttm_bo_unmap_virtual_locked(struct ttm_buffer_object *bo)
 {
+#ifdef __NetBSD__
+	if (bo->mem.bus.is_iomem) {
+		paddr_t start, end, pa;
+
+		KASSERTMSG((bo->mem.bus.base & (PAGE_SIZE - 1)) == 0,
+		    "bo bus base addr not page-aligned: %lx",
+		    bo->mem.bus.base);
+		KASSERTMSG((bo->mem.bus.offset & (PAGE_SIZE - 1)) == 0,
+		    "bo bus offset not page-aligned: %lx",
+		    bo->mem.bus.offset);
+		start = bo->mem.bus.base + bo->mem.bus.offset;
+		KASSERT((bo->mem.bus.size & (PAGE_SIZE - 1)) == 0);
+		end = start + bo->mem.bus.size;
+
+		for (pa = start; pa < end; pa += PAGE_SIZE)
+			pmap_pv_protect(pa, VM_PROT_NONE);
+	} else if (bo->ttm != NULL) {
+		unsigned i;
+
+		mutex_enter(bo->uvmobj.vmobjlock);
+		for (i = 0; i < bo->ttm->num_pages; i++)
+			pmap_page_protect(&bo->ttm->pages[i]->p_vmp,
+			    VM_PROT_NONE);
+		mutex_exit(bo->uvmobj.vmobjlock);
+	}
+#else
 	struct ttm_bo_device *bdev = bo->bdev;
 
 	drm_vma_node_unmap(&bo->vma_node, bdev->dev_mapping);
 	ttm_mem_io_free_vm(bo);
+#endif
 }
 
 void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo)

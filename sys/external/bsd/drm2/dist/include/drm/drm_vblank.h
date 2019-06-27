@@ -29,10 +29,16 @@
 #include <linux/seqlock.h>
 #include <linux/idr.h>
 #include <linux/poll.h>
+#include <linux/timer.h>
+#include <linux/ktime.h>
 
 #include <drm/drm_file.h>
 #include <drm/drm_modes.h>
 #include <uapi/drm/drm.h>
+
+#ifdef __NetBSD__		/* XXX */
+#include <drm/drm_wait_netbsd.h>
+#endif
 
 struct drm_device;
 struct drm_crtc;

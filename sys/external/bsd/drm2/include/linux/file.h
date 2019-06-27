@@ -32,4 +32,23 @@
 #ifndef _LINUX_FILE_H_
 #define _LINUX_FILE_H_
 
+#include <sys/file.h>
+#include <sys/filedesc.h>
+#include <sys/proc.h>
+
+struct file;
+
+/* fget translates; fput(fp) doesn't because we have fd_putfile(fd).  */
+static inline struct file *
+fget(int fd)
+{
+	return fd_getfile(fd);
+}
+
+static inline void
+fd_install(int fd, struct file *fp)
+{
+	fd_affix(curproc, fp, fd);
+}
+
 #endif  /* _LINUX_FILE_H_ */

@@ -726,7 +726,11 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 	INIT_LIST_HEAD(&fb->filp_head);
 
 	fb->funcs = funcs;
+#ifdef __NetBSD__
+	strlcpy(fb->comm, curproc->p_comm, sizeof fb->comm);
+#else
 	strcpy(fb->comm, current->comm);
+#endif
 
 	ret = __drm_mode_object_add(dev, &fb->base, DRM_MODE_OBJECT_FB,
 				    false, drm_framebuffer_free);
@@ -830,7 +834,7 @@ static int atomic_remove_fb(struct drm_framebuffer *fb)
 	struct drm_device *dev = fb->dev;
 	struct drm_atomic_state *state;
 	struct drm_plane *plane;
-	struct drm_connector *conn;
+	struct drm_connector *conn __unused;
 	struct drm_connector_state *conn_state;
 	int i, ret;
 	unsigned plane_mask;
@@ -1041,7 +1045,7 @@ void drm_framebuffer_print_info(struct drm_printer *p, unsigned int indent,
 			  drm_framebuffer_read_refcount(fb));
 	drm_printf_indent(p, indent, "format=%s\n",
 			  drm_get_format_name(fb->format->format, &format_name));
-	drm_printf_indent(p, indent, "modifier=0x%llx\n", fb->modifier);
+	drm_printf_indent(p, indent, "modifier=0x%"PRIx64"\n", fb->modifier);
 	drm_printf_indent(p, indent, "size=%ux%u\n", fb->width, fb->height);
 	drm_printf_indent(p, indent, "layers:\n");
 

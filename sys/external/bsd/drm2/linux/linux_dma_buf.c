@@ -1,4 +1,4 @@
-/*	$NetBSD: linux_dma_buf.c,v 1.4 2018/08/27 15:25:13 riastradh Exp $	*/
+/*	$NetBSD: linux_dma_buf.c,v 1.5 2019/01/04 23:03:02 tnn Exp $	*/
 
 /*-
  * Copyright (c) 2018 The NetBSD Foundation, Inc.
@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD: linux_dma_buf.c,v 1.4 2018/08/27 15:25:13 riastradh Exp $");
+__KERNEL_RCSID(0, "$NetBSD: linux_dma_buf.c,v 1.5 2019/01/04 23:03:02 tnn Exp $");
 
 #include <sys/types.h>
 #include <sys/atomic.h>
@@ -41,7 +41,6 @@ __KERNEL_RCSID(0, "$NetBSD: linux_dma_buf.c,v 1.4 2018/08/27 15:25:13 riastradh 
 
 #include <linux/dma-buf.h>
 #include <linux/err.h>
-#include <linux/fence.h>
 #include <linux/reservation.h>
 
 struct dma_buf_file {
@@ -119,7 +118,6 @@ dma_buf_fd(struct dma_buf *dmabuf, int flags)
 	fd_set_exclose(curlwp, fd, (flags & O_CLOEXEC) != 0);
 	fd_affix(curproc, file, fd);
 
-	fd_putfile(fd);
 	ret = fd;
 out0:	return ret;
 }
@@ -186,10 +184,11 @@ dma_buf_attach(struct dma_buf *dmabuf, struct device *dev)
 
 	attach = kmem_zalloc(sizeof(*attach), KM_SLEEP);
 	attach->dmabuf = dmabuf;
+	attach->dev = dev;
 
 	mutex_enter(&dmabuf->db_lock);
 	if (dmabuf->ops->attach)
-		ret = dmabuf->ops->attach(dmabuf, dev, attach);
+		ret = dmabuf->ops->attach(dmabuf, attach);
 	mutex_exit(&dmabuf->db_lock);
 	if (ret)
 		goto fail0;

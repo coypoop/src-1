@@ -1,4 +1,4 @@
-/*	$NetBSD: drm_pci.c,v 1.31 2018/08/28 03:41:39 riastradh Exp $	*/
+/*	$NetBSD: drm_pci.c,v 1.32 2018/11/15 06:53:58 riastradh Exp $	*/
 
 /*-
  * Copyright (c) 2013 The NetBSD Foundation, Inc.
@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD: drm_pci.c,v 1.31 2018/08/28 03:41:39 riastradh Exp $");
+__KERNEL_RCSID(0, "$NetBSD: drm_pci.c,v 1.32 2018/11/15 06:53:58 riastradh Exp $");
 
 #include <sys/types.h>
 #include <sys/errno.h>
@@ -40,6 +40,8 @@ __KERNEL_RCSID(0, "$NetBSD: drm_pci.c,v 1.31 2018/08/28 03:41:39 riastradh Exp $
 
 #include <drm/drmP.h>
 #include <drm/drm_legacy.h>
+
+#include "../dist/drm/drm_internal.h"
 
 struct drm_bus_irq_cookie {
 	pci_intr_handle_t *intr_handles;
@@ -75,7 +77,6 @@ drm_pci_attach(device_t self, const struct pci_attach_args *pa,
 	}
 
 	dev->pdev = pdev;
-	pdev->pd_drm_dev = dev;	/* XXX Nouveau kludge.  */
 
 	/* XXX Set the power state to D0?  */
 
@@ -106,6 +107,14 @@ drm_pci_attach(device_t self, const struct pci_attach_args *pa,
 			continue;
 		}
 
+		/*
+		 * If it's a 64-bit mapping, don't interpret the second
+		 * half of it as another BAR in the next iteration of
+		 * the loop -- move on to the next unit.
+		 */
+		if (PCI_MAPREG_MEM_TYPE(type) == PCI_MAPREG_MEM_TYPE_64BIT)
+			unit++;
+
 		/* Inquire about it.  We'll map it in drm_legacy_ioremap.  */
 		if (pci_mapreg_info(pa->pa_pc, pa->pa_tag, reg, type,
 			&bm->bm_base, &bm->bm_size, &bm->bm_flags) != 0) {
@@ -119,7 +128,7 @@ drm_pci_attach(device_t self, const struct pci_attach_args *pa,
 
 	/* Set up AGP stuff if requested.  */
 	if (drm_core_check_feature(dev, DRIVER_USE_AGP)) {
-		if (drm_pci_device_is_agp(dev))
+		if (pci_find_capability(dev->pdev, PCI_CAP_ID_AGP))
 			dev->agp = drm_agp_init(dev);
 		if (dev->agp)
 			dev->agp->agp_mtrr = arch_phys_wc_add(dev->agp->base,

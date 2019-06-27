@@ -23,9 +23,15 @@
  * Rob Clark <robdclark@gmail.com>
  */
 
+#ifndef __NetBSD__		/* XXX ??? */
 #define DEBUG /* for pr_debug() */
+#endif
 
+#ifdef __NetBSD__
+#include <sys/stdarg.h>
+#else
 #include <stdarg.h>
+#endif
 #include <linux/seq_file.h>
 #include <drm/drmP.h>
 #include <drm/drm_print.h>
@@ -64,7 +70,7 @@ void __drm_puts_coredump(struct drm_printer *p, const char *str)
 
 		len = min_t(ssize_t, strlen(str), iterator->remain);
 
-		memcpy(iterator->data + pos, str, len);
+		memcpy((char *)iterator->data + pos, str, len);
 
 		iterator->offset += len;
 		iterator->remain -= len;
@@ -118,17 +124,21 @@ void __drm_printfn_coredump(struct drm_printer *p, struct va_format *vaf)
 }
 EXPORT_SYMBOL(__drm_printfn_coredump);
 
+#ifndef __NetBSD__		/* XXX seq file */
 void __drm_puts_seq_file(struct drm_printer *p, const char *str)
 {
 	seq_puts(p->arg, str);
 }
 EXPORT_SYMBOL(__drm_puts_seq_file);
+#endif
 
+#ifndef __NetBSD__		/* XXX seq file */
 void __drm_printfn_seq_file(struct drm_printer *p, struct va_format *vaf)
 {
 	seq_printf(p->arg, "%pV", vaf);
 }
 EXPORT_SYMBOL(__drm_printfn_seq_file);
+#endif
 
 void __drm_printfn_info(struct drm_printer *p, struct va_format *vaf)
 {
@@ -177,6 +187,15 @@ EXPORT_SYMBOL(drm_printf);
 void drm_dev_printk(const struct device *dev, const char *level,
 		    const char *format, ...)
 {
+#ifdef __NetBSD__
+	va_list va;
+
+	va_start(va, format);
+	if (dev)
+		printf("%s: ", device_xname(__UNCONST(dev)));
+	vprintf(format, va);
+	va_end(va);
+#else
 	struct va_format vaf;
 	va_list args;
 
@@ -192,12 +211,25 @@ void drm_dev_printk(const struct device *dev, const char *level,
 		       level, __builtin_return_address(0), &vaf);
 
 	va_end(args);
+#endif
 }
 EXPORT_SYMBOL(drm_dev_printk);
 
 void drm_dev_dbg(const struct device *dev, unsigned int category,
 		 const char *format, ...)
 {
+#ifdef __NetBSD__
+	va_list va;
+
+	if (!(drm_debug & category))
+		return;
+
+	va_start(va, format);
+	if (dev)
+		printf("%s: ", device_xname(__UNCONST(dev)));
+	vprintf(format, va);
+	va_end(va);
+#else
 	struct va_format vaf;
 	va_list args;
 
@@ -216,11 +248,22 @@ void drm_dev_dbg(const struct device *dev, unsigned int category,
 		       __builtin_return_address(0), &vaf);
 
 	va_end(args);
+#endif
 }
 EXPORT_SYMBOL(drm_dev_dbg);
 
 void drm_dbg(unsigned int category, const char *format, ...)
 {
+#ifdef __NetBSD__
+	va_list va;
+
+	if (!(drm_debug & category))
+		return;
+
+	va_start(va, format);
+	vprintf(format, va);
+	va_end(va);
+#else
 	struct va_format vaf;
 	va_list args;
 
@@ -235,6 +278,7 @@ void drm_dbg(unsigned int category, const char *format, ...)
 	       __builtin_return_address(0), &vaf);
 
 	va_end(args);
+#endif
 }
 EXPORT_SYMBOL(drm_dbg);
 

@@ -57,6 +57,12 @@ void drm_prime_remove_buf_handle_locked(struct drm_prime_file_private *prime_fpr
 /* drm_drv.c */
 struct drm_minor *drm_minor_acquire(unsigned int minor_id);
 void drm_minor_release(struct drm_minor *minor);
+#ifdef __NetBSD__
+#include <linux/srcu.h>
+extern struct srcu drm_unplug_srcu;
+extern struct spinlock drm_minor_lock;
+extern struct idr drm_minors_idr;
+#endif
 
 /* drm_vblank.c */
 void drm_vblank_disable_and_save(struct drm_device *dev, unsigned int pipe);
@@ -191,3 +197,6 @@ int drm_syncobj_signal_ioctl(struct drm_device *dev, void *data,
 void drm_framebuffer_print_info(struct drm_printer *p, unsigned int indent,
 				const struct drm_framebuffer *fb);
 int drm_framebuffer_debugfs_init(struct drm_minor *minor);
+
+/* drm_fb_helper.c */
+extern struct mutex drm_kernel_fb_helper_lock;

@@ -44,6 +44,11 @@
 #  define	smp_mb__after_atomic()		__insn_barrier()
 #endif
 
+#define	xchg(P, V)							      \
+	(sizeof(*(P)) == 4 ? atomic_swap_32((volatile uint32_t *)P, V)	      \
+	    : sizeof(*(P)) == 8 ? atomic_swap_64((volatile uint64_t *)P, V)   \
+	    : (__builtin_abort(), 0))
+
 /*
  * atomic (u)int operations
  *
@@ -64,7 +69,7 @@ struct atomic {
 typedef struct atomic atomic_t;
 
 static inline int
-atomic_read(atomic_t *atomic)
+atomic_read(const atomic_t *atomic)
 {
 	/* no membar */
 	return atomic->a_u.au_int;
@@ -148,11 +153,49 @@ atomic_dec_and_test(atomic_t *atomic)
 	return atomic_dec_return(atomic) == 0;
 }
 
+static inline int
+atomic_dec_if_positive(atomic_t *atomic)
+{
+	int v;
+
+	smp_mb__before_atomic();
+	do {
+		v = atomic->a_u.au_uint;
+		if (v <= 0)
+			break;
+	} while (atomic_cas_uint(&atomic->a_u.au_uint, v, v - 1) != v);
+	smp_mb__after_atomic();
+
+	return v - 1;
+}
+
 static inline void
 atomic_or(int value, atomic_t *atomic)
 {
 	/* no membar */
 	atomic_or_uint(&atomic->a_u.au_uint, value);
+}
+
+static inline void
+atomic_andnot(int value, atomic_t *atomic)
+{
+	/* no membar */
+	atomic_and_uint(&atomic->a_u.au_uint, ~value);
+}
+
+static inline int
+atomic_fetch_xor(int value, atomic_t *atomic)
+{
+	unsigned old, new;
+
+	smp_mb__before_atomic();
+	do {
+		old = atomic->a_u.au_uint;
+		new = old ^ value;
+	} while (atomic_cas_uint(&atomic->a_u.au_uint, old, new) != old);
+	smp_mb__after_atomic();
+
+	return old;
 }
 
 static inline void

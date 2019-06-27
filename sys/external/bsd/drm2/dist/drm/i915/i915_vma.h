@@ -39,6 +39,11 @@
 
 enum i915_cache_level;
 
+#ifdef __NetBSD__
+#  define	__i915_vma_iomem	/* write-combining */
+#  define	__iomem			__i915_vma_iomem
+#endif
+
 /**
  * A VMA represents a GEM BO that is bound into an address space. Therefore, a
  * VMA's presence cannot be guaranteed before binding, or after unbinding the
@@ -54,7 +59,13 @@ struct i915_vma {
 	const struct i915_vma_ops *ops;
 	struct drm_i915_fence_reg *fence;
 	struct reservation_object *resv; /** Alias of obj->resv */
+#ifdef __NetBSD__
+	bus_dma_segment_t *segs;
+	int nsegs;
+	bus_dmamap_t pages;
+#else
 	struct sg_table *pages;
+#endif
 	void __iomem *iomap;
 	void *private; /* owned by creator */
 	u64 size;
@@ -162,6 +173,9 @@ int __must_check i915_vma_move_to_active(struct i915_vma *vma,
 					 struct i915_request *rq,
 					 unsigned int flags);
 
+void i915_vma_tree_init(struct drm_i915_gem_object *);
+void i915_vma_active_init(struct i915_vma *);
+
 static inline bool i915_vma_is_ggtt(const struct i915_vma *vma)
 {
 	return vma->flags & I915_VMA_GGTT;
@@ -238,7 +252,7 @@ static inline void i915_vma_put(struct i915_vma *vma)
 
 static __always_inline ptrdiff_t ptrdiff(const void *a, const void *b)
 {
-	return a - b;
+	return (const char *)a - (const char *)b;
 }
 
 static inline long
@@ -380,7 +394,13 @@ void i915_vma_unpin_iomap(struct i915_vma *vma);
 static inline struct page *i915_vma_first_page(struct i915_vma *vma)
 {
 	GEM_BUG_ON(!vma->pages);
+#ifdef __NetBSD__
+	GEM_BUG_ON(!vma->segs);
+	return container_of(PHYS_TO_VM_PAGE(vma->segs[0].ds_addr), struct page,
+	    p_vmp);
+#else
 	return sg_page(vma->pages->sgl);
+#endif
 }
 
 /**
@@ -439,5 +459,9 @@ void i915_vma_parked(struct drm_i915_private *i915);
 #define for_each_ggtt_vma(V, OBJ) \
 	list_for_each_entry(V, &(OBJ)->vma.list, obj_link)		\
 		for_each_until(!i915_vma_is_ggtt(V))
+
+#ifdef __NetBSD__
+#  undef	__iomem
+#endif
 
 #endif

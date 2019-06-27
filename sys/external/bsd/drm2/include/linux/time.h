@@ -34,7 +34,12 @@
 
 #include <sys/time.h>
 
+#include <linux/math64.h>
+
+#define	timespec64	timespec	/* take that, 2038 */
+
 #define NSEC_PER_MSEC	1000000L
+#define	NSEC_PER_SEC	1000000000L
 
 /*
  * XXX get_seconds as implemented by Linux is a Y2038 bug waiting to
@@ -134,6 +139,12 @@ set_normalized_timespec(struct timespec *ts, time_t sec, int64_t nsec)
 	}
 	ts->tv_sec = sec;
 	ts->tv_nsec = nsec;
+}
+
+static inline bool
+time_after32(uint32_t a, uint32_t b)
+{
+	return (int32_t)(b - a) < 0;
 }
 
 #endif  /* _LINUX_TIME_H_ */

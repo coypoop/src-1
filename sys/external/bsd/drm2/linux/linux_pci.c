@@ -43,12 +43,16 @@ pci_dev_dev(struct pci_dev *pdev)
 	return pdev->pd_dev;
 }
 
-/* XXX Nouveau kludge!  */
-struct drm_device *
+void
+pci_set_drvdata(struct pci_dev *pdev, void *drvdata)
+{
+	pdev->pd_drvdata = drvdata;
+}
+
+void *
 pci_get_drvdata(struct pci_dev *pdev)
 {
-
-	return pdev->pd_drm_dev;
+	return pdev->pd_drvdata;
 }
 
 void
@@ -73,6 +77,7 @@ linux_pci_dev_init(struct pci_dev *pdev, device_t dev, device_t parent,
 #endif
 	pdev->pd_saved_state = NULL;
 	pdev->pd_intr_handles = NULL;
+	pdev->pd_drvdata = NULL;
 	pdev->bus = kmem_zalloc(sizeof(*pdev->bus), KM_NOSLEEP);
 	pdev->bus->pb_pc = pa->pa_pc;
 	pdev->bus->pb_dev = parent;
@@ -343,7 +348,7 @@ pci_bus_alloc_resource(struct pci_bus *bus, struct resource *resource,
 	if (error)
 		return error;
 
-	resource->size = size;
+	resource->end = start + (size - 1);
 	return 0;
 }
 
@@ -359,6 +364,7 @@ static int
 pci_kludgey_match_bus0_dev0_func0(const struct pci_attach_args *pa)
 {
 
+	/* XXX domain */
 	if (pa->pa_bus != 0)
 		return 0;
 	if (pa->pa_device != 0)
@@ -370,10 +376,11 @@ pci_kludgey_match_bus0_dev0_func0(const struct pci_attach_args *pa)
 }
 
 struct pci_dev *
-pci_get_bus_and_slot(int bus, int slot)
+pci_get_domain_bus_and_slot(int domain, int bus, int slot)
 {
 	struct pci_attach_args pa;
 
+	KASSERT(domain == 0);
 	KASSERT(bus == 0);
 	KASSERT(slot == PCI_DEVFN(0, 0));
 
@@ -673,6 +680,14 @@ pci_dma_supported(struct pci_dev *pdev, uintmax_t mask)
 		return pci_dma64_available(&pdev->pd_pa);
 	else
 		return true;
+}
+
+bool
+pci_is_thunderbolt_attached(struct pci_dev *pdev)
+{
+
+	/* XXX Cop-out.  */
+	return false;
 }
 
 bool

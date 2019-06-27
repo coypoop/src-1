@@ -230,18 +230,32 @@ struct intel_engine_execlists {
 	 */
 	bool no_priolist;
 
+#ifdef __NetBSD__
+	bus_space_tag_t regt;
+	bus_space_handle_t regh;
+	bool has_ctrl_reg;
+#endif
+
 	/**
 	 * @submit_reg: gen-specific execlist submission register
 	 * set to the ExecList Submission Port (elsp) register pre-Gen11 and to
 	 * the ExecList Submission Queue Contents register array for Gen11+
 	 */
+#ifdef __NetBSD__
+	bus_size_t submit_reg;
+#else
 	u32 __iomem *submit_reg;
+#endif
 
 	/**
 	 * @ctrl_reg: the enhanced execlists control register, used to load the
 	 * submit queue on the HW and to request preemptions to idle
 	 */
+#ifdef __NetBSD__
+	bus_size_t ctrl_reg;
+#else
 	u32 __iomem *ctrl_reg;
+#endif
 
 	/**
 	 * @port: execlist port states
@@ -640,7 +654,7 @@ static inline bool
 execlists_is_active(const struct intel_engine_execlists *execlists,
 		    unsigned int bit)
 {
-	return test_bit(bit, (unsigned long *)&execlists->active);
+	return test_bit(bit, (const unsigned long *)&execlists->active);
 }
 
 void execlists_user_begin(struct intel_engine_execlists *execlists,
@@ -764,7 +778,7 @@ static inline void intel_ring_advance(struct i915_request *rq, u32 *cs)
 	 * reserved for the command packet (i.e. the value passed to
 	 * intel_ring_begin()).
 	 */
-	GEM_BUG_ON((rq->ring->vaddr + rq->ring->emit) != cs);
+	GEM_BUG_ON(((char *)rq->ring->vaddr + rq->ring->emit) != (char *)cs);
 }
 
 static inline u32 intel_ring_wrap(const struct intel_ring *ring, u32 pos)
@@ -788,7 +802,7 @@ intel_ring_offset_valid(const struct intel_ring *ring,
 static inline u32 intel_ring_offset(const struct i915_request *rq, void *addr)
 {
 	/* Don't write ring->size (equivalent to 0) as that hangs some GPUs. */
-	u32 offset = addr - rq->ring->vaddr;
+	u32 offset = (char *)addr - (char *)rq->ring->vaddr;
 	GEM_BUG_ON(offset > rq->ring->size);
 	return intel_ring_wrap(rq->ring, offset);
 }
@@ -876,9 +890,51 @@ static inline u32 intel_engine_last_submit(struct intel_engine_cs *engine)
 	return READ_ONCE(engine->timeline.seqno);
 }
 
+<<<<<<< HEAD
 static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine)
 {
 	return intel_read_status_page(engine, I915_GEM_HWS_INDEX);
+=======
+void intel_engine_get_instdone(struct intel_engine_cs *engine,
+			       struct intel_instdone *instdone);
+
+/*
+ * Arbitrary size for largest possible 'add request' sequence. The code paths
+ * are complex and variable. Empirical measurement shows that the worst case
+ * is BDW at 192 bytes (6 + 6 + 36 dwords), then ILK at 136 bytes. However,
+ * we need to allocate double the largest single packet within that emission
+ * to account for tail wraparound (so 6 + 6 + 72 dwords for BDW).
+ */
+#define MIN_SPACE_FOR_ADD_REQUEST 336
+
+static inline u32 intel_hws_seqno_address(struct intel_engine_cs *engine)
+{
+	return engine->status_page.ggtt_offset + I915_GEM_HWS_INDEX_ADDR;
+}
+
+static inline u32 intel_hws_preempt_done_address(struct intel_engine_cs *engine)
+{
+	return engine->status_page.ggtt_offset + I915_GEM_HWS_PREEMPT_ADDR;
+}
+
+/* intel_breadcrumbs.c -- user interrupt bottom-half for waiters */
+int intel_engine_init_breadcrumbs(struct intel_engine_cs *engine);
+
+static inline void intel_wait_init(struct intel_wait *wait)
+{
+#ifndef __NetBSD__		/* XXX */
+	wait->tsk = current;
+#endif
+	wait->request = NULL;
+}
+
+static inline void intel_wait_init_for_seqno(struct intel_wait *wait, u32 seqno)
+{
+#ifndef __NetBSD__		/* XXX */
+	wait->tsk = current;
+#endif
+	wait->seqno = seqno;
+>>>>>>> 5708c95ea99... First pass at i915, far from complete.
 }
 
 static inline bool intel_engine_signaled(struct intel_engine_cs *engine,
@@ -907,8 +963,19 @@ void intel_engine_get_instdone(struct intel_engine_cs *engine,
 void intel_engine_init_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
 
+<<<<<<< HEAD
 void intel_engine_pin_breadcrumbs_irq(struct intel_engine_cs *engine);
 void intel_engine_unpin_breadcrumbs_irq(struct intel_engine_cs *engine);
+=======
+static inline bool intel_wait_complete(const struct intel_wait *wait)
+{
+#ifdef __NetBSD__
+	return wait->complete;
+#else
+	return RB_EMPTY_NODE(&wait->node);
+#endif
+}
+>>>>>>> 5708c95ea99... First pass at i915, far from complete.
 
 bool intel_engine_signal_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine);

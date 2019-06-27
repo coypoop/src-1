@@ -213,6 +213,13 @@ struct i915_vma;
 
 struct i915_page_dma {
 	struct page *page;
+#ifdef __NetBSD__
+	union {
+		bus_dma_segment_t seg;
+		uint32_t ggtt_offset;
+	};
+	bus_dmamap_t map;
+#else
 	int order;
 	union {
 		dma_addr_t daddr;
@@ -222,10 +229,15 @@ struct i915_page_dma {
 		 */
 		u32 ggtt_offset;
 	};
+#endif
 };
 
+#ifdef __NetBSD__
+#define px_dma(px) (px_base(px)->map->dm_segs[0].ds_addr)
+#else
 #define px_base(px) (&(px)->base)
 #define px_dma(px) (px_base(px)->daddr)
+#endif
 
 struct i915_page_table {
 	struct i915_page_dma base;
@@ -266,14 +278,20 @@ struct i915_vma_ops {
 };
 
 struct pagestash {
+#ifndef __NetBSD__
 	spinlock_t lock;
 	struct pagevec pvec;
+#endif
 };
 
 struct i915_address_space {
 	struct drm_mm mm;
 	struct drm_i915_private *i915;
+#ifdef __NetBSD__
+	bus_dma_tag_t dmat;
+#else
 	struct device *dma;
+#endif
 	/* Every address space belongs to a struct file - except for the global
 	 * GTT that is owned by the driver (and so @file is set to NULL). In
 	 * principle, no information should leak from one context to another
@@ -308,7 +326,9 @@ struct i915_address_space {
 	 */
 	struct list_head unbound_list;
 
+#ifndef __NetBSD__
 	struct pagestash free_pages;
+#endif
 
 	/* Global GTT */
 	bool is_ggtt:1;
@@ -356,7 +376,21 @@ i915_vm_is_48bit(const struct i915_address_space *vm)
 static inline bool
 i915_vm_has_scratch_64K(struct i915_address_space *vm)
 {
+#ifdef __NetBSD__
+	return vm->scratch_page.seg.ds_len == I915_GTT_PAGE_SIZE_64K;
+#else
 	return vm->scratch_page.order == get_order(I915_GTT_PAGE_SIZE_64K);
+#endif
+}
+
+static inline dma_addr_t
+i915_vm_scratch_daddr(struct i915_address_space *vm)
+{
+#ifdef __NetBSD__
+	return vm->scratch_page.map->dm_segs[0].ds_addr;
+#else
+	return vm->scratch_page.daddr;
+#endif
 }
 
 /* The Graphics Translation Table is the way in which GEN hardware translates a
@@ -428,7 +462,7 @@ static inline struct gen6_hw_ppgtt *to_gen6_ppgtt(struct i915_hw_ppgtt *base)
 	for (iter = gen6_pde_index(start);				\
 	     length > 0 && iter < I915_PDES &&				\
 		(pt = (pd)->page_table[iter], true);			\
-	     ({ u32 temp = ALIGN(start+1, 1 << GEN6_PDE_SHIFT);		\
+	     ({ u32 temp = round_up(start+1, 1 << GEN6_PDE_SHIFT);	\
 		    temp = min(temp - start, length);			\
 		    start += temp, length -= temp; }), ++iter)
 
@@ -502,7 +536,7 @@ i915_pdpes_per_pdp(const struct i915_address_space *vm)
 	for (iter = gen8_pde_index(start);				\
 	     length > 0 && iter < I915_PDES &&				\
 		(pt = (pd)->page_table[iter], true);			\
-	     ({ u64 temp = ALIGN(start+1, 1 << GEN8_PDE_SHIFT);		\
+	     ({ u64 temp = round_up(start+1, 1 << GEN8_PDE_SHIFT);	\
 		    temp = min(temp - start, length);			\
 		    start += temp, length -= temp; }), ++iter)
 
@@ -510,7 +544,7 @@ i915_pdpes_per_pdp(const struct i915_address_space *vm)
 	for (iter = gen8_pdpe_index(start);				\
 	     length > 0 && iter < i915_pdpes_per_pdp(vm) &&		\
 		(pd = (pdp)->page_directory[iter], true);		\
-	     ({ u64 temp = ALIGN(start+1, 1 << GEN8_PDPE_SHIFT);	\
+	     ({ u64 temp = round_up(start+1, 1 << GEN8_PDPE_SHIFT);	\
 		    temp = min(temp - start, length);			\
 		    start += temp, length -= temp; }), ++iter)
 
@@ -518,7 +552,7 @@ i915_pdpes_per_pdp(const struct i915_address_space *vm)
 	for (iter = gen8_pml4e_index(start);				\
 	     length > 0 && iter < GEN8_PML4ES_PER_PML4 &&		\
 		(pdp = (pml4)->pdps[iter], true);			\
-	     ({ u64 temp = ALIGN(start+1, 1ULL << GEN8_PML4E_SHIFT);	\
+	     ({ u64 temp = round_up(start+1, 1ULL << GEN8_PML4E_SHIFT);	\
 		    temp = min(temp - start, length);			\
 		    start += temp, length -= temp; }), ++iter)
 

@@ -1,7 +1,7 @@
-/*	$NetBSD: nouveau_sysfs.c,v 1.1 2015/03/06 01:43:07 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
 /*-
- * Copyright (c) 2015 The NetBSD Foundation, Inc.
+ * Copyright (c) 2018 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -29,19 +29,20 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD: nouveau_sysfs.c,v 1.1 2015/03/06 01:43:07 riastradh Exp $");
+#ifndef	_LINUX_SYNC_FILE_H_
+#define	_LINUX_SYNC_FILE_H_
 
-#include "nouveau_sysfs.h"
+struct dma_fence;
+struct file;
+struct sync_file;
 
-int
-nouveau_sysfs_init(struct drm_device *dev __unused)
-{
+struct sync_file {
+	struct file	*file;
+};
 
-	return 0;
-}
+struct sync_file *
+	sync_file_create(struct dma_fence *, struct file *);
+struct dma_fence *
+	sync_file_get_fence(int);
 
-void
-nouveau_sysfs_fini(struct drm_device *dev __unused)
-{
-}
+#endif	/* _LINUX_SYNC_FILE_H_ */

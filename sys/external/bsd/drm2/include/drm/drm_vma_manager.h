@@ -38,6 +38,8 @@
 #include <sys/rwlock.h>
 #include <sys/vmem.h>
 
+struct drm_file;
+
 struct drm_vma_offset_manager {
 	krwlock_t	vom_lock;
 	struct rb_tree	vom_nodes;
@@ -50,34 +52,37 @@ struct drm_vma_offset_node {
 	vmem_size_t	von_npages;
 	struct rb_tree	von_files;
 	struct rb_node	von_rb_node;
+
+	/* Linux API names */
+	bool		readonly;
 };
 
 static inline unsigned long
-drm_vma_node_start(struct drm_vma_offset_node *node)
+drm_vma_node_start(const struct drm_vma_offset_node *node)
 {
 	return node->von_startpage;
 }
 
 static inline unsigned long
-drm_vma_node_size(struct drm_vma_offset_node *node)
+drm_vma_node_size(const struct drm_vma_offset_node *node)
 {
 	return node->von_npages;
 }
 
 static inline bool
-drm_vma_node_has_offset(struct drm_vma_offset_node *node)
+drm_vma_node_has_offset(const struct drm_vma_offset_node *node)
 {
 	return (node->von_npages != 0);
 }
 
 static inline uint64_t
-drm_vma_node_offset_addr(struct drm_vma_offset_node *node)
+drm_vma_node_offset_addr(const struct drm_vma_offset_node *node)
 {
 	return (uint64_t)node->von_startpage << PAGE_SHIFT;
 }
 
 struct drm_vma_offset_file {
-	struct file	*vof_file;
+	struct drm_file	*vof_file;
 	struct rb_node	vof_rb_node;
 };
 
@@ -108,10 +113,11 @@ struct drm_vma_offset_node *
 	drm_vma_offset_exact_lookup(struct drm_vma_offset_manager *,
 	    unsigned long, unsigned long);
 
-int	drm_vma_node_allow(struct drm_vma_offset_node *, struct file *);
-void	drm_vma_node_revoke(struct drm_vma_offset_node *, struct file *);
-bool	drm_vma_node_is_allowed(struct drm_vma_offset_node *, struct file *);
+int	drm_vma_node_allow(struct drm_vma_offset_node *, struct drm_file *);
+void	drm_vma_node_revoke(struct drm_vma_offset_node *, struct drm_file *);
+bool	drm_vma_node_is_allowed(struct drm_vma_offset_node *,
+	    struct drm_file *);
 int	drm_vma_node_verify_access(struct drm_vma_offset_node *,
-	    struct file *);
+	    struct drm_file *);
 
 #endif	/* _DRM_DRM_VMA_MANAGER_H_ */

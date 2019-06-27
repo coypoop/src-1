@@ -40,17 +40,35 @@
 
 struct resource {
 	bus_addr_t start;
-	bus_size_t size;
+	bus_addr_t end;		/* WARNING: Inclusive! */
 	const char *name;
 	unsigned int flags;
 	bus_space_tag_t r_bst;	/* This milk is not organic.  */
 	bus_space_handle_t r_bsh;
 };
 
+#define	DEFINE_RES_MEM(START, SIZE)					      \
+	{ .start = (START), .end = (START) + ((SIZE) - 1) }
+
+static inline bus_size_t
+resource_size(struct resource *resource)
+{
+	return resource->end - resource->start + 1;
+}
+
+static inline bool
+resource_contains(struct resource *r1, struct resource *r2)
+{
+	if (r1->r_bst != r2->r_bst)
+		return false;
+	return r1->start <= r2->start && r2->end <= r1->end;
+}
+
 static inline void
 release_resource(struct resource *resource)
 {
-	bus_space_free(resource->r_bst, resource->r_bsh, resource->size);
+	bus_space_free(resource->r_bst, resource->r_bsh,
+	    resource_size(resource));
 }
 
 #endif  /* _LINUX_IOPORT_H_ */

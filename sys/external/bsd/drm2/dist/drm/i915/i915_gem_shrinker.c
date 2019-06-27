@@ -520,6 +520,7 @@ void i915_gem_shrinker_unregister(struct drm_i915_private *i915)
 void i915_gem_shrinker_taints_mutex(struct drm_i915_private *i915,
 				    struct mutex *mutex)
 {
+#ifndef __NetBSD__		/* XXX fs reclaim */
 	bool unlock = false;
 
 	if (!IS_ENABLED(CONFIG_LOCKDEP))
@@ -553,4 +554,5 @@ void i915_gem_shrinker_taints_mutex(struct drm_i915_private *i915,
 
 	if (unlock)
 		mutex_release(&i915->drm.struct_mutex.dep_map, 0, _RET_IP_);
+#endif
 }

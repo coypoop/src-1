@@ -1027,7 +1027,11 @@ static void reloc_cache_reset(struct reloc_cache *cache)
 		i915_gem_obj_finish_shmem_access((struct drm_i915_gem_object *)cache->node.mm);
 	} else {
 		wmb();
+#ifdef __NetBSD__
+		io_mapping_unmap_atomic(&ggtt->iomap, vaddr);
+#else
 		io_mapping_unmap_atomic((void __iomem *)vaddr);
+#endif
 		if (cache->node.allocated) {
 			struct i915_ggtt *ggtt = cache_to_ggtt(cache);
 
@@ -1085,7 +1089,12 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 	void *vaddr;
 
 	if (cache->vaddr) {
+#ifdef __NetBSD__
+		io_mapping_unmap_atomic(&ggtt->iomap,
+		    unmask_page(cache->vaddr));
+#else
 		io_mapping_unmap_atomic((void __force __iomem *) unmask_page(cache->vaddr));
+#endif
 	} else {
 		struct i915_vma *vma;
 		int err;
@@ -1380,7 +1389,7 @@ repeat:
 	if (IS_ERR(vaddr))
 		return PTR_ERR(vaddr);
 
-	clflush_write32(vaddr + offset_in_page(offset),
+	clflush_write32((void *)((char *)vaddr + offset_in_page(offset)),
 			lower_32_bits(target_offset),
 			eb->reloc_cache.vaddr);
 
@@ -1500,8 +1509,10 @@ static int eb_relocate_vma(struct i915_execbuffer *eb, struct i915_vma *vma)
 
 	urelocs = u64_to_user_ptr(entry->relocs_ptr);
 	remain = entry->relocation_count;
+#ifndef _LP64		/* XXX why, gcc, do you make it hard to be safe */
 	if (unlikely(remain > N_RELOC(ULONG_MAX)))
 		return -EINVAL;
+#endif
 
 	/*
 	 * We must check that the entire relocation array is safe
@@ -1525,9 +1536,13 @@ static int eb_relocate_vma(struct i915_execbuffer *eb, struct i915_vma *vma)
 		 * we would try to acquire the struct mutex again. Obviously
 		 * this is bad and so lockdep complains vehemently.
 		 */
+#ifdef __NetBSD__		/* XXX copy fastpath */
+		copied = 1;
+#else
 		pagefault_disable();
 		copied = __copy_from_user_inatomic(r, urelocs, count * sizeof(r[0]));
 		pagefault_enable();
+#endif
 		if (unlikely(copied)) {
 			remain = -EFAULT;
 			goto out;
@@ -1736,10 +1751,17 @@ static noinline int eb_relocate_slow(struct i915_execbuffer *eb)
 	int err = 0;
 
 repeat:
+#ifdef __NetBSD__
+	if (sigispending(curlwp, 0)) {
+		err = -ERESTARTSYS;
+		goto out;
+	}
+#else
 	if (signal_pending(current)) {
 		err = -ERESTARTSYS;
 		goto out;
 	}
+#endif
 
 	/* We may process another execbuffer during the unlock... */
 	eb_reset_vmas(eb);
@@ -1790,9 +1812,13 @@ repeat:
 
 	list_for_each_entry(vma, &eb->relocs, reloc_link) {
 		if (!have_copy) {
+#ifdef __NetBSD__
+			err = -EFAULT;
+#else
 			pagefault_disable();
 			err = eb_relocate_vma(eb, vma);
 			pagefault_enable();
+#endif
 			if (err)
 				goto repeat;
 		} else {
@@ -2278,6 +2304,9 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	struct sync_file *out_fence = NULL;
 	intel_wakeref_t wakeref;
 	int out_fence_fd = -1;
+#ifdef __NetBSD__
+	struct file *fp = NULL;
+#endif
 	int err;
 
 	BUILD_BUG_ON(__EXEC_INTERNAL_FLAGS & ~__I915_EXEC_ILLEGAL_FLAGS);
@@ -2323,11 +2352,17 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	}
 
 	if (args->flags & I915_EXEC_FENCE_OUT) {
+#ifdef __NetBSD__
+		err = -fd_allocfile(&fp, &out_fence_fd);
+		if (err)
+			goto err_in_fence;
+#else
 		out_fence_fd = get_unused_fd_flags(O_CLOEXEC);
 		if (out_fence_fd < 0) {
 			err = out_fence_fd;
 			goto err_in_fence;
 		}
+#endif
 	}
 
 	err = eb_create(&eb);
@@ -2459,7 +2494,11 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	}
 
 	if (out_fence_fd != -1) {
+#ifdef __NetBSD__
+		out_fence = sync_file_create(&eb.request->fence, fp);
+#else
 		out_fence = sync_file_create(&eb.request->fence);
+#endif
 		if (!out_fence) {
 			err = -ENOMEM;
 			goto err_request;
@@ -2491,7 +2530,13 @@ err_request:
 			args->rsvd2 |= (u64)out_fence_fd << 32;
 			out_fence_fd = -1;
 		} else {
+#ifdef __NetBSD__
+			fd_abort(curproc, fp, out_fence_fd);
+			out_fence_fd = -1;
+			fp = NULL;
+#else
 			fput(out_fence->file);
+#endif
 		}
 	}
 
@@ -2510,7 +2555,11 @@ err_destroy:
 	eb_destroy(&eb);
 err_out_fence:
 	if (out_fence_fd != -1)
+#ifdef __NetBSD__
+		fd_abort(curproc, fp, out_fence_fd);
+#else
 		put_unused_fd(out_fence_fd);
+#endif
 err_in_fence:
 	dma_fence_put(in_fence);
 	return err;

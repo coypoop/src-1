@@ -42,6 +42,7 @@
 #define	pr_cont		printf	/* XXX */
 #define	pr_info		printf	/* XXX */
 #define	pr_info_once	printf	/* XXX */
+#define	pr_warn		printf	/* XXX */
 #define	pr_warn_once	printf	/* XXX */
 #define	pr_notice	printf	/* XXX */
 #define	pr_debug	printf	/* XXX */
@@ -54,6 +55,11 @@
 #define	KERN_INFO	"kern info: "
 #define	KERN_DEBUG	"kern debug: "
 #define	KERN_CONT	""
+
+struct va_format {
+	const char	*fmt;
+	va_list		*va;
+};
 
 #define	DUMP_PREFIX_NONE	0
 #define	DUMP_PREFIX_OFFSET	1

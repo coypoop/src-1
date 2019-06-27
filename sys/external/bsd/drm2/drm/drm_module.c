@@ -46,8 +46,10 @@ __KERNEL_RCSID(0, "$NetBSD: drm_module.c,v 1.15 2018/08/28 03:41:39 riastradh Ex
 
 #include <drm/drmP.h>
 #include <drm/drm_encoder_slave.h>
-#include <drm/drm_internal.h>
 #include <drm/drm_sysctl.h>
+
+#include "../dist/drm/drm_crtc_internal.h"
+#include "../dist/drm/drm_internal.h"
 
 /*
  * XXX This is stupid.
@@ -119,7 +121,9 @@ drm_init(void)
 
 	spin_lock_init(&drm_minor_lock);
 	idr_init(&drm_minors_idr);
+	srcu_init(&drm_unplug_srcu, "drmunplg");
 	linux_mutex_init(&drm_global_mutex);
+	linux_mutex_init(&drm_kernel_fb_helper_lock);
 	drm_connector_ida_init();
 	drm_global_init();
 	drm_sysctl_init(&drm_def);
@@ -148,7 +152,9 @@ drm_fini(void)
 	drm_sysctl_fini(&drm_def);
 	drm_global_release();
 	drm_connector_ida_destroy();
+	linux_mutex_destroy(&drm_kernel_fb_helper_lock);
 	linux_mutex_destroy(&drm_global_mutex);
+	srcu_fini(&drm_unplug_srcu);
 	idr_destroy(&drm_minors_idr);
 	spin_lock_destroy(&drm_minor_lock);
 	drm_agp_hooks_fini();

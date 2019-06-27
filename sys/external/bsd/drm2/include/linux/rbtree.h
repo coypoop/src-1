@@ -32,4 +32,48 @@
 #ifndef _LINUX_RBTREE_H_
 #define _LINUX_RBTREE_H_
 
+#include <sys/rbtree.h>
+
+struct rb_root {
+	struct rb_tree	rbr_tree;
+};
+
+struct rb_root_cached {
+	struct rb_root	rb_root; /* Linux API name */
+};
+
+static inline bool
+RB_EMPTY_ROOT(struct rb_root *root)
+{
+
+	return RB_TREE_MIN(&root->rbr_tree) == NULL;
+}
+
+static inline void
+rb_erase(struct rb_node *rbnode, struct rb_root *root)
+{
+	struct rb_tree *tree = &root->rbr_tree;
+	void *node = (char *)rbnode - tree->rbt_ops->rbto_node_offset;
+
+	rb_tree_remove_node(tree, node);
+}
+
+static inline void
+rb_erase_cached(struct rb_node *rbnode, struct rb_root_cached *root)
+{
+	rb_erase(rbnode, &root->rb_root);
+}
+
+/*
+ * XXX This is not actually postorder, but I can't fathom why you would
+ * want postorder for an ordered tree; different insertion orders lead
+ * to different traversal orders.
+ */
+#define	rbtree_postorder_for_each_entry_safe(NODE, TMP, ROOT, FIELD)	      \
+	for ((NODE) = RB_TREE_MIN(&(ROOT)->rbr_tree);			      \
+		((NODE) != NULL &&					      \
+		    ((TMP) = rb_tree_iterate(&(ROOT)->rbr_tree, (NODE),	      \
+			RB_DIR_RIGHT)));				      \
+		(NODE) = (TMP))
+
 #endif  /* _LINUX_RBTREE_H_ */

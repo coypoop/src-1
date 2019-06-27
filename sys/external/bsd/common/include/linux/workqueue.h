@@ -39,13 +39,16 @@
 
 #define	INIT_DELAYED_WORK		linux_INIT_DELAYED_WORK
 #define	INIT_WORK			linux_INIT_WORK
+#define	alloc_workqueue			linux_alloc_workqueue
 #define	alloc_ordered_workqueue		linux_alloc_ordered_workqueue
 #define	cancel_delayed_work		linux_cancel_delayed_work
 #define	cancel_delayed_work_sync	linux_cancel_delayed_work_sync
 #define	cancel_work			linux_cancel_work
 #define	cancel_work_sync		linux_cancel_work_sync
 #define	current_work			linux_current_work
+#define	delayed_work_pending		linux_delayed_work_pending
 #define	destroy_workqueue		linux_destroy_workqueue
+#define	drain_workqueue			linux_drain_workqueue
 #define	flush_delayed_work		linux_flush_delayed_work
 #define	flush_scheduled_work		linux_flush_scheduled_work
 #define	flush_work			linux_flush_work
@@ -57,8 +60,10 @@
 #define	schedule_work			linux_schedule_work
 #define	system_long_wq			linux_system_long_wq
 #define	system_power_efficient_wq	linux_system_power_efficient_wq
+#define	system_unbound_wq		linux_system_unbound_wq
 #define	system_wq			linux_system_wq
 #define	to_delayed_work			linux_to_delayed_work
+#define	work_pending			linux_work_pending
 
 struct workqueue_struct;
 
@@ -81,6 +86,11 @@ struct delayed_work {
 	}				dw_state;
 };
 
+#define	WQ_FREEZABLE		__BIT(0)
+#define	WQ_HIGHPRI		__BIT(1)
+#define	WQ_MEM_RECLAIM		__BIT(2)
+#define	WQ_UNBOUND		__BIT(3)
+
 static inline struct delayed_work *
 to_delayed_work(struct work_struct *work)
 {
@@ -90,6 +100,7 @@ to_delayed_work(struct work_struct *work)
 extern struct workqueue_struct	*system_wq;
 extern struct workqueue_struct	*system_long_wq;
 extern struct workqueue_struct	*system_power_efficient_wq;
+extern struct workqueue_struct	*system_unbound_wq;
 
 int	linux_workqueue_init(void);
 void	linux_workqueue_fini(void);
@@ -98,9 +109,12 @@ void	linux_workqueue_fini(void);
 	alloc_ordered_workqueue((name), 0)
 
 struct workqueue_struct *
+	alloc_workqueue(const char *, int, unsigned);
+struct workqueue_struct *
 	alloc_ordered_workqueue(const char *, int);
 void	destroy_workqueue(struct workqueue_struct *);
 void	flush_workqueue(struct workqueue_struct *);
+void	drain_workqueue(struct workqueue_struct *);
 void	flush_scheduled_work(void);
 
 void	INIT_WORK(struct work_struct *, void (*)(struct work_struct *));
@@ -108,7 +122,8 @@ bool	schedule_work(struct work_struct *);
 bool	queue_work(struct workqueue_struct *, struct work_struct *);
 bool	cancel_work(struct work_struct *);
 bool	cancel_work_sync(struct work_struct *);
-void	flush_work(struct work_struct *);
+bool	flush_work(struct work_struct *);
+bool	work_pending(const struct work_struct *);
 
 void	INIT_DELAYED_WORK(struct delayed_work *,
 	    void (*)(struct work_struct *));
@@ -119,12 +134,15 @@ bool	mod_delayed_work(struct workqueue_struct *, struct delayed_work *,
 	    unsigned long ticks);
 bool	cancel_delayed_work(struct delayed_work *);
 bool	cancel_delayed_work_sync(struct delayed_work *);
-void	flush_delayed_work(struct delayed_work *);
+bool	flush_delayed_work(struct delayed_work *);
+bool	delayed_work_pending(const struct delayed_work *);
 
 struct work_struct *
 	current_work(void);
 
 #define	INIT_WORK_ONSTACK		INIT_WORK
+#define	INIT_DELAYED_WORK_ONSTACK	INIT_DELAYED_WORK
+#define	destroy_delayed_work_on_stack(dw)	__nothing
 
 static inline void
 destroy_work_on_stack(struct work_struct *work)

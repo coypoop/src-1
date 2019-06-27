@@ -34,12 +34,16 @@
 
 #include <sys/bus.h>
 
-typedef bus_addr_t dma_addr_t;
+#include <machine/limits.h>
+
+#include <linux/types.h>
 
 static inline uintmax_t
 DMA_BIT_MASK(unsigned nbits)
 {
 
+	if (nbits == CHAR_BIT*sizeof(uintmax_t))
+		return ~(uintmax_t)0;
 	return ~(~(uintmax_t)0 << nbits);
 }
 

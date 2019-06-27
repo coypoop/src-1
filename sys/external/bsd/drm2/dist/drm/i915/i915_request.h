@@ -26,6 +26,7 @@
 #define I915_REQUEST_H
 
 #include <linux/dma-fence.h>
+#include <linux/sched.h>
 
 #include "i915_gem.h"
 #include "i915_scheduler.h"
@@ -126,7 +127,13 @@ struct i915_request {
 	 * It is used by the driver to then queue the request for execution.
 	 */
 	struct i915_sw_fence submit;
+#ifndef __NetBSD__		/* XXX */
 	wait_queue_entry_t submitq;
+<<<<<<< HEAD
+=======
+	wait_queue_head_t execute;
+#endif
+>>>>>>> 5708c95ea99... First pass at i915, far from complete.
 
 	/*
 	 * A list of everyone we wait upon, and everyone who waits upon us.
@@ -312,6 +319,61 @@ static inline bool i915_request_is_active(const struct i915_request *rq)
 	return test_bit(I915_FENCE_FLAG_ACTIVE, &rq->fence.flags);
 }
 
+<<<<<<< HEAD
+=======
+static inline bool i915_sched_node_signaled(const struct i915_sched_node *node)
+{
+	const struct i915_request *rq =
+		const_container_of(node, const struct i915_request, sched);
+
+	return i915_request_completed(rq);
+}
+
+void i915_retire_requests(struct drm_i915_private *i915);
+
+/*
+ * We treat requests as fences. This is not be to confused with our
+ * "fence registers" but pipeline synchronisation objects ala GL_ARB_sync.
+ * We use the fences to synchronize access from the CPU with activity on the
+ * GPU, for example, we should not rewrite an object's PTE whilst the GPU
+ * is reading them. We also track fences at a higher level to provide
+ * implicit synchronisation around GEM objects, e.g. set-domain will wait
+ * for outstanding GPU rendering before marking the object ready for CPU
+ * access, or a pageflip will wait until the GPU is complete before showing
+ * the frame on the scanout.
+ *
+ * In order to use a fence, the object must track the fence it needs to
+ * serialise with. For example, GEM objects want to track both read and
+ * write access so that we can perform concurrent read operations between
+ * the CPU and GPU engines, as well as waiting for all rendering to
+ * complete, or waiting for the last GPU user of a "fence register". The
+ * object then embeds a #i915_gem_active to track the most recent (in
+ * retirement order) request relevant for the desired mode of access.
+ * The #i915_gem_active is updated with i915_gem_active_set() to track the
+ * most recent fence request, typically this is done as part of
+ * i915_vma_move_to_active().
+ *
+ * When the #i915_gem_active completes (is retired), it will
+ * signal its completion to the owner through a callback as well as mark
+ * itself as idle (i915_gem_active.request == NULL). The owner
+ * can then perform any action, such as delayed freeing of an active
+ * resource including itself.
+ */
+struct i915_gem_active;
+
+typedef void (*i915_gem_retire_fn)(struct i915_gem_active *,
+				   struct i915_request *);
+
+struct i915_gem_active {
+	struct i915_request __rcu *request;
+	struct list_head link;
+	i915_gem_retire_fn retire;
+};
+
+void i915_gem_retire_noop(struct i915_gem_active *,
+			  struct i915_request *request);
+
+>>>>>>> 5708c95ea99... First pass at i915, far from complete.
 /**
  * Returns true if seq1 is later than seq2.
  */

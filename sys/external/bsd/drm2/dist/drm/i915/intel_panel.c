@@ -407,6 +407,7 @@ static u32 scale(u32 source_val,
 	return target_val;
 }
 
+#if IS_ENABLED(CONFIG_BACKLIGHT_CLASS_DEVICE)
 /* Scale user_level in range [0..user_max] to [hw_min..hw_max]. */
 static inline u32 scale_user_to_hw(struct intel_connector *connector,
 				   u32 user_level, u32 user_max)
@@ -416,6 +417,7 @@ static inline u32 scale_user_to_hw(struct intel_connector *connector,
 	return scale(user_level, 0, user_max,
 		     panel->backlight.min, panel->backlight.max);
 }
+#endif
 
 /* Scale user_level in range [0..user_max] to [0..hw_max], clamping the result
  * to [hw_min..hw_max]. */
@@ -431,6 +433,7 @@ static inline u32 clamp_user_to_hw(struct intel_connector *connector,
 	return hw_level;
 }
 
+#if IS_ENABLED(CONFIG_BACKLIGHT_CLASS_DEVICE)
 /* Scale hw_level in range [hw_min..hw_max] to [0..user_max]. */
 static inline u32 scale_hw_to_user(struct intel_connector *connector,
 				   u32 hw_level, u32 user_max)
@@ -440,6 +443,7 @@ static inline u32 scale_hw_to_user(struct intel_connector *connector,
 	return scale(hw_level, panel->backlight.min, panel->backlight.max,
 		     0, user_max);
 }
+#endif
 
 static u32 intel_panel_compute_brightness(struct intel_connector *connector,
 					  u32 val)

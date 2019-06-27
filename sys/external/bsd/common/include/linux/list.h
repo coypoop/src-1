@@ -49,15 +49,11 @@
 #include <sys/queue.h>
 
 #include <linux/kernel.h>
+#include <linux/types.h>
 
 /*
- * Doubly-linked lists.
+ * Doubly-linked lists.  Type defined in <linux/types.h>.
  */
-
-struct list_head {
-	struct list_head *prev;
-	struct list_head *next;
-};
 
 #define	LIST_HEAD_INIT(name)	{ .prev = &(name), .next = &(name) }
 
@@ -109,6 +105,12 @@ list_is_singular(const struct list_head *head)
 	return true;
 }
 
+static inline bool
+list_is_last(const struct list_head *entry, const struct list_head *head)
+{
+	return head == entry->next;
+}
+
 static inline void
 __list_add_between(struct list_head *prev, struct list_head *node,
     struct list_head *next)
@@ -132,10 +134,18 @@ list_add_tail(struct list_head *node, struct list_head *head)
 }
 
 static inline void
-list_del(struct list_head *entry)
+__list_del_entry(struct list_head *entry)
 {
 	entry->prev->next = entry->next;
 	entry->next->prev = entry->prev;
+}
+
+static inline void
+list_del(struct list_head *entry)
+{
+	__list_del_entry(entry);
+	entry->next = (void *)(uintptr_t)1;
+	entry->prev = (void *)(uintptr_t)2;
 }
 
 static inline void

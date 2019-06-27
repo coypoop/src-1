@@ -142,9 +142,9 @@ static int radeonfb_create_pinned_object(struct radeon_fbdev *rfbdev,
 						  fb_tiled);
 
 	if (rdev->family >= CHIP_R600)
-		height = ALIGN(mode_cmd->height, 8);
+		height = round_up(mode_cmd->height, 8);
 	size = mode_cmd->pitches[0] * height;
-	aligned_size = ALIGN(size, PAGE_SIZE);
+	aligned_size = round_up(size, PAGE_SIZE);
 	ret = radeon_gem_object_create(rdev, aligned_size, 0,
 				       RADEON_GEM_DOMAIN_VRAM,
 				       0, true, &gobj);
@@ -237,6 +237,34 @@ static int radeonfb_create(struct drm_fb_helper *helper,
 
 	rbo = gem_to_radeon_bo(gobj);
 
+#ifdef __NetBSD__
+	ret = radeon_framebuffer_init(rdev->ddev, &rfbdev->fb, &mode_cmd, gobj);
+	if (ret) {
+		DRM_ERROR("failed to initialize framebuffer %d\n", ret);
+		goto out;
+	}
+
+	(void)memset(rbo->kptr, 0, radeon_bo_size(rbo));
+
+    {
+	static const struct radeonfb_attach_args zero_rfa;
+	struct radeonfb_attach_args rfa = zero_rfa;
+
+	rfa.rfa_fb_helper = helper;
+	rfa.rfa_fb_sizes = *sizes;
+	rfa.rfa_fb_ptr = rbo->kptr;
+	rfa.rfa_fb_linebytes = mode_cmd.pitches[0];
+
+	helper->fbdev = config_found_ia(rdev->ddev->dev, "radeonfbbus", &rfa,
+	    NULL);
+	if (helper->fbdev == NULL) {
+		DRM_ERROR("failed to attach genfb\n");
+		goto out;
+	}
+    }
+	fb = &rfbdev->fb;
+	rfbdev->helper.fb = fb;
+#else
 	/* okay we have an object now allocate the framebuffer */
 	info = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(info)) {
@@ -291,6 +319,7 @@ static int radeonfb_create(struct drm_fb_helper *helper,
 	DRM_INFO("   pitch is %d\n", fb->pitches[0]);
 
 	vga_switcheroo_client_fb_set(rdev->ddev->pdev, info);
+#endif
 	return 0;
 
 out:

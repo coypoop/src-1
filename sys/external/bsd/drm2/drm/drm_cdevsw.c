@@ -1,4 +1,4 @@
-/*	$NetBSD: drm_cdevsw.c,v 1.12 2018/08/28 03:41:39 riastradh Exp $	*/
+/*	$NetBSD: drm_cdevsw.c,v 1.14 2019/04/16 10:00:04 mrg Exp $	*/
 
 /*-
  * Copyright (c) 2013 The NetBSD Foundation, Inc.
@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD: drm_cdevsw.c,v 1.12 2018/08/28 03:41:39 riastradh Exp $");
+__KERNEL_RCSID(0, "$NetBSD: drm_cdevsw.c,v 1.14 2019/04/16 10:00:04 mrg Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -58,7 +58,8 @@ __KERNEL_RCSID(0, "$NetBSD: drm_cdevsw.c,v 1.12 2018/08/28 03:41:39 riastradh Ex
 #include <linux/pm.h>
 
 #include <drm/drmP.h>
-#include <drm/drm_internal.h>
+
+#include "../dist/drm/drm_internal.h"
 #include "../dist/drm/drm_legacy.h"
 
 static dev_type_open(drm_open);
@@ -70,6 +71,9 @@ static int	drm_read(struct file *, off_t *, struct uio *, kauth_cred_t,
 		    int);
 static int	drm_dequeue_event(struct drm_file *, size_t,
 		    struct drm_pending_event **, int);
+static void	drm_requeue_event(struct drm_file *,
+		    struct drm_pending_event *);
+static int	drm_ioctl_shim(struct file *, unsigned long, void *);
 static int	drm_poll(struct file *, int);
 static int	drm_kqfilter(struct file *, struct knote *);
 static int	drm_stat(struct file *, struct stat *);
@@ -98,7 +102,7 @@ static const struct fileops drm_fileops = {
 	.fo_name = "drm",
 	.fo_read = drm_read,
 	.fo_write = fbadop_write,
-	.fo_ioctl = drm_ioctl,
+	.fo_ioctl = drm_ioctl_shim,
 	.fo_fcntl = fnullop_fcntl,
 	.fo_poll = drm_poll,
 	.fo_stat = drm_stat,
@@ -180,9 +184,11 @@ fail2:	mutex_lock(&drm_global_mutex);
 	lastclose = (dev->open_count == 0);
 	mutex_unlock(&drm_global_mutex);
 	if (lastclose)
-		(void)drm_lastclose(dev);
+		drm_lastclose(dev);
 fail1:	drm_minor_release(dminor);
 fail0:	KASSERT(error);
+	if (error == ERESTARTSYS)
+		error = ERESTART;
 	return error;
 }
 
@@ -204,7 +210,7 @@ drm_close(struct file *fp)
 	mutex_unlock(&drm_global_mutex);
 
 	if (lastclose)
-		(void)drm_lastclose(dev);
+		drm_lastclose(dev);
 
 	drm_minor_release(dminor);
 
@@ -239,7 +245,7 @@ fail0:	KASSERT(ret);
 	return ret;
 }
 
-int
+void
 drm_lastclose(struct drm_device *dev)
 {
 
@@ -251,7 +257,7 @@ drm_lastclose(struct drm_device *dev)
 
 	mutex_lock(&dev->struct_mutex);
 	if (dev->agp)
-		drm_agp_clear(dev);
+		drm_legacy_agp_clear(dev);
 	drm_legacy_sg_cleanup(dev);
 	drm_legacy_dma_takedown(dev);
 	mutex_unlock(&dev->struct_mutex);
@@ -263,8 +269,6 @@ drm_lastclose(struct drm_device *dev)
 		dev->last_context = 0;
 		dev->if_version = 0;
 	}
-
-	return 0;
 }
 
 static int
@@ -272,33 +276,80 @@ drm_read(struct file *fp, off_t *off, struct uio *uio, kauth_cred_t cred,
     int flags)
 {
 	struct drm_file *const file = fp->f_data;
+	struct drm_device *const dev = file->minor->dev;
 	struct drm_pending_event *event;
 	bool first;
-	int error = 0;
+	int ret = 0;
+
+	/*
+	 * Only one event reader at a time, so that if copyout faults
+	 * after dequeueing one event and we have to put the event
+	 * back, another reader won't see out-of-order events.
+	 */
+	spin_lock(&dev->event_lock);
+	DRM_SPIN_WAIT_NOINTR_UNTIL(ret, &file->event_read_wq, &dev->event_lock,
+	    file->event_read_lock == NULL);
+	if (ret) {
+		spin_unlock(&dev->event_lock);
+		/* XXX errno Linux->NetBSD */
+		return -ret;
+	}
+	file->event_read_lock = curlwp;
+	spin_unlock(&dev->event_lock);
 
 	for (first = true; ; first = false) {
 		int f = 0;
+		off_t offset;
+		size_t resid;
 
 		if (!first || ISSET(fp->f_flag, FNONBLOCK))
 			f |= FNONBLOCK;
 
-		/* XXX errno Linux->NetBSD */
-		error = -drm_dequeue_event(file, uio->uio_resid, &event, f);
-		if (error) {
-			if ((error == EWOULDBLOCK) && !first)
-				error = 0;
+		ret = drm_dequeue_event(file, uio->uio_resid, &event, f);
+		if (ret) {
+			if ((ret == -EWOULDBLOCK) && !first)
+				ret = 0;
 			break;
 		}
 		if (event == NULL)
 			break;
-		error = uiomove(event->event, event->event->length, uio);
-		if (error)	/* XXX Requeue the event?  */
+
+		offset = uio->uio_offset;
+		resid = uio->uio_resid;
+		/* XXX errno NetBSD->Linux */
+		ret = -uiomove(event->event, event->event->length, uio);
+		if (ret) {
+			/*
+			 * Faulted on copyout.  Put the event back and
+			 * stop here.
+			 */
+			if (!first) {
+				/*
+				 * Already transferred some events.
+				 * Rather than back them all out, just
+				 * say we succeeded at returning those.
+				 */
+				ret = 0;
+			}
+			uio->uio_offset = offset;
+			uio->uio_resid = resid;
+			drm_requeue_event(file, event);
 			break;
-		(*event->destroy)(event);
+		}
+		kfree(event);
 	}
 
-	/* Success!  */
-	return error;
+	/* Release the event read lock.  */
+	spin_lock(&dev->event_lock);
+	KASSERT(file->event_read_lock == curlwp);
+	file->event_read_lock = NULL;
+	DRM_SPIN_WAKEUP_ONE(&file->event_read_wq, &dev->event_lock);
+	spin_unlock(&dev->event_lock);
+
+	/* XXX errno Linux->NetBSD */
+	if (ret == ERESTARTSYS)
+		ret = ERESTART;
+	return ret;
 }
 
 static int
@@ -337,6 +388,36 @@ drm_dequeue_event(struct drm_file *file, size_t max_length,
 out:	spin_unlock_irqrestore(&dev->event_lock, irqflags);
 	*eventp = event;
 	return ret;
+}
+
+static void
+drm_requeue_event(struct drm_file *file, struct drm_pending_event *event)
+{
+	struct drm_device *const dev = file->minor->dev;
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&dev->event_lock, irqflags);
+	list_add(&event->link, &file->event_list);
+	KASSERT(file->event_space >= event->event->length);
+	file->event_space -= event->event->length;
+	spin_unlock_irqrestore(&dev->event_lock, irqflags);
+}
+
+static int
+drm_ioctl_shim(struct file *fp, unsigned long cmd, void *data)
+{
+	struct drm_file *file = fp->f_data;
+	struct drm_driver *driver = file->minor->dev->driver;
+	int error;
+
+	if (driver->ioctl_override)
+		error = driver->ioctl_override(fp, cmd, data);
+	else
+		error = drm_ioctl(fp, cmd, data);
+	if (error == ERESTARTSYS)
+		error = ERESTART;
+
+	return error;
 }
 
 static int
@@ -462,11 +543,14 @@ drm_fop_mmap(struct file *fp, off_t *offp, size_t len, int prot, int *flagsp,
 	int error;
 
 	KASSERT(fp == file->filp);
-	error = (*dev->driver->mmap_object)(dev, *offp, len, prot, uobjp,
+	/* XXX errno Linux->NetBSD */
+	error = -(*dev->driver->mmap_object)(dev, *offp, len, prot, uobjp,
 	    offp, file->filp);
 	*maxprotp = prot;
 	*advicep = UVM_ADV_RANDOM;
-	return -error;
+	if (error == ERESTARTSYS)
+		error = ERESTART;
+	return error;
 }
 
 static paddr_t

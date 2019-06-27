@@ -25,8 +25,14 @@
 #include "i915_drv.h"
 #include "intel_frontbuffer.h"
 #include "i915_gem_clflush.h"
+#include "i915_trace.h"
 
+#ifdef __NetBSD__
+spinlock_t i915_gem_clflush_lock;
+#define	clflush_lock	i915_gem_clflush_lock
+#else
 static DEFINE_SPINLOCK(clflush_lock);
+#endif
 
 struct clflush {
 	struct dma_fence dma; /* Must be first for dma_fence_free() */
@@ -64,7 +70,11 @@ static const struct dma_fence_ops i915_clflush_ops = {
 static void __i915_do_clflush(struct drm_i915_gem_object *obj)
 {
 	GEM_BUG_ON(!i915_gem_object_has_pages(obj));
+#ifdef __NetBSD__
+	drm_clflush_pglist(&obj->mm.pageq);
+#else
 	drm_clflush_sg(obj->mm.pages);
+#endif
 	intel_fb_obj_flush(obj, ORIGIN_CPU);
 }
 

@@ -40,6 +40,10 @@
 
 #include <drm/drm_prime.h>
 
+#ifdef __NetBSD__		/* XXX */
+#include <drm/drm_wait_netbsd.h>
+#endif
+
 struct dma_fence;
 struct drm_file;
 struct drm_device;
@@ -327,7 +331,12 @@ struct drm_file {
 	int event_space;
 
 	/** @event_read_lock: Serializes drm_read(). */
+#ifdef __NetBSD__
+	struct lwp *event_read_lock;
+	drm_waitqueue_t event_read_wq;
+#else
 	struct mutex event_read_lock;
+#endif
 
 	/**
 	 * @prime:

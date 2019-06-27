@@ -77,7 +77,11 @@ static bool drm_core_init_complete = false;
 
 static struct dentry *drm_debugfs_root;
 
+#ifdef __NetBSD__
+struct srcu drm_unplug_srcu;
+#else
 DEFINE_STATIC_SRCU(drm_unplug_srcu);
+#endif
 
 /*
  * DRM Minors
@@ -727,9 +731,13 @@ static int create_compat_control_link(struct drm_device *dev)
 	if (!name)
 		return -ENOMEM;
 
+#ifdef __NetBSD__		/* XXX sysfs */
+	ret = 0;
+#else
 	ret = sysfs_create_link(minor->kdev->kobj.parent,
 				&minor->kdev->kobj,
 				name);
+#endif
 
 	kfree(name);
 
@@ -752,7 +760,9 @@ static void remove_compat_control_link(struct drm_device *dev)
 	if (!name)
 		return;
 
+#ifndef __NetBSD__		/* XXX sysfs */
 	sysfs_remove_link(minor->kdev->kobj.parent, name);
+#endif
 
 	kfree(name);
 }

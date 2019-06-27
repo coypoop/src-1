@@ -35,11 +35,9 @@
 #include <sys/mutex.h>
 
 #include <lib/libkern/libkern.h> /* KASSERT */
-#include <linux/list.h>
 
-#define	__acquires(lock)			/* XXX lockdep stuff */
-#define	__releases(lock)			/* XXX lockdep stuff */
-#define might_lock(lock) do {} while(0) 	/* XXX lockdep stuff */
+#include <linux/list.h>
+#include <linux/spinlock.h>
 
 struct mutex {
 	kmutex_t mtx_lock;
@@ -109,16 +107,29 @@ mutex_lock_nest_lock(struct mutex *mutex, struct mutex *already)
 	mutex_lock(mutex);
 }
 
-#define	__lockdep_used		__unused
-#define	lockdep_assert_held(m)	do {} while (0)
-#define	lockdep_is_held(m)	1
-
-#define	SINGLE_DEPTH_NESTING	0
-
 static inline void
 mutex_lock_nested(struct mutex *mutex, unsigned subclass __unused)
 {
 	mutex_lock(mutex);
+}
+
+/*
+ * `recursive locking is bad, do not use this ever.'
+ * -- linux/scripts/checkpath.pl
+ */
+static inline enum {
+	MUTEX_TRYLOCK_FAILED,
+	MUTEX_TRYLOCK_SUCCESS,
+	MUTEX_TRYLOCK_RECURSIVE,
+}
+mutex_trylock_recursive(struct mutex *mutex)
+{
+	if (mutex_owned(&mutex->mtx_lock))
+		return MUTEX_TRYLOCK_RECURSIVE;
+	else if (mutex_tryenter(&mutex->mtx_lock))
+		return MUTEX_TRYLOCK_SUCCESS;
+	else
+		return MUTEX_TRYLOCK_FAILED;
 }
 
 #endif  /* _LINUX_MUTEX_H_ */

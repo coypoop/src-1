@@ -1,4 +1,4 @@
-/*	$NetBSD: interval_tree.h,v 1.7 2018/08/28 03:34:53 riastradh Exp $	*/
+/*	$NetBSD: interval_tree.h,v 1.8 2019/01/04 20:22:32 tnn Exp $	*/
 
 /*-
  * Copyright (c) 2018 The NetBSD Foundation, Inc.
@@ -32,18 +32,7 @@
 #ifndef	_LINUX_INTERVAL_TREE_H_
 #define	_LINUX_INTERVAL_TREE_H_
 
-#include <sys/rbtree.h>
-
-struct rb_root {
-	struct rb_tree	rbr_tree;
-};
-
-static inline bool
-RB_EMPTY_ROOT(struct rb_root *root)
-{
-
-	return RB_TREE_MIN(&root->rbr_tree) == NULL;
-}
+#include <linux/rbtree.h>
 
 struct interval_tree_node {
 	struct rb_node	itn_node;
@@ -88,40 +77,42 @@ static const rb_tree_ops_t interval_tree_ops = {
 };
 
 static inline void
-interval_tree_init(struct rb_root *root)
+interval_tree_init(struct rb_root_cached *root)
 {
 
-	rb_tree_init(&root->rbr_tree, &interval_tree_ops);
+	rb_tree_init(&root->rb_root.rbr_tree, &interval_tree_ops);
 }
 
 static inline void
-interval_tree_insert(struct interval_tree_node *node, struct rb_root *root)
+interval_tree_insert(struct interval_tree_node *node,
+    struct rb_root_cached *root)
 {
 	struct interval_tree_node *collision __diagused;
 
-	collision = rb_tree_insert_node(&root->rbr_tree, node);
+	collision = rb_tree_insert_node(&root->rb_root.rbr_tree, node);
 	KASSERT(collision == node);
 }
 
 static inline void
-interval_tree_remove(struct interval_tree_node *node, struct rb_root *root)
+interval_tree_remove(struct interval_tree_node *node,
+    struct rb_root_cached *root)
 {
 
-	rb_tree_remove_node(&root->rbr_tree, node);
+	rb_tree_remove_node(&root->rb_root.rbr_tree, node);
 }
 
 static inline struct interval_tree_node *
-interval_tree_iter_first(struct rb_root *root, unsigned long start,
+interval_tree_iter_first(struct rb_root_cached *root, unsigned long start,
     unsigned long last)
 {
 	struct interval_tree_node *node;
 
-	node = rb_tree_find_node_geq(&root->rbr_tree, &start);
+	node = rb_tree_find_node_geq(&root->rb_root.rbr_tree, &start);
 	if (node == NULL)
 		return NULL;
-	KASSERT(node->start <= start);
 	if (last < node->start)
 		return NULL;
+	KASSERT(node->start <= last && node->last >= start);
 
 	return node;
 }
@@ -132,32 +123,20 @@ interval_tree_iter_first(struct rb_root *root, unsigned long start,
  * uses.
  */
 static inline struct interval_tree_node *
-interval_tree_iter_next(struct rb_root *root, struct interval_tree_node *node,
-    unsigned long start, unsigned long last)
+interval_tree_iter_next(struct rb_root_cached *root,
+    struct interval_tree_node *node, unsigned long start, unsigned long last)
 {
 	struct interval_tree_node *next;
 
 	KASSERT(node != NULL);
-	next = rb_tree_iterate(&root->rbr_tree, node, RB_DIR_RIGHT);
+	next = rb_tree_iterate(&root->rb_root.rbr_tree, node, RB_DIR_RIGHT);
 	if (next == NULL)
 		return NULL;
-	KASSERT(node->start <= start);
-	if (last < node->start)
+	if (last < next->start)
 		return NULL;
+	KASSERT(next->start <= last && next->last >= start);
 
 	return next;
 }
-
-/*
- * XXX This is not actually postorder, but I can't fathom why you would
- * want postorder for an ordered tree; different insertion orders lead
- * to different traversal orders.
- */
-#define	rbtree_postorder_for_each_entry_safe(NODE, TMP, ROOT, FIELD)	      \
-	for ((NODE) = RB_TREE_MIN(&(ROOT)->rbr_tree);			      \
-		((NODE) != NULL &&					      \
-		    ((TMP) = rb_tree_iterate(&(ROOT)->rbr_tree, (NODE),	      \
-			RB_DIR_RIGHT)));				      \
-		(NODE) = (TMP))
 
 #endif	/* _LINUX_INTERVAL_TREE_H_ */

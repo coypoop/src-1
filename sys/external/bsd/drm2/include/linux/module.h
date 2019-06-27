@@ -35,8 +35,11 @@
 /* XXX Get this first so we don't nuke the module_init declaration.  */
 #include <sys/module.h>
 
+#include <sys/cdefs.h>
+
 #include <linux/export.h>
 #include <linux/moduleparam.h>
+#include <linux/stringify.h>
 
 #define	module_init(INIT)
 #define	module_exit(EXIT)
@@ -60,5 +63,7 @@ __link_set_add_rodata(linux_module_param_desc, PARAMETER ## _desc)
 
 #define	THIS_MODULE	0
 #define	KBUILD_MODNAME	__file__
+
+#define	__MODULE_STRING(x)	__STRING(x)
 
 #endif  /* _LINUX_MODULE_H_ */

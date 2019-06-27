@@ -33,6 +33,7 @@
 #include <linux/list.h>
 #include <linux/list_sort.h>
 #include <linux/export.h>
+#include <asm/div64.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <video/of_videomode.h>

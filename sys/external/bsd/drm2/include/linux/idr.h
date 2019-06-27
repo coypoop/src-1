@@ -42,6 +42,7 @@
 struct idr {
 	kmutex_t	idr_lock;
 	rb_tree_t	idr_tree;
+	int		idr_base;
 };
 
 /* XXX Make the nm output a little more greppable...  */
@@ -51,6 +52,7 @@ struct idr {
 #define	idr_for_each		linux_idr_for_each
 #define	idr_get_next		linux_idr_get_next
 #define	idr_init		linux_idr_init
+#define	idr_init_base		linux_idr_init_base
 #define	idr_is_empty		linux_idr_is_empty
 #define	idr_preload		linux_idr_preload
 #define	idr_preload_end		linux_idr_preload_end
@@ -61,12 +63,13 @@ int	linux_idr_module_init(void);
 void	linux_idr_module_fini(void);
 
 void	idr_init(struct idr *);
+void	idr_init_base(struct idr *, int);
 void	idr_destroy(struct idr *);
 bool	idr_is_empty(struct idr *);
 void	*idr_find(struct idr *, int);
 void	*idr_get_next(struct idr *, int *);
 void	*idr_replace(struct idr *, void *, int);
-void	idr_remove(struct idr *, int);
+void	*idr_remove(struct idr *, int);
 void	idr_preload(gfp_t);
 int	idr_alloc(struct idr *, void *, int, int, gfp_t);
 void	idr_preload_end(void);

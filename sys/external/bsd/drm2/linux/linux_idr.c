@@ -173,8 +173,17 @@ void
 idr_init(struct idr *idr)
 {
 
+	idr_init_base(idr, 0);
+}
+
+void
+idr_init_base(struct idr *idr, int base)
+{
+
 	mutex_init(&idr->idr_lock, MUTEX_DEFAULT, IPL_VM);
 	rb_tree_init(&idr->idr_tree, &idr_rb_ops);
+	idr->idr_base = base;
+
 	SDT_PROBE1(sdt, linux, idr, init,  idr);
 }
 
@@ -250,19 +259,26 @@ idr_replace(struct idr *idr, void *replacement, int id)
 	return result;
 }
 
-void
+void *
 idr_remove(struct idr *idr, int id)
 {
 	struct idr_node *node;
+	void *data;
 
 	mutex_spin_enter(&idr->idr_lock);
 	node = rb_tree_find_node(&idr->idr_tree, &id);
-	KASSERTMSG((node != NULL), "idr %p has no entry for id %d", idr, id);
-	SDT_PROBE3(sdt, linux, idr, remove,  idr, id, node->in_data);
-	rb_tree_remove_node(&idr->idr_tree, node);
+	if (node == NULL) {
+		data = NULL;
+	} else {
+		data = node->in_data;
+		SDT_PROBE3(sdt, linux, idr, remove,  idr, id, data);
+		rb_tree_remove_node(&idr->idr_tree, node);
+	}
 	mutex_spin_exit(&idr->idr_lock);
 
 	kmem_free(node, sizeof(*node));
+
+	return data;
 }
 
 void

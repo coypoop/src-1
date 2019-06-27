@@ -407,8 +407,8 @@ EXPORT_SYMBOL(drm_plane_create_zpos_immutable_property);
 
 static int drm_atomic_state_zpos_cmp(const void *a, const void *b)
 {
-	const struct drm_plane_state *sa = *(struct drm_plane_state **)a;
-	const struct drm_plane_state *sb = *(struct drm_plane_state **)b;
+	const struct drm_plane_state *sa = *(struct drm_plane_state *const *)a;
+	const struct drm_plane_state *sb = *(struct drm_plane_state *const *)b;
 
 	if (sa->zpos != sb->zpos)
 		return sa->zpos - sb->zpos;
@@ -490,7 +490,7 @@ int drm_atomic_normalize_zpos(struct drm_device *dev,
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
-	struct drm_plane *plane;
+	struct drm_plane *plane __unused;
 	struct drm_plane_state *old_plane_state, *new_plane_state;
 	int i, ret = 0;
 

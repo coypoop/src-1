@@ -32,8 +32,19 @@
 #ifndef _ASM_PROCESSOR_H_
 #define _ASM_PROCESSOR_H_
 
+#include <sys/lock.h>
+
 #include <machine/param.h>
 
-#define	cpu_relax()	DELAY(1)	/* XXX */
+#define	cpu_relax()	SPINLOCK_BACKOFF_HOOK
+
+#if defined(__i386__) || defined(__x86_64__)
+static inline void
+clflushopt(void *p)
+{
+	/* XXX Test CPUID bit, use CLFLUSHOPT...  */
+	asm volatile ("clflush %0" : : "m" (*(const char *)p));
+}
+#endif
 
 #endif  /* _ASM_PROCESSOR_H_ */

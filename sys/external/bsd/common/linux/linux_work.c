@@ -60,6 +60,7 @@ struct workqueue_struct {
 	bool			wq_dying;
 	uint64_t		wq_gen;
 	struct lwp		*wq_lwp;
+	const char		*wq_name;
 };
 
 static void __dead	linux_workqueue_thread(void *);
@@ -116,6 +117,7 @@ static specificdata_key_t workqueue_key __read_mostly;
 struct workqueue_struct	*system_wq __read_mostly;
 struct workqueue_struct	*system_long_wq __read_mostly;
 struct workqueue_struct	*system_power_efficient_wq __read_mostly;
+struct workqueue_struct	*system_unbound_wq __read_mostly;
 
 static inline uintptr_t
 atomic_cas_uintptr(volatile uintptr_t *p, uintptr_t old, uintptr_t new)
@@ -152,15 +154,22 @@ linux_workqueue_init(void)
 	}
 
 	system_power_efficient_wq = alloc_ordered_workqueue("lnxpwrwq", 0);
-	if (system_long_wq == NULL) {
+	if (system_power_efficient_wq == NULL) {
 		error = ENOMEM;
 		goto fail3;
 	}
 
+	system_unbound_wq = alloc_ordered_workqueue("lnxubdwq", 0);
+	if (system_unbound_wq == NULL) {
+		error = ENOMEM;
+		goto fail4;
+	}
+
 	return 0;
 
-fail4: __unused
-	destroy_workqueue(system_power_efficient_wq);
+fail5: __unused
+	destroy_workqueue(system_unbound_wq);
+fail4:	destroy_workqueue(system_power_efficient_wq);
 fail3:	destroy_workqueue(system_long_wq);
 fail2:	destroy_workqueue(system_wq);
 fail1:	lwp_specific_key_delete(workqueue_key);
@@ -188,19 +197,20 @@ linux_workqueue_fini(void)
  */
 
 /*
- * alloc_ordered_workqueue(name, flags)
+ * alloc_workqueue(name, flags, max_active)
  *
- *	Create a workqueue of the given name.  No flags are currently
- *	defined.  Return NULL on failure, pointer to struct
- *	workqueue_struct object on success.
+ *	Create a workqueue of the given name.  max_active is the
+ *	maximum number of work items in flight, or 0 for the default.
+ *	Return NULL on failure, pointer to struct workqueue_struct
+ *	object on success.
  */
 struct workqueue_struct *
-alloc_ordered_workqueue(const char *name, int flags)
+alloc_workqueue(const char *name, int flags, unsigned max_active)
 {
 	struct workqueue_struct *wq;
 	int error;
 
-	KASSERT(flags == 0);
+	KASSERT(max_active == 0 || max_active == 1);
 
 	wq = kmem_zalloc(sizeof(*wq), KM_SLEEP);
 
@@ -214,6 +224,7 @@ alloc_ordered_workqueue(const char *name, int flags)
 	wq->wq_dying = false;
 	wq->wq_gen = 0;
 	wq->wq_lwp = NULL;
+	wq->wq_name = name;
 
 	error = kthread_create(PRI_NONE,
 	    KTHREAD_MPSAFE|KTHREAD_TS|KTHREAD_MUSTJOIN, NULL,
@@ -230,6 +241,18 @@ fail0:	KASSERT(TAILQ_EMPTY(&wq->wq_dqueue));
 	mutex_destroy(&wq->wq_lock);
 	kmem_free(wq, sizeof(*wq));
 	return NULL;
+}
+
+/*
+ * alloc_ordered_workqueue(name, flags)
+ *
+ *	Same as alloc_workqueue(name, flags, 1).
+ */
+struct workqueue_struct *
+alloc_ordered_workqueue(const char *name, int flags)
+{
+
+	return alloc_workqueue(name, flags, 1);
 }
 
 /*
@@ -497,6 +520,19 @@ work_claimed(struct work_struct *work, struct workqueue_struct *wq)
 
 	KASSERT(work_queue(work) == wq);
 	KASSERT(mutex_owned(&wq->wq_lock));
+
+	return work->work_owner & 1;
+}
+
+/*
+ * work_pending(work)
+ *
+ *	True if work is currently claimed by any workqueue, scheduled
+ *	to run on that workqueue.
+ */
+bool
+work_pending(const struct work_struct *work)
+{
 
 	return work->work_owner & 1;
 }
@@ -1338,14 +1374,16 @@ flush_scheduled_work(void)
  * flush_workqueue_locked(wq)
  *
  *	Wait for all work queued on wq to complete.  This does not
- *	include delayed work.
+ *	include delayed work.  True if there was work to be flushed,
+ *	false it the queue was empty.
  *
  *	Caller must hold wq's lock.
  */
-static void
+static bool
 flush_workqueue_locked(struct workqueue_struct *wq)
 {
 	uint64_t gen;
+	bool work_queued = false;
 
 	KASSERT(mutex_owned(&wq->wq_lock));
 
@@ -1356,22 +1394,29 @@ flush_workqueue_locked(struct workqueue_struct *wq)
 	 * If there's a batch of work in progress, we must wait for the
 	 * worker thread to finish that batch.
 	 */
-	if (wq->wq_current_work != NULL)
+	if (wq->wq_current_work != NULL) {
 		gen++;
+		work_queued = true;
+	}
 
 	/*
 	 * If there's any work yet to be claimed from the queue by the
 	 * worker thread, we must wait for it to finish one more batch
 	 * too.
 	 */
-	if (!TAILQ_EMPTY(&wq->wq_queue) || !TAILQ_EMPTY(&wq->wq_dqueue))
+	if (!TAILQ_EMPTY(&wq->wq_queue) || !TAILQ_EMPTY(&wq->wq_dqueue)) {
 		gen++;
+		work_queued = true;
+	}
 
 	/* Wait until the generation number has caught up.  */
 	SDT_PROBE1(sdt, linux, work, flush__start,  wq);
 	while (wq->wq_gen < gen)
 		cv_wait(&wq->wq_cv, &wq->wq_lock);
 	SDT_PROBE1(sdt, linux, work, flush__done,  wq);
+
+	/* Return whether we had to wait for anything.  */
+	return work_queued;
 }
 
 /*
@@ -1385,7 +1430,27 @@ flush_workqueue(struct workqueue_struct *wq)
 {
 
 	mutex_enter(&wq->wq_lock);
-	flush_workqueue_locked(wq);
+	(void)flush_workqueue_locked(wq);
+	mutex_exit(&wq->wq_lock);
+}
+
+/*
+ * drain_workqueue(wq)
+ *
+ *	Repeatedly flush wq until there is no more work.
+ */
+void
+drain_workqueue(struct workqueue_struct *wq)
+{
+	unsigned ntries = 0;
+
+	mutex_enter(&wq->wq_lock);
+	while (flush_workqueue_locked(wq)) {
+		if (ntries++ == 10 || (ntries % 100) == 0)
+			printf("linux workqueue %s"
+			    ": still clogged after %u flushes",
+			    wq->wq_name, ntries);
+	}
 	mutex_exit(&wq->wq_lock);
 }
 
@@ -1394,17 +1459,21 @@ flush_workqueue(struct workqueue_struct *wq)
  *
  *	If work is queued or currently executing, wait for it to
  *	complete.
+ *
+ *	Return true if we waited to flush it, false if it was already
+ *	idle.
  */
-void
+bool
 flush_work(struct work_struct *work)
 {
 	struct workqueue_struct *wq;
 
 	/* If there's no workqueue, nothing to flush.  */
 	if ((wq = work_queue(work)) == NULL)
-		return;
+		return false;
 
 	flush_workqueue(wq);
+	return true;
 }
 
 /*
@@ -1414,14 +1483,15 @@ flush_work(struct work_struct *work)
  *	instead.  Then, if dw is queued or currently executing, wait
  *	for it to complete.
  */
-void
+bool
 flush_delayed_work(struct delayed_work *dw)
 {
 	struct workqueue_struct *wq;
+	bool waited = false;
 
 	/* If there's no workqueue, nothing to flush.  */
 	if ((wq = work_queue(&dw->work)) == NULL)
-		return;
+		return false;
 
 	mutex_enter(&wq->wq_lock);
 	if (__predict_false(work_queue(&dw->work) != wq)) {
@@ -1430,6 +1500,7 @@ flush_delayed_work(struct delayed_work *dw)
 		 * queue, though that would be ill-advised), so it must
 		 * have completed, and we have nothing more to do.
 		 */
+		waited = false;
 	} else {
 		switch (dw->dw_state) {
 		case DELAYED_WORK_IDLE:
@@ -1477,7 +1548,22 @@ flush_delayed_work(struct delayed_work *dw)
 		 * Waiting for the whole queue to flush is overkill,
 		 * but doesn't hurt.
 		 */
-		flush_workqueue_locked(wq);
+		(void)flush_workqueue_locked(wq);
+		waited = true;
 	}
 	mutex_exit(&wq->wq_lock);
+
+	return waited;
+}
+
+/*
+ * delayed_work_pending(dw)
+ *
+ *	True if dw is currently scheduled to execute, false if not.
+ */
+bool
+delayed_work_pending(const struct delayed_work *dw)
+{
+
+	return work_pending(&dw->work);
 }

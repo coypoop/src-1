@@ -36,8 +36,9 @@ __KERNEL_RCSID(0, "$NetBSD: linux_reservation.c,v 1.11 2018/09/03 18:02:11 riast
 #include <sys/poll.h>
 #include <sys/select.h>
 
-#include <linux/fence.h>
+#include <linux/dma-fence.h>
 #include <linux/reservation.h>
+#include <linux/seqlock.h>
 #include <linux/ww_mutex.h>
 
 DEFINE_WW_CLASS(reservation_ww_class __cacheline_aligned);
@@ -90,9 +91,9 @@ reservation_object_init(struct reservation_object *robj)
 {
 
 	ww_mutex_init(&robj->lock, &reservation_ww_class);
-	robj->robj_version = 0;
-	robj->robj_fence = NULL;
-	robj->robj_list = NULL;
+	seqcount_init(&robj->seq);
+	robj->fence_excl = NULL;
+	robj->fence = NULL;
 	robj->robj_prealloc = NULL;
 }
 
@@ -109,18 +110,75 @@ reservation_object_fini(struct reservation_object *robj)
 
 	if (robj->robj_prealloc)
 		objlist_free(robj->robj_prealloc);
-	if (robj->robj_list) {
-		for (i = 0; i < robj->robj_list->shared_count; i++)
-			fence_put(robj->robj_list->shared[i]);
-		objlist_free(robj->robj_list);
+	if (robj->fence) {
+		for (i = 0; i < robj->fence->shared_count; i++)
+			dma_fence_put(robj->fence->shared[i]);
+		objlist_free(robj->fence);
 	}
-	if (robj->robj_fence)
-		fence_put(robj->robj_fence);
+	if (robj->fence_excl)
+		dma_fence_put(robj->fence_excl);
 	ww_mutex_destroy(&robj->lock);
 }
 
 /*
- * reservation_object_held(roj)
+ * reservation_object_lock(robj, ctx)
+ *
+ *	Acquire a reservation object's lock.  Return 0 on success,
+ *	-EALREADY if caller already holds it, -EDEADLK if a
+ *	higher-priority owner holds it and the caller must back out and
+ *	retry.
+ */
+int
+reservation_object_lock(struct reservation_object *robj,
+    struct ww_acquire_ctx *ctx)
+{
+
+	return ww_mutex_lock(&robj->lock, ctx);
+}
+
+/*
+ * reservation_object_lock_interruptible(robj, ctx)
+ *
+ *	Acquire a reservation object's lock.  Return 0 on success,
+ *	-EALREADY if caller already holds it, -EDEADLK if a
+ *	higher-priority owner holds it and the caller must back out and
+ *	retry, -ERESTART/-EINTR if interrupted.
+ */
+int
+reservation_object_lock_interruptible(struct reservation_object *robj,
+    struct ww_acquire_ctx *ctx)
+{
+
+	return ww_mutex_lock_interruptible(&robj->lock, ctx);
+}
+
+/*
+ * reservation_object_trylock(robj)
+ *
+ *	Try to acquire a reservation object's lock without blocking.
+ *	Return true on success, false on failure.
+ */
+bool
+reservation_object_trylock(struct reservation_object *robj)
+{
+
+	return ww_mutex_trylock(&robj->lock);
+}
+
+/*
+ * reservation_object_unlock(robj)
+ *
+ *	Release a reservation object's lock.
+ */
+void
+reservation_object_unlock(struct reservation_object *robj)
+{
+
+	return ww_mutex_unlock(&robj->lock);
+}
+
+/*
+ * reservation_object_held(robj)
  *
  *	True if robj is locked.
  */
@@ -132,6 +190,18 @@ reservation_object_held(struct reservation_object *robj)
 }
 
 /*
+ * reservation_object_assert_held(robj)
+ *
+ *	Panic if robj is not held, in DIAGNOSTIC builds.
+ */
+void
+reservation_object_assert_held(struct reservation_object *robj)
+{
+
+	KASSERT(reservation_object_held(robj));
+}
+
+/*
  * reservation_object_get_excl(robj)
  *
  *	Return a pointer to the exclusive fence of the reservation
@@ -139,12 +209,12 @@ reservation_object_held(struct reservation_object *robj)
  *
  *	Caller must have robj locked.
  */
-struct fence *
+struct dma_fence *
 reservation_object_get_excl(struct reservation_object *robj)
 {
 
 	KASSERT(reservation_object_held(robj));
-	return robj->robj_fence;
+	return robj->fence_excl;
 }
 
 /*
@@ -160,7 +230,7 @@ reservation_object_get_list(struct reservation_object *robj)
 {
 
 	KASSERT(reservation_object_held(robj));
-	return robj->robj_list;
+	return robj->fence;
 }
 
 /*
@@ -182,11 +252,11 @@ reservation_object_reserve_shared(struct reservation_object *robj)
 
 	KASSERT(reservation_object_held(robj));
 
-	list = robj->robj_list;
+	list = robj->fence;
 	prealloc = robj->robj_prealloc;
 
 	/* If there's an existing list, check it for space.  */
-	if (list != NULL) {
+	if (list) {
 		/* If there's too many already, give up.  */
 		if (list->shared_count == UINT32_MAX)
 			return -ENOMEM;
@@ -232,7 +302,6 @@ reservation_object_reserve_shared(struct reservation_object *robj)
 }
 
 struct reservation_object_write_ticket {
-	unsigned version;
 };
 
 /*
@@ -243,6 +312,9 @@ struct reservation_object_write_ticket {
  *	reservation_object_write_commit to commit the writes.
  *
  *	Caller must have robj locked.
+ *
+ *	Implies membar_producer, i.e. store-before-store barrier.  Does
+ *	NOT serve as an acquire operation, however.
  */
 static void
 reservation_object_write_begin(struct reservation_object *robj,
@@ -251,8 +323,7 @@ reservation_object_write_begin(struct reservation_object *robj,
 
 	KASSERT(reservation_object_held(robj));
 
-	ticket->version = robj->robj_version |= 1;
-	membar_producer();
+	write_seqcount_begin(&robj->seq);
 }
 
 /*
@@ -262,6 +333,9 @@ reservation_object_write_begin(struct reservation_object *robj,
  *	reservation_object_write_begin that returned ticket.
  *
  *	Caller must have robj locked.
+ *
+ *	Implies membar_producer, i.e. store-before-store barrier.  Does
+ *	NOT serve as a release operation, however.
  */
 static void
 reservation_object_write_commit(struct reservation_object *robj,
@@ -269,11 +343,8 @@ reservation_object_write_commit(struct reservation_object *robj,
 {
 
 	KASSERT(reservation_object_held(robj));
-	KASSERT(ticket->version == robj->robj_version);
-	KASSERT((ticket->version & 1) == 1);
 
-	membar_producer();
-	robj->robj_version = ticket->version + 1;
+	write_seqcount_end(&robj->seq);
 }
 
 struct reservation_object_read_ticket {
@@ -288,13 +359,11 @@ struct reservation_object_read_ticket {
  *	caller must be prepared to retry reading if it fails.
  */
 static void
-reservation_object_read_begin(struct reservation_object *robj,
+reservation_object_read_begin(const struct reservation_object *robj,
     struct reservation_object_read_ticket *ticket)
 {
 
-	while ((ticket->version = robj->robj_version) & 1)
-		SPINLOCK_BACKOFF_HOOK;
-	membar_consumer();
+	ticket->version = read_seqcount_begin(&robj->seq);
 }
 
 /*
@@ -305,12 +374,11 @@ reservation_object_read_begin(struct reservation_object *robj,
  *	invalidated.
  */
 static bool
-reservation_object_read_valid(struct reservation_object *robj,
+reservation_object_read_valid(const struct reservation_object *robj,
     struct reservation_object_read_ticket *ticket)
 {
 
-	membar_consumer();
-	return ticket->version == robj->robj_version;
+	return !read_seqcount_retry(&robj->seq, ticket->version);
 }
 
 /*
@@ -324,10 +392,10 @@ reservation_object_read_valid(struct reservation_object *robj,
  */
 void
 reservation_object_add_excl_fence(struct reservation_object *robj,
-    struct fence *fence)
+    struct dma_fence *fence)
 {
-	struct fence *old_fence = robj->robj_fence;
-	struct reservation_object_list *old_list = robj->robj_list;
+	struct dma_fence *old_fence = robj->fence_excl;
+	struct reservation_object_list *old_list = robj->fence;
 	uint32_t old_shared_count;
 	struct reservation_object_write_ticket ticket;
 
@@ -338,7 +406,7 @@ reservation_object_add_excl_fence(struct reservation_object *robj,
 	 * a reference for ourselves.
 	 */
 	if (fence)
-		(void)fence_get(fence);
+		(void)dma_fence_get(fence);
 
 	/* If there are any shared fences, remember how many.  */
 	if (old_list)
@@ -348,7 +416,7 @@ reservation_object_add_excl_fence(struct reservation_object *robj,
 	reservation_object_write_begin(robj, &ticket);
 
 	/* Replace the fence and zero the shared count.  */
-	robj->robj_fence = fence;
+	robj->fence_excl = fence;
 	if (old_list)
 		old_list->shared_count = 0;
 
@@ -357,12 +425,12 @@ reservation_object_add_excl_fence(struct reservation_object *robj,
 
 	/* Release the old exclusive fence, if any.  */
 	if (old_fence)
-		fence_put(old_fence);
+		dma_fence_put(old_fence);
 
 	/* Release any old shared fences.  */
 	if (old_list) {
 		while (old_shared_count--)
-			fence_put(old_list->shared[old_shared_count]);
+			dma_fence_put(old_list->shared[old_shared_count]);
 	}
 }
 
@@ -379,19 +447,19 @@ reservation_object_add_excl_fence(struct reservation_object *robj,
  */
 void
 reservation_object_add_shared_fence(struct reservation_object *robj,
-    struct fence *fence)
+    struct dma_fence *fence)
 {
-	struct reservation_object_list *list = robj->robj_list;
+	struct reservation_object_list *list = robj->fence;
 	struct reservation_object_list *prealloc = robj->robj_prealloc;
 	struct reservation_object_write_ticket ticket;
-	struct fence *replace = NULL;
+	struct dma_fence *replace = NULL;
 	uint32_t i;
 
 	KASSERT(reservation_object_held(robj));
 
 	/* Acquire a reference to the fence.  */
 	KASSERT(fence != NULL);
-	(void)fence_get(fence);
+	(void)dma_fence_get(fence);
 
 	/* Check for a preallocated replacement list.  */
 	if (prealloc == NULL) {
@@ -402,7 +470,7 @@ reservation_object_add_shared_fence(struct reservation_object *robj,
 		KASSERT(list != NULL);
 		KASSERT(list->shared_count < list->shared_max);
 
-		/* Begin an update.  */
+		/* Begin an update.  Implies membar_producer for fence.  */
 		reservation_object_write_begin(robj, &ticket);
 
 		/* Find a fence with the same context number.  */
@@ -450,11 +518,14 @@ reservation_object_add_shared_fence(struct reservation_object *robj,
 		if (replace == NULL)
 			prealloc->shared[prealloc->shared_count++] = fence;
 
-		/* Now ready to replace the list.  Begin an update.  */
+		/*
+		 * Now ready to replace the list.  Begin an update.
+		 * Implies membar_producer for fence and prealloc.
+		 */
 		reservation_object_write_begin(robj, &ticket);
 
 		/* Replace the list.  */
-		robj->robj_list = prealloc;
+		robj->fence = prealloc;
 		robj->robj_prealloc = NULL;
 
 		/* Commit the update.  */
@@ -465,22 +536,42 @@ reservation_object_add_shared_fence(struct reservation_object *robj,
 		 * (We are not in a position at this point to sleep
 		 * waiting for activity on all CPUs.)
 		 */
-		if (list != NULL)
+		if (list)
 			objlist_defer_free(list);
 	}
 
 	/* Release a fence if we replaced it.  */
 	if (replace)
-		fence_put(replace);
+		dma_fence_put(replace);
 }
 
-int
-reservation_object_get_fences_rcu(struct reservation_object *robj,
-    struct fence **fencep, unsigned *nsharedp, struct fence ***sharedp)
+/*
+ * reservation_object_get_excl_rcu(robj)
+ *
+ *	Note: Caller need not call this from an RCU read section.
+ */
+struct dma_fence *
+reservation_object_get_excl_rcu(const struct reservation_object *robj)
 {
-	struct reservation_object_list *list;
-	struct fence *fence;
-	struct fence **shared = NULL;
+	struct dma_fence *fence;
+
+	rcu_read_lock();
+	fence = dma_fence_get_rcu_safe(&robj->fence_excl);
+	rcu_read_unlock();
+
+	return fence;
+}
+
+/*
+ * reservation_object_get_fences_rcu(robj, fencep, nsharedp, sharedp)
+ */
+int
+reservation_object_get_fences_rcu(const struct reservation_object *robj,
+    struct dma_fence **fencep, unsigned *nsharedp, struct dma_fence ***sharedp)
+{
+	const struct reservation_object_list *list;
+	struct dma_fence *fence;
+	struct dma_fence **shared = NULL;
 	unsigned shared_alloc, shared_count, i;
 	struct reservation_object_read_ticket ticket;
 
@@ -490,7 +581,9 @@ top:
 	reservation_object_read_begin(robj, &ticket);
 
 	/* If there is a shared list, grab it.  */
-	if ((list = robj->robj_list) != NULL) {
+	list = robj->fence;
+	__insn_barrier();
+	if (list) {
 		/* Make sure the content of the list has been published.  */
 		membar_datadep_consumer();
 
@@ -545,7 +638,9 @@ top:
 	}
 
 	/* If there is an exclusive fence, grab it.  */
-	if ((fence = robj->robj_fence) != NULL) {
+	fence = robj->fence_excl;
+	__insn_barrier();
+	if (fence) {
 		/* Make sure the content of the fence has been published.  */
 		membar_datadep_consumer();
 	}
@@ -563,7 +658,7 @@ top:
 	 * one.  If we can't, start over.
 	 */
 	if (fence) {
-		if (fence_get_rcu(fence) == NULL)
+		if (dma_fence_get_rcu(fence) == NULL)
 			goto restart;
 	}
 
@@ -571,7 +666,7 @@ top:
 	 * Try to get a reference to all of the shared fences.
 	 */
 	for (i = 0; i < shared_count; i++) {
-		if (fence_get_rcu(shared[i]) == NULL)
+		if (dma_fence_get_rcu(shared[i]) == NULL)
 			goto put_restart;
 	}
 
@@ -585,16 +680,164 @@ top:
 put_restart:
 	/* Back out.  */
 	while (i --> 0) {
-		fence_put(shared[i]);
+		dma_fence_put(shared[i]);
 		shared[i] = NULL; /* paranoia */
 	}
 	if (fence) {
-		fence_put(fence);
+		dma_fence_put(fence);
 		fence = NULL;	/* paranoia */
 	}
 
 restart:
 	rcu_read_unlock();
+	goto top;
+}
+
+/*
+ * reservation_object_copy_fences(dst, src)
+ *
+ *	Copy the exclusive fence and all the shared fences from src to
+ *	dst.
+ *
+ *	Caller must have dst locked.
+ */
+int
+reservation_object_copy_fences(struct reservation_object *dst_robj,
+    const struct reservation_object *src_robj)
+{
+	const struct reservation_object_list *src_list;
+	struct reservation_object_list *dst_list = NULL;
+	struct reservation_object_list *old_list;
+	struct dma_fence *fence = NULL;
+	struct dma_fence *old_fence;
+	uint32_t shared_count, i;
+	struct reservation_object_read_ticket read_ticket;
+	struct reservation_object_write_ticket write_ticket;
+
+	KASSERT(reservation_object_held(dst_robj));
+
+top:
+	/* Enter an RCU read section and get a read ticket.  */
+	rcu_read_lock();
+	reservation_object_read_begin(src_robj, &read_ticket);
+
+	/* Get the shared list.  */
+	src_list = src_robj->fence;
+	__insn_barrier();
+	if (src_list) {
+		/* Make sure the content of the list has been published.  */
+		membar_datadep_consumer();
+
+		/* Find out how long it is.  */
+		shared_count = src_list->shared_count;
+
+		/*
+		 * Make sure we saw a consistent snapshot of the list
+		 * pointer and length.
+		 */
+		if (!reservation_object_read_valid(src_robj, &read_ticket))
+			goto restart;
+
+		/* Allocate a new list.  */
+		dst_list = objlist_tryalloc(shared_count);
+		if (dst_list == NULL)
+			return -ENOMEM;
+
+		/* Copy over all fences that are not yet signalled.  */
+		dst_list->shared_count = 0;
+		for (i = 0; i < shared_count; i++) {
+			if ((fence = dma_fence_get_rcu(src_list->shared[i]))
+			    != NULL)
+				goto restart;
+			if (dma_fence_is_signaled(fence)) {
+				dma_fence_put(fence);
+				fence = NULL;
+				continue;
+			}
+			dst_list->shared[dst_list->shared_count++] = fence;
+			fence = NULL;
+		}
+	}
+
+	/* Get the exclusive fence.  */
+	fence = src_robj->fence_excl;
+	__insn_barrier();
+	if (fence != NULL) {
+		/* Make sure the content of the fence has been published.  */
+		membar_datadep_consumer();
+
+		/*
+		 * Make sure we saw a consistent snapshot of the fence.
+		 *
+		 * XXX I'm not actually sure this is necessary since
+		 * pointer writes are supposed to be atomic.
+		 */
+		if (!reservation_object_read_valid(src_robj, &read_ticket)) {
+			fence = NULL;
+			goto restart;
+		}
+
+		/*
+		 * If it is going away, restart.  Otherwise, acquire a
+		 * reference to it.
+		 */
+		if (!dma_fence_get_rcu(fence)) {
+			fence = NULL;
+			goto restart;
+		}
+	}
+
+	/* All done with src; exit the RCU read section.  */
+	rcu_read_unlock();
+
+	/*
+	 * We now have a snapshot of the shared and exclusive fences of
+	 * src_robj and we have acquired references to them so they
+	 * won't go away.  Transfer them over to dst_robj, releasing
+	 * references to any that were there.
+	 */
+
+	/* Get the old shared and exclusive fences, if any.  */
+	old_list = dst_robj->fence;
+	old_fence = dst_robj->fence_excl;
+
+	/* Begin an update.  */
+	reservation_object_write_begin(dst_robj, &write_ticket);
+
+	/* Replace the fences.  */
+	dst_robj->fence = dst_list;
+	dst_robj->fence_excl = fence;
+
+	/* Commit the update.  */
+	reservation_object_write_commit(dst_robj, &write_ticket);
+
+	/* Release the old exclusive fence, if any.  */
+	if (old_fence)
+		dma_fence_put(old_fence);
+
+	/* Release any old shared fences.  */
+	if (old_list) {
+		for (i = old_list->shared_count; i --> 0;)
+			dma_fence_put(old_list->shared[i]);
+	}
+
+	/* Success!  */
+	return 0;
+
+restart:
+	rcu_read_unlock();
+	if (dst_list) {
+		for (i = dst_list->shared_count; i --> 0;) {
+			dma_fence_put(dst_list->shared[i]);
+			dst_list->shared[i] = NULL;
+		}
+		objlist_free(dst_list);
+		dst_list = NULL;
+	}
+	if (fence) {
+		dma_fence_put(fence);
+		fence = NULL;
+	}
 	goto top;
 }
 
@@ -610,12 +853,12 @@ restart:
  *	true only if there are no shared fences?  This makes no sense.
  */
 bool
-reservation_object_test_signaled_rcu(struct reservation_object *robj,
+reservation_object_test_signaled_rcu(const struct reservation_object *robj,
     bool shared)
 {
 	struct reservation_object_read_ticket ticket;
 	struct reservation_object_list *list;
-	struct fence *fence;
+	struct dma_fence *fence;
 	uint32_t i, shared_count;
 	bool signaled = true;
 
@@ -625,7 +868,11 @@ top:
 	reservation_object_read_begin(robj, &ticket);
 
 	/* If shared is requested and there is a shared list, test it.  */
-	if (shared && (list = robj->robj_list) != NULL) {
+	if (!shared)
+		goto excl;
+	list = robj->fence;
+	__insn_barrier();
+	if (list) {
 		/* Make sure the content of the list has been published.  */
 		membar_datadep_consumer();
 
@@ -646,18 +893,21 @@ top:
 		 * signalled.
 		 */
 		for (i = 0; i < shared_count; i++) {
-			fence = fence_get_rcu(list->shared[i]);
+			fence = dma_fence_get_rcu(list->shared[i]);
 			if (fence == NULL)
 				goto restart;
-			signaled &= fence_is_signaled(fence);
-			fence_put(fence);
+			signaled &= dma_fence_is_signaled(fence);
+			dma_fence_put(fence);
 			if (!signaled)
 				goto out;
 		}
 	}
 
+excl:
 	/* If there is an exclusive fence, test it.  */
-	if ((fence = robj->robj_fence) != NULL) {
+	fence = robj->fence_excl;
+	__insn_barrier();
+	if (fence) {
 		/* Make sure the content of the fence has been published.  */
 		membar_datadep_consumer();
 
@@ -674,10 +924,10 @@ top:
 		 * If it is going away, restart.  Otherwise, acquire a
 		 * reference to it to test whether it is signalled.
 		 */
-		if ((fence = fence_get_rcu(fence)) == NULL)
+		if ((fence = dma_fence_get_rcu(fence)) == NULL)
 			goto restart;
-		signaled &= fence_is_signaled(fence);
-		fence_put(fence);
+		signaled &= dma_fence_is_signaled(fence);
+		dma_fence_put(fence);
 		if (!signaled)
 			goto out;
 	}
@@ -704,12 +954,12 @@ restart:
  *	sense.
  */
 long
-reservation_object_wait_timeout_rcu(struct reservation_object *robj,
+reservation_object_wait_timeout_rcu(const struct reservation_object *robj,
     bool shared, bool intr, unsigned long timeout)
 {
 	struct reservation_object_read_ticket ticket;
 	struct reservation_object_list *list;
-	struct fence *fence;
+	struct dma_fence *fence;
 	uint32_t i, shared_count;
 	long ret;
 
@@ -722,7 +972,11 @@ top:
 	reservation_object_read_begin(robj, &ticket);
 
 	/* If shared is requested and there is a shared list, wait on it.  */
-	if (shared && (list = robj->robj_list) != NULL) {
+	if (!shared)
+		goto excl;
+	list = robj->fence;
+	__insn_barrier();
+	if (list) {
 		/* Make sure the content of the list has been published.  */
 		membar_datadep_consumer();
 
@@ -743,17 +997,20 @@ top:
 		 * is not signalled.
 		 */
 		for (i = 0; i < shared_count; i++) {
-			fence = fence_get_rcu(list->shared[i]);
+			fence = dma_fence_get_rcu(list->shared[i]);
 			if (fence == NULL)
 				goto restart;
-			if (!fence_is_signaled(fence))
+			if (!dma_fence_is_signaled(fence))
 				goto wait;
-			fence_put(fence);
+			dma_fence_put(fence);
 		}
 	}
 
+excl:
 	/* If there is an exclusive fence, test it.  */
-	if ((fence = robj->robj_fence) != NULL) {
+	fence = robj->fence_excl;
+	__insn_barrier();
+	if (fence) {
 		/* Make sure the content of the fence has been published.  */
 		membar_datadep_consumer();
 
@@ -771,11 +1028,11 @@ top:
 		 * reference to it to test whether it is signalled.  If
 		 * not, wait for it.
 		 */
-		if ((fence = fence_get_rcu(fence)) == NULL)
+		if ((fence = dma_fence_get_rcu(fence)) == NULL)
 			goto restart;
-		if (!fence_is_signaled(fence))
+		if (!dma_fence_is_signaled(fence))
 			goto wait;
-		fence_put(fence);
+		dma_fence_put(fence);
 	}
 
 	/* Success!  Return the number of ticks left.  */
@@ -793,7 +1050,7 @@ wait:
 	 */
 	KASSERT(fence != NULL);
 	rcu_read_unlock();
-	ret = fence_wait_timeout(fence, intr, timeout);
+	ret = dma_fence_wait_timeout(fence, intr, timeout);
 	if (ret <= 0)
 		return ret;
 	KASSERT(ret <= timeout);
@@ -840,7 +1097,7 @@ reservation_poll_fini(struct reservation_poll *rpoll)
  *	spuriously notify them about a shared fence, tough.
  */
 static void
-reservation_poll_cb(struct fence *fence, struct fence_cb *fcb)
+reservation_poll_cb(struct dma_fence *fence, struct dma_fence_cb *fcb)
 {
 	struct reservation_poll *rpoll = container_of(fcb,
 	    struct reservation_poll, rp_fcb);
@@ -865,12 +1122,12 @@ reservation_poll_cb(struct fence *fence, struct fence_cb *fcb)
  *	selnotify when they are.
  */
 int
-reservation_object_poll(struct reservation_object *robj, int events,
+reservation_object_poll(const struct reservation_object *robj, int events,
     struct reservation_poll *rpoll)
 {
 	struct reservation_object_read_ticket ticket;
 	struct reservation_object_list *list;
-	struct fence *fence;
+	struct dma_fence *fence;
 	uint32_t i, shared_count;
 	int revents;
 	bool recorded = false;	/* curlwp is on the selq */
@@ -893,7 +1150,11 @@ top:
 	reservation_object_read_begin(robj, &ticket);
 
 	/* If we want to wait for all fences, get the shared list.  */
-	if ((events & POLLOUT) && (list = robj->robj_list) != NULL) do {
+	if (!(events & POLLOUT))
+		goto excl;
+	list = robj->fence;
+	__insn_barrier();
+	if (list) do {
 		/* Make sure the content of the list has been published.  */
 		membar_datadep_consumer();
 
@@ -914,14 +1175,14 @@ top:
 		 * find any that is not signalled.
 		 */
 		for (i = 0; i < shared_count; i++) {
-			fence = fence_get_rcu(list->shared[i]);
+			fence = dma_fence_get_rcu(list->shared[i]);
 			if (fence == NULL)
 				goto restart;
-			if (!fence_is_signaled(fence)) {
-				fence_put(fence);
+			if (!dma_fence_is_signaled(fence)) {
+				dma_fence_put(fence);
 				break;
 			}
-			fence_put(fence);
+			dma_fence_put(fence);
 		}
 
 		/* If all shared fences have been signalled, move on.  */
@@ -950,22 +1211,25 @@ top:
 		 * callback later.
 		 */
 		for (i = 0; i < shared_count; i++) {
-			fence = fence_get_rcu(list->shared[i]);
+			fence = dma_fence_get_rcu(list->shared[i]);
 			if (fence == NULL)
 				goto restart;
-			if (!fence_add_callback(fence, &rpoll->rp_fcb,
+			if (!dma_fence_add_callback(fence, &rpoll->rp_fcb,
 				reservation_poll_cb)) {
-				fence_put(fence);
+				dma_fence_put(fence);
 				revents &= ~POLLOUT;
 				callback = true;
 				break;
 			}
-			fence_put(fence);
+			dma_fence_put(fence);
 		}
 	} while (0);
 
+excl:
 	/* We always wait for at least the exclusive fence, so get it.  */
-	if ((fence = robj->robj_fence) != NULL) do {
+	fence = robj->fence_excl;
+	__insn_barrier();
+	if (fence) do {
 		/* Make sure the content of the fence has been published.  */
 		membar_datadep_consumer();
 
@@ -983,16 +1247,16 @@ top:
 		 * reference to it to test whether it is signalled.  If
 		 * not, stop and request a callback.
 		 */
-		if ((fence = fence_get_rcu(fence)) == NULL)
+		if ((fence = dma_fence_get_rcu(fence)) == NULL)
 			goto restart;
-		if (fence_is_signaled(fence)) {
-			fence_put(fence);
+		if (dma_fence_is_signaled(fence)) {
+			dma_fence_put(fence);
 			break;
 		}
 
 		/* Put ourselves on the selq if we haven't already.  */
 		if (!recorded) {
-			fence_put(fence);
+			dma_fence_put(fence);
 			goto record;
 		}
 
@@ -1012,14 +1276,14 @@ top:
 		 * signalled in the interim, leave the events set; we
 		 * will simulate the callback later.
 		 */
-		if (!fence_add_callback(fence, &rpoll->rp_fcb,
+		if (!dma_fence_add_callback(fence, &rpoll->rp_fcb,
 			reservation_poll_cb)) {
-			fence_put(fence);
+			dma_fence_put(fence);
 			revents = 0;
 			callback = true;
 			break;
 		}
-		fence_put(fence);
+		dma_fence_put(fence);
 	} while (0);
 
 	/* All done reading the fences.  */
@@ -1061,8 +1325,8 @@ record:
  *	dangerous to add never-tested complex code paths to the kernel.
  */
 int
-reservation_object_kqfilter(struct reservation_object *robj, struct knote *kn,
-    struct reservation_poll *rpoll)
+reservation_object_kqfilter(const struct reservation_object *robj,
+    struct knote *kn, struct reservation_poll *rpoll)
 {
 
 	return EINVAL;

@@ -33,6 +33,7 @@
 __KERNEL_RCSID(0, "$NetBSD: drm_gem_vm.c,v 1.9 2018/08/27 07:51:06 riastradh Exp $");
 
 #include <sys/types.h>
+#include <sys/file.h>
 
 #include <uvm/uvm_extern.h>
 
@@ -97,8 +98,9 @@ drm_gem_mmap_object(struct drm_device *dev, off_t byte_offset, size_t nbytes,
 static int
 drm_gem_mmap_object_locked(struct drm_device *dev, off_t byte_offset,
     size_t nbytes, int prot __unused, struct uvm_object **uobjp,
-    voff_t *uoffsetp, struct file *file)
+    voff_t *uoffsetp, struct file *fp)
 {
+	struct drm_file *file = fp->f_data;
 	const unsigned long startpage = (byte_offset >> PAGE_SHIFT);
 	const unsigned long npages = (nbytes >> PAGE_SHIFT);
 

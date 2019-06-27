@@ -140,9 +140,9 @@ static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
 						  fb_tiled);
 	domain = amdgpu_display_supported_domains(adev);
 
-	height = ALIGN(mode_cmd->height, 8);
+	height = round_up(mode_cmd->height, 8);
 	size = mode_cmd->pitches[0] * height;
-	aligned_size = ALIGN(size, PAGE_SIZE);
+	aligned_size = round_up(size, PAGE_SIZE);
 	ret = amdgpu_gem_object_create(adev, aligned_size, 0, domain,
 				       AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
 				       AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS |
