@@ -206,7 +206,8 @@ via_free_sg_info(struct drm_device *dev, struct pci_dev *pdev,
 
 	switch (vsg->state) {
 	case dr_via_device_mapped:
-		via_unmap_blit_from_device(dev, pdev, vsg);
+		via_unmap_blit_from_device(pdev, vsg);
+		/* fall through */
 	case dr_via_desc_pages_alloc:
 #ifdef __NetBSD__
 		bus_dmamap_unload(dev->dmat, vsg->desc_dmamap);
@@ -222,6 +223,7 @@ via_free_sg_info(struct drm_device *dev, struct pci_dev *pdev,
 		}
 #endif
 		kfree(vsg->desc_pages);
+		/* fall through */
 	case dr_via_pages_locked:
 #ifdef __NetBSD__
 		/* Make sure any completed transfer is synced.  */
@@ -238,12 +240,14 @@ via_free_sg_info(struct drm_device *dev, struct pci_dev *pdev,
 			}
 		}
 #endif
+		/* fall through */
 	case dr_via_pages_alloc:
 #ifdef __NetBSD__
 		bus_dmamap_destroy(dev->dmat, vsg->dmamap);
 #else
 		vfree(vsg->pages);
 #endif
+		/* fall through */
 	default:
 		vsg->state = dr_via_sg_init;
 	}

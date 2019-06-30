@@ -45,6 +45,8 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <drm/drmP.h>
 #include "drm_legacy.h"
 
+#include <linux/nospec.h>
+
 static struct drm_map_list *drm_find_matching_map(struct drm_device *dev,
 						  struct drm_local_map *map)
 {
@@ -253,15 +255,12 @@ static int drm_addmap_core(struct drm_device *dev, resource_size_t offset,
 		map->offset = (unsigned long)map->handle;
 		if (map->flags & _DRM_CONTAINS_LOCK) {
 			/* Prevent a 2nd X Server from creating a 2nd lock */
-			spin_lock(&dev->master->lock.spinlock);
 			if (dev->master->lock.hw_lock != NULL) {
-				spin_unlock(&dev->master->lock.spinlock);
 				vfree(map->handle);
 				kfree(map);
 				return -EBUSY;
 			}
 			dev->sigdata.lock = dev->master->lock.hw_lock = map->handle;	/* Pointer to lock */
-			spin_unlock(&dev->master->lock.spinlock);
 		}
 		break;
 	case _DRM_AGP: {
@@ -406,6 +405,17 @@ int drm_legacy_addmap(struct drm_device *dev, resource_size_t offset,
 }
 EXPORT_SYMBOL(drm_legacy_addmap);
 
+struct drm_local_map *drm_legacy_findmap(struct drm_device *dev,
+					 unsigned int token)
+{
+	struct drm_map_list *_entry;
+	list_for_each_entry(_entry, &dev->maplist, head)
+		if (_entry->user_token == token)
+			return _entry->map;
+	return NULL;
+}
+EXPORT_SYMBOL(drm_legacy_findmap);
+
 /**
  * Ioctl to specify a range of memory that is available for mapping by a
  * non-root process.
@@ -521,7 +531,7 @@ int drm_legacy_getmap_ioctl(struct drm_device *dev, void *data,
  * isn't in use.
  *
  * Searches the map on drm_device::maplist, removes it from the list, see if
- * its being used, and free any associate resource (such as MTRR's) if it's not
+ * it's being used, and free any associated resource (such as MTRR's) if it's not
  * being on use.
  *
  * \sa drm_legacy_addmap
@@ -680,7 +690,7 @@ int drm_legacy_rmmap_ioctl(struct drm_device *dev, void *data,
 		}
 	}
 
-	/* List has wrapped around to the head pointer, or its empty we didn't
+	/* List has wrapped around to the head pointer, or it's empty we didn't
 	 * find anything.
 	 */
 	if (list_empty(&dev->maplist) || !map) {
@@ -1499,6 +1509,7 @@ int drm_legacy_freebufs(struct drm_device *dev, void *data,
 				  idx, dma->buf_count - 1);
 			return -EINVAL;
 		}
+		idx = array_index_nospec(idx, dma->buf_count);
 		buf = dma->buflist[idx];
 		if (buf->file_priv != file_priv) {
 			DRM_ERROR("Process %d freeing buffer not owned\n",

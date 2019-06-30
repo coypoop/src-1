@@ -17,8 +17,7 @@
 	void **_data = (d); __u32 *_size = (s);                                \
 	int _ret = (r), _vl = (vl), _vh = (vh);                                \
 	if (_ret == -ENOSYS && *_size >= sizeof(m) &&                          \
-	    ((m).version == _vl || (m).version > _vl) &&		       \
-	    (m).version <= _vh) {					       \
+	    (m).version >= _vl && (m).version <= _vh) {                        \
 		*_data = (__u8 *)*_data + sizeof(m);                           \
 		*_size = *_size - sizeof(m);                                   \
 		if (_ret = 0, !(x)) {                                          \

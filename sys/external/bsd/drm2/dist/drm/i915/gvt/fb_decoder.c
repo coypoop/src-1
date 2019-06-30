@@ -156,9 +156,7 @@ static u32 intel_vgpu_get_stride(struct intel_vgpu *vgpu, int pipe,
 	u32 stride_reg = vgpu_vreg_t(vgpu, DSPSTRIDE(pipe)) & stride_mask;
 	u32 stride = stride_reg;
 
-	if (IS_SKYLAKE(dev_priv)
-		|| IS_KABYLAKE(dev_priv)
-		|| IS_BROXTON(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 9) {
 		switch (tiled) {
 		case PLANE_CTL_TILED_LINEAR:
 			stride = stride_reg * 64;
@@ -222,11 +220,8 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	if (!plane->enabled)
 		return -ENODEV;
 
-	if (IS_SKYLAKE(dev_priv)
-		|| IS_KABYLAKE(dev_priv)
-		|| IS_BROXTON(dev_priv)) {
-		plane->tiled = (val & PLANE_CTL_TILED_MASK) >>
-		_PLANE_CTL_TILED_SHIFT;
+	if (INTEL_GEN(dev_priv) >= 9) {
+		plane->tiled = val & PLANE_CTL_TILED_MASK;
 		fmt = skl_format_to_drm(
 			val & PLANE_CTL_FORMAT_MASK,
 			val & PLANE_CTL_ORDER_RGBX,
@@ -241,7 +236,7 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 		plane->bpp = skl_pixel_formats[fmt].bpp;
 		plane->drm_format = skl_pixel_formats[fmt].drm_format;
 	} else {
-		plane->tiled = !!(val & DISPPLANE_TILED);
+		plane->tiled = val & DISPPLANE_TILED;
 		fmt = bdw_format_to_drm(val & DISPPLANE_PIXFORMAT_MASK);
 		plane->bpp = bdw_pixel_formats[fmt].bpp;
 		plane->drm_format = bdw_pixel_formats[fmt].drm_format;
@@ -265,10 +260,8 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 		return  -EINVAL;
 	}
 
-	plane->stride = intel_vgpu_get_stride(vgpu, pipe, (plane->tiled << 10),
-		(IS_SKYLAKE(dev_priv)
-		|| IS_KABYLAKE(dev_priv)
-		|| IS_BROXTON(dev_priv)) ?
+	plane->stride = intel_vgpu_get_stride(vgpu, pipe, plane->tiled,
+		(INTEL_GEN(dev_priv) >= 9) ?
 			(_PRI_PLANE_STRIDE_MASK >> 6) :
 				_PRI_PLANE_STRIDE_MASK, plane->bpp);
 

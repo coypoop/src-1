@@ -34,7 +34,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <drm/radeon_drm.h>
 #include <drm/drm_fixed.h>
 #include "radeon.h"
-#include "radeon_asic.h"
 #include "atom.h"
 #include "atom-bits.h"
 
@@ -1179,23 +1178,22 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	 */
 	obj = target_fb->obj[0];
 	rbo = gem_to_radeon_bo(obj);
+	r = radeon_bo_reserve(rbo, false);
+	if (unlikely(r != 0))
+		return r;
 
-	if (atomic) {
-		BUG_ON(rbo->pin_count == 0);
+	if (atomic)
 		fb_location = radeon_bo_gpu_offset(rbo);
-		tiling_flags = 0;
-	} else {
-		r = radeon_bo_reserve(rbo, false);
-		if (unlikely(r != 0))
-			return r;
+	else {
 		r = radeon_bo_pin(rbo, RADEON_GEM_DOMAIN_VRAM, &fb_location);
 		if (unlikely(r != 0)) {
 			radeon_bo_unreserve(rbo);
 			return -EINVAL;
 		}
-		radeon_bo_get_tiling_flags(rbo, &tiling_flags, NULL);
-		radeon_bo_unreserve(rbo);
 	}
+
+	radeon_bo_get_tiling_flags(rbo, &tiling_flags, NULL);
+	radeon_bo_unreserve(rbo);
 
 	switch (target_fb->format->format) {
 	case DRM_FORMAT_C8:
@@ -1260,6 +1258,16 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 #endif
 		/* Greater 8 bpc fb needs to bypass hw-lut to retain precision */
 		bypass_lut = true;
+		break;
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_32BPP) |
+			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_ARGB8888));
+		fb_swap = (EVERGREEN_GRPH_RED_CROSSBAR(EVERGREEN_GRPH_RED_SEL_B) |
+			   EVERGREEN_GRPH_BLUE_CROSSBAR(EVERGREEN_GRPH_BLUE_SEL_R));
+#ifdef __BIG_ENDIAN
+		fb_swap |= EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN32);
+#endif
 		break;
 	default:
 		DRM_ERROR("Unsupported screen format %s\n",
@@ -1488,26 +1496,24 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 
 	obj = target_fb->obj[0];
 	rbo = gem_to_radeon_bo(obj);
+	r = radeon_bo_reserve(rbo, false);
+	if (unlikely(r != 0))
+		return r;
 
 	/* If atomic, assume fb object is pinned & idle & fenced and
 	 * just update base pointers
 	 */
-	if (atomic) {
-		BUG_ON(rbo->pin_count == 0);
+	if (atomic)
 		fb_location = radeon_bo_gpu_offset(rbo);
-		tiling_flags = 0;
-	} else {
-		r = radeon_bo_reserve(rbo, false);
-		if (unlikely(r != 0))
-			return r;
+	else {
 		r = radeon_bo_pin(rbo, RADEON_GEM_DOMAIN_VRAM, &fb_location);
 		if (unlikely(r != 0)) {
 			radeon_bo_unreserve(rbo);
 			return -EINVAL;
 		}
-		radeon_bo_get_tiling_flags(rbo, &tiling_flags, NULL);
-		radeon_bo_unreserve(rbo);
 	}
+	radeon_bo_get_tiling_flags(rbo, &tiling_flags, NULL);
+	radeon_bo_unreserve(rbo);
 
 	switch (target_fb->format->format) {
 	case DRM_FORMAT_C8:
@@ -1559,6 +1565,21 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 #endif
 		/* Greater 8 bpc fb needs to bypass hw-lut to retain precision */
 		bypass_lut = true;
+		break;
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		fb_format =
+		    AVIVO_D1GRPH_CONTROL_DEPTH_32BPP |
+		    AVIVO_D1GRPH_CONTROL_32BPP_ARGB8888;
+		if (rdev->family >= CHIP_R600)
+			fb_swap =
+			    (R600_D1GRPH_RED_CROSSBAR(R600_D1GRPH_RED_SEL_B) |
+			     R600_D1GRPH_BLUE_CROSSBAR(R600_D1GRPH_BLUE_SEL_R));
+		else /* DCE1 (R5xx) */
+			fb_format |= AVIVO_D1GRPH_SWAP_RB;
+#ifdef __BIG_ENDIAN
+		fb_swap |= R600_D1GRPH_SWAP_ENDIAN_32BIT;
+#endif
 		break;
 	default:
 		DRM_ERROR("Unsupported screen format %s\n",

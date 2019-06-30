@@ -24,10 +24,6 @@
 #ifndef __DRM_DEBUGFS_CRC_H__
 #define __DRM_DEBUGFS_CRC_H__
 
-#include <linux/spinlock.h>
-
-struct drm_crtc;
-
 #define DRM_MAX_CRC_NR		10
 
 /**

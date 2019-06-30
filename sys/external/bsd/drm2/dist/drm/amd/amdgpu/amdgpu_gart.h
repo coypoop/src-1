@@ -46,8 +46,8 @@ struct amdgpu_gart {
 	bus_dma_segment_t		ag_table_seg;
 	bus_dmamap_t			ag_table_map;
 #endif
-	u64				table_addr;
-	struct amdgpu_bo		*robj;
+	struct amdgpu_bo		*bo;
+	/* CPU kmapped address of gart table */
 	void				*ptr;
 	unsigned			num_gpu_pages;
 	unsigned			num_cpu_pages;

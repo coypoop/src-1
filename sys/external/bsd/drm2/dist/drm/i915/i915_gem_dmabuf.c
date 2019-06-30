@@ -32,7 +32,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <linux/dma-buf.h>
 #include <linux/reservation.h>
 
-#include <drm/drmP.h>
 
 #include "i915_drv.h"
 

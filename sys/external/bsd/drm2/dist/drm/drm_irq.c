@@ -65,15 +65,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <linux/export.h>
 #include <linux/moduleparam.h>
 
-#include <linux/atomic.h>
-#include <linux/ktime.h>
-#include <linux/math64.h>
-#include <linux/preempt.h>
-#include <linux/sched.h>
-
-#include <asm/bug.h>
-#include <asm/param.h>
-
 #ifdef __NetBSD__		/* XXX hurk -- selnotify &c. */
 #include <sys/poll.h>
 #include <sys/select.h>
@@ -127,9 +118,6 @@ int drm_irq_install(struct drm_device *dev, int irq)
 	int ret;
 	unsigned long sh_flags = 0;
 
-	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
-		return -EINVAL;
-
 #ifndef __NetBSD__
 	if (irq == 0)
 		return -EINVAL;
@@ -151,8 +139,8 @@ int drm_irq_install(struct drm_device *dev, int irq)
 	if (dev->driver->irq_preinstall)
 		dev->driver->irq_preinstall(dev);
 
-	/* Install handler */
-	if (drm_core_check_feature(dev, DRIVER_IRQ_SHARED))
+	/* PCI devices require shared interrupts. */
+	if (dev->pdev)
 		sh_flags = IRQF_SHARED;
 
 #ifdef __NetBSD__
@@ -211,9 +199,6 @@ int drm_irq_uninstall(struct drm_device *dev)
 	unsigned long irqflags;
 	bool irq_enabled;
 	int i;
-
-	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
-		return -EINVAL;
 
 	irq_enabled = dev->irq_enabled;
 	dev->irq_enabled = false;

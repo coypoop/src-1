@@ -33,6 +33,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "amdgpu_connectors.h"
+#include "amdgpu_display.h"
 #include "atom.h"
 #include "atombios_encoders.h"
 #include "atombios_dp.h"
@@ -164,8 +165,7 @@ static const struct backlight_ops amdgpu_atombios_encoder_backlight_ops = {
 	.update_status	= amdgpu_atombios_encoder_update_backlight_status,
 };
 
-void amdgpu_atombios_encoder_init_backlight(struct amdgpu_encoder *amdgpu_encoder,
-				     struct drm_connector *drm_connector)
+void amdgpu_atombios_encoder_init_backlight(struct amdgpu_encoder *amdgpu_encoder)
 {
 	struct drm_device *dev = amdgpu_encoder->base.dev;
 	struct amdgpu_device *adev = dev->dev_private;

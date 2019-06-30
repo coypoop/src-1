@@ -65,7 +65,6 @@ int drm_getmagic(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	struct drm_auth *auth = data;
 	int ret = 0;
 
-	idr_preload(GFP_KERNEL);
 	mutex_lock(&dev->master_mutex);
 	if (!file_priv->magic) {
 		ret = idr_alloc(&file_priv->master->magic_map, file_priv,
@@ -75,7 +74,6 @@ int drm_getmagic(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	}
 	auth->magic = file_priv->magic;
 	mutex_unlock(&dev->master_mutex);
-	idr_preload_end();
 
 	DRM_DEBUG("%u\n", auth->magic);
 
@@ -153,6 +151,7 @@ static int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
 
 	lockdep_assert_held_once(&dev->master_mutex);
 
+	WARN_ON(fpriv->is_master);
 	old_master = fpriv->master;
 	fpriv->master = drm_master_create(dev);
 	if (!fpriv->master) {
@@ -181,6 +180,7 @@ out_err:
 	/* drop references and restore old master on failure */
 	drm_master_put(&fpriv->master);
 	fpriv->master = old_master;
+	fpriv->is_master = 0;
 
 	return ret;
 }
@@ -289,12 +289,12 @@ void drm_master_release(struct drm_file *file_priv)
 		 * possibility to lock.
 		 */
 		mutex_lock(&dev->struct_mutex);
-		spin_lock(&master->lock.spinlock);
 		if (master->lock.hw_lock) {
 			if (dev->sigdata.lock == master->lock.hw_lock)
 				dev->sigdata.lock = NULL;
 			master->lock.hw_lock = NULL;
 			master->lock.file_priv = NULL;
+
 #ifdef __NetBSD__
 			DRM_SPIN_WAKEUP_ALL(&master->lock.lock_queue,
 			    &master->lock.spinlock);
@@ -302,7 +302,6 @@ void drm_master_release(struct drm_file *file_priv)
 			wake_up_interruptible_all(&master->lock.lock_queue);
 #endif
 		}
-		spin_unlock(&master->lock.spinlock);
 		mutex_unlock(&dev->struct_mutex);
 	}
 

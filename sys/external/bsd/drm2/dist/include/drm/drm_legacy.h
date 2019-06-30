@@ -4,7 +4,9 @@
 #define __DRM_DRM_LEGACY_H__
 
 #include <drm/drm_auth.h>
+#include <drm/drm_hashtab.h>
 
+struct drm_device;
 /*
  * Legacy driver interfaces for the Direct Rendering Manager
  *
@@ -216,6 +218,7 @@ struct drm_map_list {
 int drm_legacy_addmap(struct drm_device *d, resource_size_t offset,
 		      unsigned int size, enum drm_map_type type,
 		      enum drm_map_flags flags, struct drm_local_map **map_p);
+struct drm_local_map *drm_legacy_findmap(struct drm_device *dev, unsigned int token);
 void drm_legacy_rmmap(struct drm_device *d, struct drm_local_map *map);
 int drm_legacy_rmmap_locked(struct drm_device *d, struct drm_local_map *map);
 void drm_legacy_master_rmmaps(struct drm_device *dev,

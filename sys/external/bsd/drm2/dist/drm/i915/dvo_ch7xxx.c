@@ -91,7 +91,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 static struct ch7xxx_id_struct {
 	u8 vid;
-	const char *name;
+	char *name;
 } ch7xxx_ids[] = {
 	{ CH7011_VID, "CH7011" },
 	{ CH7010B_VID, "CH7010B" },
@@ -102,7 +102,7 @@ static struct ch7xxx_id_struct {
 
 static struct ch7xxx_did_struct {
 	u8 did;
-	const char *name;
+	char *name;
 } ch7xxx_dids[] = {
 	{ CH7xxx_DID, "CH7XXX" },
 	{ CH7010_DID, "CH7010B" },
@@ -112,7 +112,7 @@ struct ch7xxx_priv {
 	bool quiet;
 };
 
-static const char *ch7xxx_get_id(u8 vid)
+static char *ch7xxx_get_id(u8 vid)
 {
 	int i;
 
@@ -124,7 +124,7 @@ static const char *ch7xxx_get_id(u8 vid)
 	return NULL;
 }
 
-static const char *ch7xxx_get_did(u8 did)
+static char *ch7xxx_get_did(u8 did)
 {
 	int i;
 
@@ -207,7 +207,7 @@ static bool ch7xxx_init(struct intel_dvo_device *dvo,
 	/* this will detect the CH7xxx chip on the specified i2c bus */
 	struct ch7xxx_priv *ch7xxx;
 	u8 vendor, device;
-	const char *name, *devid;
+	char *name, *devid;
 
 	ch7xxx = kzalloc(sizeof(struct ch7xxx_priv), GFP_KERNEL);
 	if (ch7xxx == NULL)

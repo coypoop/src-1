@@ -147,7 +147,7 @@ struct radeon_bo_list *radeon_vm_get_bos(struct radeon_device *rdev,
 	list[0].preferred_domains = RADEON_GEM_DOMAIN_VRAM;
 	list[0].allowed_domains = RADEON_GEM_DOMAIN_VRAM;
 	list[0].tv.bo = &vm->page_directory->tbo;
-	list[0].tv.shared = true;
+	list[0].tv.num_shared = 1;
 	list[0].tiling_flags = 0;
 	list_add(&list[0].tv.head, head);
 
@@ -159,7 +159,7 @@ struct radeon_bo_list *radeon_vm_get_bos(struct radeon_device *rdev,
 		list[idx].preferred_domains = RADEON_GEM_DOMAIN_VRAM;
 		list[idx].allowed_domains = RADEON_GEM_DOMAIN_VRAM;
 		list[idx].tv.bo = &list[idx].robj->tbo;
-		list[idx].tv.shared = true;
+		list[idx].tv.num_shared = 1;
 		list[idx].tiling_flags = 0;
 		list_add(&list[idx++].tv.head, head);
 	}
@@ -836,7 +836,7 @@ static int radeon_vm_update_ptes(struct radeon_device *rdev,
 		int r;
 
 		radeon_sync_resv(rdev, &ib->sync, pt->tbo.resv, true);
-		r = reservation_object_reserve_shared(pt->tbo.resv);
+		r = reservation_object_reserve_shared(pt->tbo.resv, 1);
 		if (r)
 			return r;
 
@@ -951,7 +951,7 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 		bo_va->flags &= ~RADEON_VM_PAGE_WRITEABLE;
 
 	if (mem) {
-		addr = mem->start << PAGE_SHIFT;
+		addr = (u64)mem->start << PAGE_SHIFT;
 		if (mem->mem_type != TTM_PL_SYSTEM) {
 			bo_va->flags |= RADEON_VM_PAGE_VALID;
 		}
@@ -1192,14 +1192,12 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 	}
 #ifdef __NetBSD__
 	linux_mutex_init(&vm->mutex);
-#else
-	mutex_init(&vm->mutex);
-#endif
-#ifdef __NetBSD__
 	interval_tree_init(&vm->va);
 #else
+	mutex_init(&vm->mutex);
 	vm->va = RB_ROOT_CACHED;
 #endif
+
 	spin_lock_init(&vm->status_lock);
 	INIT_LIST_HEAD(&vm->invalidated);
 	INIT_LIST_HEAD(&vm->freed);

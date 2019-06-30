@@ -25,8 +25,17 @@
 #include <sys/cdefs.h>
 __KERNEL_RCSID(0, "$NetBSD$");
 
-#include <drm/drmP.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
+
 #include <drm/drm_plane.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_print.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_file.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
 
 #include "drm_crtc_internal.h"
 
@@ -102,7 +111,7 @@ static int create_in_format_blob(struct drm_device *dev, struct drm_plane *plane
 	 * should be naturally aligned to 8B.
 	 */
 	BUILD_BUG_ON(sizeof(struct drm_format_modifier_blob) % 8);
-	blob_size += round_up(formats_size, 8);
+	blob_size += ALIGN(formats_size, 8);
 	blob_size += modifiers_size;
 
 	blob = drm_property_create_blob(dev, blob_size, NULL);
@@ -116,7 +125,7 @@ static int create_in_format_blob(struct drm_device *dev, struct drm_plane *plane
 	blob_data->count_modifiers = plane->modifier_count;
 
 	blob_data->modifiers_offset =
-		round_up(blob_data->formats_offset + formats_size, 8);
+		ALIGN(blob_data->formats_offset + formats_size, 8);
 
 	memcpy(formats_ptr(blob_data), plane->format_types, formats_size);
 
@@ -215,6 +224,9 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 		while (*temp_modifiers++ != DRM_FORMAT_MOD_INVALID)
 			format_modifier_count++;
 	}
+
+	if (format_modifier_count)
+		config->allow_fb_modifiers = true;
 
 	plane->modifier_count = format_modifier_count;
 	plane->modifiers = kmalloc_array(format_modifier_count,
@@ -468,7 +480,6 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
 {
 	struct drm_mode_get_plane_res *plane_resp = data;
-	struct drm_mode_config *config __unused;
 	struct drm_plane *plane;
 	uint32_t __user *plane_ptr;
 	int count = 0;
@@ -476,7 +487,6 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	config = &dev->mode_config;
 	plane_ptr = u64_to_user_ptr(plane_resp->plane_id_ptr);
 
 	/*
@@ -610,7 +620,7 @@ static int __setplane_check(struct drm_plane *plane,
 	if (ret) {
 		struct drm_format_name_buf format_name;
 
-		DRM_DEBUG_KMS("Invalid pixel format %s, modifier 0x%"PRIx64"\n",
+		DRM_DEBUG_KMS("Invalid pixel format %s, modifier 0x%llx\n",
 			      drm_get_format_name(fb->format->format,
 						  &format_name),
 			      fb->modifier);
@@ -633,6 +643,29 @@ static int __setplane_check(struct drm_plane *plane,
 
 	return 0;
 }
+
+/**
+ * drm_any_plane_has_format - Check whether any plane supports this format and modifier combination
+ * @dev: DRM device
+ * @format: pixel format (DRM_FORMAT_*)
+ * @modifier: data layout modifier
+ *
+ * Returns:
+ * Whether at least one plane supports the specified format and modifier combination.
+ */
+bool drm_any_plane_has_format(struct drm_device *dev,
+			      u32 format, u64 modifier)
+{
+	struct drm_plane *plane;
+
+	drm_for_each_plane(plane, dev) {
+		if (drm_plane_check_pixel_format(plane, format, modifier) == 0)
+			return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(drm_any_plane_has_format);
 
 /*
  * __setplane_internal - setplane handler for internal callers
@@ -742,11 +775,8 @@ static int setplane_internal(struct drm_plane *plane,
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
-	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
-retry:
-	ret = drm_modeset_lock_all_ctx(plane->dev, &ctx);
-	if (ret)
-		goto fail;
+	DRM_MODESET_LOCK_ALL_BEGIN(plane->dev, ctx,
+				   DRM_MODESET_ACQUIRE_INTERRUPTIBLE, ret);
 
 	if (drm_drv_uses_atomic_modeset(plane->dev))
 		ret = __setplane_atomic(plane, crtc, fb,
@@ -757,14 +787,7 @@ retry:
 					  crtc_x, crtc_y, crtc_w, crtc_h,
 					  src_x, src_y, src_w, src_h, &ctx);
 
-fail:
-	if (ret == -EDEADLK) {
-		ret = drm_modeset_backoff(&ctx);
-		if (!ret)
-			goto retry;
-	}
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
+	DRM_MODESET_LOCK_ALL_END(ctx, ret);
 
 	return ret;
 }
@@ -942,6 +965,11 @@ retry:
 		if (ret)
 			goto out;
 
+		if (!drm_lease_held(file_priv, crtc->cursor->base.id)) {
+			ret = -EACCES;
+			goto out;
+		}
+
 		ret = drm_mode_cursor_universal(crtc, req, file_priv, &ctx);
 		goto out;
 	}
@@ -1043,6 +1071,9 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		return -ENOENT;
 
 	plane = crtc->primary;
+
+	if (!drm_lease_held(file_priv, plane->base.id))
+		return -EACCES;
 
 	if (crtc->funcs->page_flip_target) {
 		u32 current_vblank;

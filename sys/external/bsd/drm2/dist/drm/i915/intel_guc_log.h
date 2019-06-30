@@ -29,7 +29,6 @@
 
 #include <linux/mutex.h>
 #include <linux/relay.h>
-#include <linux/sizes.h>
 #include <linux/workqueue.h>
 
 #include "intel_guc_fwif.h"

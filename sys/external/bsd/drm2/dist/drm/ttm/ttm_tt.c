@@ -40,13 +40,10 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <linux/pagemap.h>
 #include <linux/shmem_fs.h>
 #include <linux/file.h>
-#include <linux/printk.h>
-#include <linux/export.h>
 #include <drm/drm_cache.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_page_alloc.h>
 #include <drm/ttm/ttm_set_memory.h>
-#include <drm/bus_dma_hacks.h>
 
 /**
  * Allocates a ttm structure for the given BO.
@@ -254,7 +251,6 @@ void ttm_tt_destroy(struct ttm_tt *ttm)
 	ttm->func->destroy(ttm);
 }
 
-static
 void ttm_tt_init_fields(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
 			uint32_t page_flags)
 {
@@ -647,6 +643,33 @@ int ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 #else
 		ret = ttm_pool_populate(ttm, ctx);
 #endif
+	if (!ret)
+		ttm_tt_add_mapping(ttm);
+	return ret;
+}
+
+static void ttm_tt_add_mapping(struct ttm_tt *ttm)
+{
+	pgoff_t i;
+
+	if (ttm->page_flags & TTM_PAGE_FLAG_SG)
+		return;
+
+	for (i = 0; i < ttm->num_pages; ++i)
+		ttm->pages[i]->mapping = ttm->bdev->dev_mapping;
+}
+
+int ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
+{
+	int ret;
+
+	if (ttm->state != tt_unpopulated)
+		return 0;
+
+	if (ttm->bdev->driver->ttm_tt_populate)
+		ret = ttm->bdev->driver->ttm_tt_populate(ttm, ctx);
+	else
+		ret = ttm_pool_populate(ttm, ctx);
 	if (!ret)
 		ttm_tt_add_mapping(ttm);
 	return ret;
