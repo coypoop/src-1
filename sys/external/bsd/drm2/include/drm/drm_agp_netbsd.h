@@ -38,6 +38,7 @@
  * You have been warned!
  */
 
+#include <sys/types.h>
 #include <sys/agpio.h>
 
 #include <dev/pci/pcivar.h>	/* XXX include order botch */
