@@ -307,16 +307,6 @@ static int fiji_start_smu(struct pp_hwmgr *hwmgr)
 			hwmgr->avfs_supported = false;
 	}
 
-	/* To initialize all clock gating before RLC loaded and running.*/
-	amdgpu_device_ip_set_clockgating_state(hwmgr->adev,
-			AMD_IP_BLOCK_TYPE_GFX, AMD_CG_STATE_GATE);
-	amdgpu_device_ip_set_clockgating_state(hwmgr->adev,
-			AMD_IP_BLOCK_TYPE_GMC, AMD_CG_STATE_GATE);
-	amdgpu_device_ip_set_clockgating_state(hwmgr->adev,
-			AMD_IP_BLOCK_TYPE_SDMA, AMD_CG_STATE_GATE);
-	amdgpu_device_ip_set_clockgating_state(hwmgr->adev,
-			AMD_IP_BLOCK_TYPE_COMMON, AMD_CG_STATE_GATE);
-
 	/* Setup SoftRegsStart here for register lookup in case
 	 * DummyBackEnd is used and ProcessFirmwareHeader is not executed
 	 */
@@ -1215,7 +1205,8 @@ static int fiji_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 	 * PECI_GetNumberOfActiveDisplays(hwmgr->pPECI,
 	 * &(data->DisplayTiming.numExistingDisplays));
 	 */
-	data->display_timing.num_existing_displays = 1;
+	data->display_timing.num_existing_displays = hwmgr->display_config->num_display;
+	data->display_timing.vrefresh = hwmgr->display_config->vrefresh;
 
 	if (mclk_stutter_mode_threshold &&
 		(clock <= mclk_stutter_mode_threshold) &&
@@ -2335,6 +2326,7 @@ static uint32_t fiji_get_offsetof(uint32_t type, uint32_t member)
 		case DRAM_LOG_BUFF_SIZE:
 			return offsetof(SMU73_SoftRegisters, DRAM_LOG_BUFF_SIZE);
 		}
+		break;
 	case SMU_Discrete_DpmTable:
 		switch (member) {
 		case UvdBootLevel:
@@ -2344,6 +2336,7 @@ static uint32_t fiji_get_offsetof(uint32_t type, uint32_t member)
 		case LowSclkInterruptThreshold:
 			return offsetof(SMU73_Discrete_DpmTable, LowSclkInterruptThreshold);
 		}
+		break;
 	}
 	pr_warn("can't get the offset of type %x member %x\n", type, member);
 	return 0;

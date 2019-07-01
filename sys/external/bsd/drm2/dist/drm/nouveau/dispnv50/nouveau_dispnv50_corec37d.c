@@ -29,7 +29,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 #include <nouveau_bo.h>
 
-static void
+void
 corec37d_update(struct nv50_core *core, u32 *interlock, bool ntfy)
 {
 	u32 *push;
@@ -76,7 +76,7 @@ corec37d_ntfy_init(struct nouveau_bo *bo, u32 offset)
 	nouveau_bo_wr32(bo, offset / 4 + 3, 0x00000000);
 }
 
-void
+static void
 corec37d_init(struct nv50_core *core)
 {
 	const u32 windows = 8; /*XXX*/

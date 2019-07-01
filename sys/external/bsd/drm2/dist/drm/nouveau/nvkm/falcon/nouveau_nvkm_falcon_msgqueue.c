@@ -274,7 +274,7 @@ cmd_write(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_hdr *cmd,
 		commit = false;
 	}
 
-	   cmd_queue_close(priv, queue, commit);
+	cmd_queue_close(priv, queue, commit);
 
 	return ret;
 }
@@ -352,7 +352,7 @@ nvkm_msgqueue_post(struct nvkm_msgqueue *priv, enum msgqueue_msg_priority prio,
 	ret = cmd_write(priv, cmd, queue);
 	if (ret) {
 		seq->state = SEQ_STATE_PENDING;
-		      msgqueue_seq_release(priv, seq);
+		msgqueue_seq_release(priv, seq);
 	}
 
 	return ret;
@@ -378,7 +378,7 @@ msgqueue_msg_handle(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_hdr *hdr)
 	if (seq->completion)
 		complete(seq->completion);
 
-	   msgqueue_seq_release(priv, seq);
+	msgqueue_seq_release(priv, seq);
 
 	return 0;
 }

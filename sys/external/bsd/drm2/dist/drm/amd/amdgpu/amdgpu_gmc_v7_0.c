@@ -34,6 +34,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "gmc_v7_0.h"
 #include "amdgpu_ucode.h"
 #include "amdgpu_amdkfd.h"
+#include "amdgpu_gem.h"
 
 #include "bif/bif_4_1_d.h"
 #include "bif/bif_4_1_sh_mask.h"
@@ -246,8 +247,8 @@ static void gmc_v7_0_vram_gtt_location(struct amdgpu_device *adev,
 	u64 base = RREG32(mmMC_VM_FB_LOCATION) & 0xFFFF;
 	base <<= 24;
 
-	amdgpu_device_vram_location(adev, &adev->gmc, base);
-	amdgpu_device_gart_location(adev, mc);
+	amdgpu_gmc_vram_location(adev, &adev->gmc, base);
+	amdgpu_gmc_gart_location(adev, mc);
 }
 
 /**
@@ -434,7 +435,8 @@ static int gmc_v7_0_mc_init(struct amdgpu_device *adev)
  *
  * Flush the TLB for the requested page table (CIK).
  */
-static void gmc_v7_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid)
+static void gmc_v7_0_flush_gpu_tlb(struct amdgpu_device *adev,
+				uint32_t vmid, uint32_t flush_type)
 {
 	/* bits 0-15 are the VM contexts0-15 */
 	WREG32(mmVM_INVALIDATE_REQUEST, 1 << vmid);
@@ -606,16 +608,20 @@ static void gmc_v7_0_set_prt(struct amdgpu_device *adev, bool enable)
  */
 static int gmc_v7_0_gart_enable(struct amdgpu_device *adev)
 {
+	uint64_t table_addr;
 	int r, i;
 	u32 tmp, field;
 
-	if (adev->gart.robj == NULL) {
+	if (adev->gart.bo == NULL) {
 		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}
 	r = amdgpu_gart_table_vram_pin(adev);
 	if (r)
 		return r;
+
+	table_addr = amdgpu_bo_gpu_offset(adev->gart.bo);
+
 	/* Setup TLB control */
 	tmp = RREG32(mmMC_VM_MX_L1_TLB_CNTL);
 	tmp = REG_SET_FIELD(tmp, MC_VM_MX_L1_TLB_CNTL, ENABLE_L1_TLB, 1);
@@ -647,7 +653,7 @@ static int gmc_v7_0_gart_enable(struct amdgpu_device *adev)
 	/* setup context0 */
 	WREG32(mmVM_CONTEXT0_PAGE_TABLE_START_ADDR, adev->gmc.gart_start >> 12);
 	WREG32(mmVM_CONTEXT0_PAGE_TABLE_END_ADDR, adev->gmc.gart_end >> 12);
-	WREG32(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR, adev->gart.table_addr >> 12);
+	WREG32(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR, table_addr >> 12);
 	WREG32(mmVM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR,
 			(u32)(adev->dummy_page_addr >> 12));
 	WREG32(mmVM_CONTEXT0_CNTL2, 0);
@@ -671,10 +677,10 @@ static int gmc_v7_0_gart_enable(struct amdgpu_device *adev)
 	for (i = 1; i < 16; i++) {
 		if (i < 8)
 			WREG32(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + i,
-			       adev->gart.table_addr >> 12);
+			       table_addr >> 12);
 		else
 			WREG32(mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + i - 8,
-			       adev->gart.table_addr >> 12);
+			       table_addr >> 12);
 	}
 
 	/* enable context1-15 */
@@ -698,10 +704,10 @@ static int gmc_v7_0_gart_enable(struct amdgpu_device *adev)
 		WREG32(mmCHUB_CONTROL, tmp);
 	}
 
-	gmc_v7_0_flush_gpu_tlb(adev, 0);
+	gmc_v7_0_flush_gpu_tlb(adev, 0, 0);
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),
-		 (unsigned long long)adev->gart.table_addr);
+		 (unsigned long long)table_addr);
 	adev->gart.ready = true;
 	return 0;
 }
@@ -710,7 +716,7 @@ static int gmc_v7_0_gart_init(struct amdgpu_device *adev)
 {
 	int r;
 
-	if (adev->gart.robj) {
+	if (adev->gart.bo) {
 		WARN(1, "R600 PCIE GART already initialized\n");
 		return 0;
 	}
@@ -991,11 +997,11 @@ static int gmc_v7_0_sw_init(void *handle)
 		adev->gmc.vram_type = gmc_v7_0_convert_vram_type(tmp);
 	}
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_GFX_PAGE_INV_FAULT, &adev->gmc.vm_fault);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_GFX_PAGE_INV_FAULT, &adev->gmc.vm_fault);
 	if (r)
 		return r;
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_GFX_MEM_PROT_FAULT, &adev->gmc.vm_fault);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_GFX_MEM_PROT_FAULT, &adev->gmc.vm_fault);
 	if (r)
 		return r;
 
@@ -1388,8 +1394,7 @@ static const struct amdgpu_irq_src_funcs gmc_v7_0_irq_funcs = {
 
 static void gmc_v7_0_set_gmc_funcs(struct amdgpu_device *adev)
 {
-	if (adev->gmc.gmc_funcs == NULL)
-		adev->gmc.gmc_funcs = &gmc_v7_0_gmc_funcs;
+	adev->gmc.gmc_funcs = &gmc_v7_0_gmc_funcs;
 }
 
 static void gmc_v7_0_set_irq_funcs(struct amdgpu_device *adev)

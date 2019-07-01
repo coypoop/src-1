@@ -464,7 +464,7 @@ static void dml1_rq_dlg_get_row_heights(
 	/* dpte   */
 	/* ------ */
 	log2_vmpg_bytes = dml_log2(mode_lib->soc.vmm_page_size_bytes);
-	dpte_buf_in_pte_reqs = mode_lib->ip.dpte_buffer_size_in_pte_reqs;
+	dpte_buf_in_pte_reqs = mode_lib->ip.dpte_buffer_size_in_pte_reqs_luma;
 
 	log2_vmpg_height = 0;
 	log2_vmpg_width = 0;
@@ -781,7 +781,7 @@ static void get_surf_rq_param(
 	/* dpte   */
 	/* ------ */
 	log2_vmpg_bytes = dml_log2(mode_lib->soc.vmm_page_size_bytes);
-	dpte_buf_in_pte_reqs = mode_lib->ip.dpte_buffer_size_in_pte_reqs;
+	dpte_buf_in_pte_reqs = mode_lib->ip.dpte_buffer_size_in_pte_reqs_luma;
 
 	log2_vmpg_height = 0;
 	log2_vmpg_width = 0;
@@ -886,7 +886,7 @@ static void get_surf_rq_param(
 	/* the dpte_group_bytes is reduced for the specific case of vertical
 	 * access of a tile surface that has dpte request of 8x1 ptes.
 	 */
-	if (!surf_linear & (log2_dpte_req_height_ptes == 0) & surf_vert) /*reduced, in this case, will have page fault within a group */
+	if (!surf_linear && (log2_dpte_req_height_ptes == 0) && surf_vert) /*reduced, in this case, will have page fault within a group */
 		rq_sizing_param->dpte_group_bytes = 512;
 	else
 		/*full size */

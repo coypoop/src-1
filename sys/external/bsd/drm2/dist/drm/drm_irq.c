@@ -108,9 +108,6 @@ int drm_irq_install(struct drm_device *dev, int irq)
 	int ret;
 	unsigned long sh_flags = 0;
 
-	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
-		return -EINVAL;
-
 	if (irq == 0)
 		return -EINVAL;
 
@@ -128,8 +125,8 @@ int drm_irq_install(struct drm_device *dev, int irq)
 	if (dev->driver->irq_preinstall)
 		dev->driver->irq_preinstall(dev);
 
-	/* Install handler */
-	if (drm_core_check_feature(dev, DRIVER_IRQ_SHARED))
+	/* PCI devices require shared interrupts. */
+	if (dev->pdev)
 		sh_flags = IRQF_SHARED;
 
 	ret = request_irq(irq, dev->driver->irq_handler,
@@ -178,9 +175,6 @@ int drm_irq_uninstall(struct drm_device *dev)
 	unsigned long irqflags;
 	bool irq_enabled;
 	int i;
-
-	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
-		return -EINVAL;
 
 	irq_enabled = dev->irq_enabled;
 	dev->irq_enabled = false;

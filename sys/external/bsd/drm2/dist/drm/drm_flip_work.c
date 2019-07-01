@@ -27,6 +27,7 @@
 __KERNEL_RCSID(0, "$NetBSD$");
 
 #include <drm/drmP.h>
+#include <drm/drm_util.h>
 #include <drm/drm_flip_work.h>
 
 /**
