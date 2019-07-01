@@ -263,16 +263,6 @@ void drm_legacy_ioremap(struct drm_local_map *map, struct drm_device *dev);
 void drm_legacy_ioremap_wc(struct drm_local_map *map, struct drm_device *dev);
 void drm_legacy_ioremapfree(struct drm_local_map *map, struct drm_device *dev);
 
-static inline struct drm_local_map *drm_legacy_findmap(struct drm_device *dev,
-						       unsigned int token)
-{
-	struct drm_map_list *_entry;
-	list_for_each_entry(_entry, &dev->maplist, head)
-	    if (_entry->user_token == token)
-		return _entry->map;
-	return NULL;
-}
-
 #ifdef __NetBSD__
 #include <drm/drm_iomap_netbsd.h>
 #endif
