@@ -23,6 +23,7 @@ amdgpu_flag=amdgpu
 	printf '\t@echo $(amdgpu-y)\n'
 	printf 'include Makefile\n'
 } | env \
+	env srctree=$PWD \
 	env CONFIG_ACPI=y \
 	env CONFIG_DRM_AMDGPU=y \
 	env CONFIG_DRM_AMDGPU_CIK=y \

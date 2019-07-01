@@ -67,6 +67,8 @@ file	external/bsd/drm2/dist/drm/scheduler/sched_fence.o	drmkms_sched
 #file	external/bsd/drm2/dist/drm/drm_agpsupport.c	drmkms  # drmkms_pci
 file	external/bsd/drm2/dist/drm/drm_atomic.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_atomic_helper.c	drmkms
+file	external/bsd/drm2/dist/drm/drm_atomic_state_helper.c	drmkms
+file	external/bsd/drm2/dist/drm/drm_atomic_uapi.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_auth.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_blend.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_bridge.c	drmkms
@@ -78,11 +80,13 @@ file	external/bsd/drm2/dist/drm/drm_connector.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_context.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_crtc.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_crtc_helper.c	drmkms
+file	external/bsd/drm2/dist/drm/drm_damage_helper.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_dma.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_dp_dual_mode_helper.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_dp_helper.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_dp_mst_topology.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_drv.c	drmkms
+file	external/bsd/drm2/dist/drm/drm_dsc.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_dumb_buffers.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_edid.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_encoder.c	drmkms
@@ -94,9 +98,7 @@ file	external/bsd/drm2/dist/drm/drm_fourcc.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_framebuffer.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_gem.c	drmkms
 file	external/bsd/drm2/drm/drm_gem_framebuffer_helper.c	drmkms
-file	external/bsd/drm2/dist/drm/drm_global.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_hashtab.c	drmkms
-#file	external/bsd/drm2/dist/drm/drm_info.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_ioctl.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_irq.c	drmkms
 #file	external/bsd/drm2/dist/drm/drm_kms_helper_common.c	drmkms
@@ -119,7 +121,7 @@ file	external/bsd/drm2/dist/drm/drm_property.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_rect.c	drmkms
 file	external/bsd/drm2/drm/drm_scatter.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_scdc_helper.c	drmkms
-#file	external/bsd/drm2/dist/drm/drm_simple_kms_helper.c	drmkms
+file	external/bsd/drm2/dist/drm/drm_simple_kms_helper.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_syncobj.c	drmkms
 file	external/bsd/drm2/drm/drm_sysfs.c	drmkms
 #file	external/bsd/drm2/dist/drm/drm_trace_points.c	drmkms
