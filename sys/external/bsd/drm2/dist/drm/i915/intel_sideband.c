@@ -183,7 +183,7 @@ void vlv_ccu_write(struct drm_i915_private *dev_priv, u32 reg, u32 val)
 			SB_CRWRDA_NP, reg, &val);
 }
 
-u32 vlv_dpio_read(struct drm_i915_private *dev_priv, enum i915_pipe pipe, int reg)
+u32 vlv_dpio_read(struct drm_i915_private *dev_priv, enum pipe pipe, int reg)
 {
 	u32 val = 0;
 
@@ -200,7 +200,7 @@ u32 vlv_dpio_read(struct drm_i915_private *dev_priv, enum i915_pipe pipe, int re
 	return val;
 }
 
-void vlv_dpio_write(struct drm_i915_private *dev_priv, enum i915_pipe pipe, int reg, u32 val)
+void vlv_dpio_write(struct drm_i915_private *dev_priv, enum pipe pipe, int reg, u32 val)
 {
 	vlv_sideband_rw(dev_priv, DPIO_DEVFN, DPIO_PHY_IOSF_PORT(DPIO_PHY(pipe)),
 			SB_MWR_NP, reg, &val);

@@ -1565,29 +1565,6 @@ nvkm_device_pci(struct nvkm_device *device)
 	return container_of(device, struct nvkm_device_pci, device);
 }
 
-#ifdef __NetBSD__
-#include <dev/pci/pcivar.h>
-static bus_dma_tag_t
-nvkm_device_pci_dma_tag(struct nvkm_device *device)
-{
-	struct nvkm_device_pci *pdev = nvkm_device_pci(device);
-	const struct pci_attach_args *pa = &pdev->pdev->pd_pa;
-
-	return pci_dma64_available(pa) ? pa->pa_dmat64 : pa->pa_dmat;
-}
-
-static bus_space_tag_t
-nvkm_device_pci_resource_tag(struct nvkm_device *device, unsigned bar)
-{
-	struct nvkm_device_pci *pdev = nvkm_device_pci(device);
-
-	/* XXX What about I/O BARs?  */
-	KASSERT(PCI_MAPREG_TYPE(pdev->pdev->pd_resources[bar].type) ==
-	    PCI_MAPREG_TYPE_MEM);
-	return pdev->pdev->pd_pa.pa_memt;
-}
-#endif
-
 static resource_size_t
 nvkm_device_pci_resource_addr(struct nvkm_device *device, unsigned bar)
 {
@@ -1607,9 +1584,7 @@ nvkm_device_pci_fini(struct nvkm_device *device, bool suspend)
 {
 	struct nvkm_device_pci *pdev = nvkm_device_pci(device);
 	if (suspend) {
-#ifndef __NetBSD__		/* XXX pmf takes care of this for us.  */
 		pci_disable_device(pdev->pdev);
-#endif
 		pdev->suspend = true;
 	}
 }
@@ -1619,12 +1594,10 @@ nvkm_device_pci_preinit(struct nvkm_device *device)
 {
 	struct nvkm_device_pci *pdev = nvkm_device_pci(device);
 	if (pdev->suspend) {
-#ifndef __NetBSD__		/* XXX pmf takes care of this for us.  */
 		int ret = pci_enable_device(pdev->pdev);
 		if (ret)
 			return ret;
 		pci_set_master(pdev->pdev);
-#endif
 		pdev->suspend = false;
 	}
 	return 0;
@@ -1634,9 +1607,7 @@ static void *
 nvkm_device_pci_dtor(struct nvkm_device *device)
 {
 	struct nvkm_device_pci *pdev = nvkm_device_pci(device);
-#ifndef __NetBSD__
 	pci_disable_device(pdev->pdev);
-#endif
 	return pdev;
 }
 
@@ -1646,21 +1617,9 @@ nvkm_device_pci_func = {
 	.dtor = nvkm_device_pci_dtor,
 	.preinit = nvkm_device_pci_preinit,
 	.fini = nvkm_device_pci_fini,
-#ifdef __NetBSD__
-	.dma_tag = nvkm_device_pci_dma_tag,
-	.resource_tag = nvkm_device_pci_resource_tag,
-#endif
 	.resource_addr = nvkm_device_pci_resource_addr,
 	.resource_size = nvkm_device_pci_resource_size,
-#ifdef __NetBSD__
-#  ifdef __arm__
-	.cpu_coherent = false,
-#  else
-	.cpu_coherent = true,
-#  endif
-#else
 	.cpu_coherent = !IS_ENABLED(CONFIG_ARM),
-#endif
 };
 
 int
@@ -1675,11 +1634,9 @@ nvkm_device_pci_new(struct pci_dev *pci_dev, const char *cfg, const char *dbg,
 	struct nvkm_device_pci *pdev;
 	int ret, bits;
 
-#ifndef __NetBSD__
 	ret = pci_enable_device(pci_dev);
 	if (ret)
 		return ret;
-#endif
 
 	switch (pci_dev->vendor) {
 	case 0x10de: pcid = nvkm_device_pci_10de; break;
@@ -1707,16 +1664,13 @@ nvkm_device_pci_new(struct pci_dev *pci_dev, const char *cfg, const char *dbg,
 	}
 
 	if (!(pdev = kzalloc(sizeof(*pdev), GFP_KERNEL))) {
-#ifndef __NetBSD__
 		pci_disable_device(pci_dev);
-#endif
 		return -ENOMEM;
 	}
 	*pdevice = &pdev->device;
 	pdev->pdev = pci_dev;
 
-	ret = nvkm_device_ctor(&nvkm_device_pci_func, quirk,
-			       pci_dev_dev(pci_dev),
+	ret = nvkm_device_ctor(&nvkm_device_pci_func, quirk, &pci_dev->dev,
 			       pci_is_pcie(pci_dev) ? NVKM_DEVICE_PCIE :
 			       pci_find_capability(pci_dev, PCI_CAP_ID_AGP) ?
 			       NVKM_DEVICE_AGP : NVKM_DEVICE_PCI,
@@ -1736,19 +1690,11 @@ nvkm_device_pci_new(struct pci_dev *pci_dev, const char *cfg, const char *dbg,
 	else
 		bits = 32;
 
-#ifdef __NetBSD__
-	ret = drm_limit_dma_space(drm_dev, 0, DMA_BIT_MASK(bits));
-	if (ret) {
-		/* XXX device_printf or something */
-		printf("failed to limit dma space to %d bits\n", bits);
-	}
-#else
 	ret = dma_set_mask_and_coherent(&pci_dev->dev, DMA_BIT_MASK(bits));
 	if (ret && bits != 32) {
 		dma_set_mask_and_coherent(&pci_dev->dev, DMA_BIT_MASK(32));
 		pdev->device.mmu->dma_bits = 32;
 	}
-#endif
 
 	return 0;
 }

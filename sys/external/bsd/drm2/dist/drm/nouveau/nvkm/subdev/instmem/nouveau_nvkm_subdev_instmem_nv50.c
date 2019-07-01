@@ -35,7 +35,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <subdev/mmu.h>
 
 #ifdef __NetBSD__
-#  define	__iomem	__nvkm_memory_iomem
+#  define	__iomem __nvkm_memory_iomem
 #endif
 
 struct nv50_instmem {
@@ -326,6 +326,19 @@ nv50_instobj_addr(struct nvkm_memory *memory)
 	return nvkm_memory_addr(nv50_instobj(memory)->ram);
 }
 
+static u64
+nv50_instobj_bar2(struct nvkm_memory *memory)
+{
+	struct nv50_instobj *iobj = nv50_instobj(memory);
+	u64 addr = ~0ULL;
+	if (nv50_instobj_acquire(&iobj->base.memory)) {
+		iobj->lru.next = NULL; /* Exclude from eviction. */
+		addr = iobj->bar->addr;
+	}
+	nv50_instobj_release(&iobj->base.memory);
+	return addr;
+}
+
 static enum nvkm_memory_target
 nv50_instobj_target(struct nvkm_memory *memory)
 {
@@ -368,8 +381,9 @@ static const struct nvkm_memory_func
 nv50_instobj_func = {
 	.dtor = nv50_instobj_dtor,
 	.target = nv50_instobj_target,
-	.size = nv50_instobj_size,
+	.bar2 = nv50_instobj_bar2,
 	.addr = nv50_instobj_addr,
+	.size = nv50_instobj_size,
 	.boot = nv50_instobj_boot,
 	.acquire = nv50_instobj_acquire,
 	.release = nv50_instobj_release,

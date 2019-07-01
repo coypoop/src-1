@@ -1,4 +1,4 @@
-/*	$NetBSD: amdgpu_kv_dpm.c,v 1.2 2018/08/27 14:24:03 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
 /*
  * Copyright 2013 Advanced Micro Devices, Inc.
@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD: amdgpu_kv_dpm.c,v 1.2 2018/08/27 14:24:03 riastradh Exp $");
+__KERNEL_RCSID(0, "$NetBSD$");
 
 #include <drm/drmP.h>
 #include "amdgpu.h"
@@ -513,19 +513,19 @@ static int kv_enable_didt(struct amdgpu_device *adev, bool enable)
 	    pi->caps_db_ramping ||
 	    pi->caps_td_ramping ||
 	    pi->caps_tcp_ramping) {
-		adev->gfx.rlc.funcs->enter_safe_mode(adev);
+		amdgpu_gfx_rlc_enter_safe_mode(adev);
 
 		if (enable) {
 			ret = kv_program_pt_config_registers(adev, didt_config_kv);
 			if (ret) {
-				adev->gfx.rlc.funcs->exit_safe_mode(adev);
+				amdgpu_gfx_rlc_exit_safe_mode(adev);
 				return ret;
 			}
 		}
 
 		kv_do_enable_didt(adev, enable);
 
-		adev->gfx.rlc.funcs->exit_safe_mode(adev);
+		amdgpu_gfx_rlc_exit_safe_mode(adev);
 	}
 
 	return 0;
@@ -1620,8 +1620,7 @@ static u8 kv_get_acp_boot_level(struct amdgpu_device *adev)
 		&adev->pm.dpm.dyn_state.acp_clock_voltage_dependency_table;
 
 	for (i = 0; i < table->count; i++) {
-		/* XXX Fake out -Wtype-limits.  */
-		if (table->entries[i].clk == 0 || table->entries[i].clk > 0) /* XXX */
+		if (table->entries[i].clk >= 0) /* XXX */
 			break;
 	}
 
@@ -1682,7 +1681,7 @@ static void kv_dpm_powergate_uvd(void *handle, bool gate)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct kv_power_info *pi = kv_get_pi(adev);
-	int ret __unused;
+	int ret;
 
 	pi->uvd_power_gated = gate;
 
@@ -1710,7 +1709,7 @@ static void kv_dpm_powergate_vce(void *handle, bool gate)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct kv_power_info *pi = kv_get_pi(adev);
-	int ret __unused;
+	int ret;
 
 	pi->vce_power_gated = gate;
 
@@ -2574,7 +2573,7 @@ static int kv_parse_sys_info_table(struct amdgpu_device *adev)
 
 	if (amdgpu_atom_parse_data_header(mode_info->atom_context, index, NULL,
 				   &frev, &crev, &data_offset)) {
-		igp_info = (union igp_info *)((char *)mode_info->atom_context->bios +
+		igp_info = (union igp_info *)(mode_info->atom_context->bios +
 					      data_offset);
 
 		if (crev != 8) {
@@ -2725,18 +2724,18 @@ static int kv_parse_power_table(struct amdgpu_device *adev)
 	if (!amdgpu_atom_parse_data_header(mode_info->atom_context, index, NULL,
 				   &frev, &crev, &data_offset))
 		return -EINVAL;
-	power_info = (union power_info *)((char *)mode_info->atom_context->bios + data_offset);
+	power_info = (union power_info *)(mode_info->atom_context->bios + data_offset);
 
 	amdgpu_add_thermal_controller(adev);
 
 	state_array = (struct _StateArray *)
-		((char *)mode_info->atom_context->bios + data_offset +
+		(mode_info->atom_context->bios + data_offset +
 		 le16_to_cpu(power_info->pplib.usStateArrayOffset));
 	clock_info_array = (struct _ClockInfoArray *)
-		((char *)mode_info->atom_context->bios + data_offset +
+		(mode_info->atom_context->bios + data_offset +
 		 le16_to_cpu(power_info->pplib.usClockInfoArrayOffset));
 	non_clock_info_array = (struct _NonClockInfoArray *)
-		((char *)mode_info->atom_context->bios + data_offset +
+		(mode_info->atom_context->bios + data_offset +
 		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
 
 	adev->pm.dpm.ps = kcalloc(state_array->ucNumEntries,
@@ -2867,7 +2866,6 @@ static int kv_dpm_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
 static void
 kv_dpm_debugfs_print_current_performance_level(void *handle,
 					       struct seq_file *m)
@@ -2895,7 +2893,6 @@ kv_dpm_debugfs_print_current_performance_level(void *handle,
 			   current_index, sclk, vddc);
 	}
 }
-#endif
 
 static void
 kv_dpm_print_power_state(void *handle, void *request_ps)
@@ -3003,12 +3000,12 @@ static int kv_dpm_sw_init(void *handle)
 	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	ret = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 230,
+	ret = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 230,
 				&adev->pm.dpm.thermal.irq);
 	if (ret)
 		return ret;
 
-	ret = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 231,
+	ret = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 231,
 				&adev->pm.dpm.thermal.irq);
 	if (ret)
 		return ret;
@@ -3370,9 +3367,7 @@ static const struct amd_pm_funcs kv_dpm_funcs = {
 	.get_sclk = &kv_dpm_get_sclk,
 	.get_mclk = &kv_dpm_get_mclk,
 	.print_power_state = &kv_dpm_print_power_state,
-#ifdef CONFIG_DEBUG_FS
 	.debugfs_print_current_performance_level = &kv_dpm_debugfs_print_current_performance_level,
-#endif
 	.force_performance_level = &kv_dpm_force_performance_level,
 	.set_powergating_by_smu = kv_set_powergating_by_smu,
 	.enable_bapm = &kv_dpm_enable_bapm,

@@ -51,6 +51,12 @@ typedef unsigned int drm_handle_t;
 #include <asm/ioctl.h>
 typedef unsigned int drm_handle_t;
 
+#elif defined(__linux__)
+
+#include <linux/types.h>
+#include <asm/ioctl.h>
+typedef unsigned int drm_handle_t;
+
 #endif
 #endif
 

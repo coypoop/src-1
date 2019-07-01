@@ -221,10 +221,10 @@ int intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
 	bus_space_write_4((i915)->regs_bst, (i915)->regs_bsh,		      \
 	    i915_mmio_reg_offset(reg), (value))
 #else
-#define raw_reg_read(i915, reg) \
-	readl(i915->regs + i915_mmio_reg_offset(reg))
-#define raw_reg_write(i915, reg, value) \
-	writel(value, i915->regs + i915_mmio_reg_offset(reg))
+#define raw_reg_read(base, reg) \
+	readl(base + i915_mmio_reg_offset(reg))
+#define raw_reg_write(base, reg, value) \
+	writel(value, base + i915_mmio_reg_offset(reg))
 #endif
 
 #endif /* !__INTEL_UNCORE_H__ */

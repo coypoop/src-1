@@ -133,9 +133,6 @@ nvkm_pmu_dtor(struct nvkm_subdev *subdev)
 	struct nvkm_pmu *pmu = nvkm_pmu(subdev);
 	nvkm_msgqueue_del(&pmu->queue);
 	nvkm_falcon_del(&pmu->falcon);
-#ifdef __NetBSD__
-	DRM_DESTROY_WAITQUEUE(&pmu->recv.wait);
-#endif
 	return nvkm_pmu(subdev);
 }
 
@@ -156,11 +153,7 @@ nvkm_pmu_ctor(const struct nvkm_pmu_func *func, struct nvkm_device *device,
 	nvkm_subdev_ctor(&nvkm_pmu, device, index, &pmu->subdev);
 	pmu->func = func;
 	INIT_WORK(&pmu->recv.work, nvkm_pmu_recv);
-#ifdef __NetBSD__
-	DRM_INIT_WAITQUEUE(&pmu->recv.wait, "nvpmu");
-#else
 	init_waitqueue_head(&pmu->recv.wait);
-#endif
 	return 0;
 }
 

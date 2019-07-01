@@ -52,7 +52,7 @@ int  nvif_object_map_handle(struct nvif_object *, void *, u32,
 #endif
 			    u64 *handle, u64 *length);
 void nvif_object_unmap_handle(struct nvif_object *);
-int  nvif_object_map(struct nvif_object *, void *, u32) __must_check;
+int  nvif_object_map(struct nvif_object *, void *, u32);
 void nvif_object_unmap(struct nvif_object *);
 
 #define nvif_handle(a) (unsigned long)(void *)(a)

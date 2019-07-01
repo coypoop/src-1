@@ -411,7 +411,7 @@ int amdgpu_uvd_resume(struct amdgpu_device *adev)
 				memcpy_toio(adev->uvd.inst[i].cpu_addr, adev->uvd.fw->data + offset,
 					    le32_to_cpu(hdr->ucode_size_bytes));
 				size -= le32_to_cpu(hdr->ucode_size_bytes);
-				ptr = (char *)ptr + le32_to_cpu(hdr->ucode_size_bytes);
+				ptr += le32_to_cpu(hdr->ucode_size_bytes);
 			}
 			memset_io(ptr, 0, size);
 			/* to restore uvd fence seq */
@@ -488,7 +488,7 @@ static int amdgpu_uvd_cs_pass1(struct amdgpu_uvd_cs_ctx *ctx)
 
 	r = amdgpu_cs_find_mapping(ctx->parser, addr, &bo, &mapping);
 	if (r) {
-		DRM_ERROR("Can't find BO for addr 0x%08"PRIx64"\n", addr);
+		DRM_ERROR("Can't find BO for addr 0x%08Lx\n", addr);
 		return r;
 	}
 
@@ -527,7 +527,7 @@ static int amdgpu_uvd_cs_msg_decode(struct amdgpu_device *adev, uint32_t *msg,
 	unsigned level = msg[57];
 
 	unsigned width_in_mb = width / 16;
-	unsigned height_in_mb = round_up(height / 16, 2);
+	unsigned height_in_mb = ALIGN(height / 16, 2);
 	unsigned fs_in_mb = width_in_mb * height_in_mb;
 
 	unsigned image_size, tmp, min_dpb_size, num_dpb_buffer;
@@ -535,7 +535,7 @@ static int amdgpu_uvd_cs_msg_decode(struct amdgpu_device *adev, uint32_t *msg,
 
 	image_size = width * height;
 	image_size += image_size / 2;
-	image_size = round_up(image_size, 1024);
+	image_size = ALIGN(image_size, 1024);
 
 	switch (stream_type) {
 	case 0: /* H264 */
@@ -595,7 +595,7 @@ static int amdgpu_uvd_cs_msg_decode(struct amdgpu_device *adev, uint32_t *msg,
 
 		/* BP */
 		tmp = max(width_in_mb, height_in_mb);
-		min_dpb_size += round_up(tmp * 7 * 16, 64);
+		min_dpb_size += ALIGN(tmp * 7 * 16, 64);
 		break;
 
 	case 3: /* MPEG2 */
@@ -613,7 +613,7 @@ static int amdgpu_uvd_cs_msg_decode(struct amdgpu_device *adev, uint32_t *msg,
 		min_dpb_size += width_in_mb * height_in_mb * 64;
 
 		/* IT surface buffer */
-		min_dpb_size += round_up(width_in_mb * height_in_mb * 32, 64);
+		min_dpb_size += ALIGN(width_in_mb * height_in_mb * 32, 64);
 		break;
 
 	case 7: /* H264 Perf */
@@ -669,8 +669,8 @@ static int amdgpu_uvd_cs_msg_decode(struct amdgpu_device *adev, uint32_t *msg,
 		break;
 
 	case 16: /* H265 */
-		image_size = (round_up(width, 16) * round_up(height, 16) * 3) / 2;
-		image_size = round_up(image_size, 256);
+		image_size = (ALIGN(width, 16) * ALIGN(height, 16) * 3) / 2;
+		image_size = ALIGN(image_size, 256);
 
 		num_dpb_buffer = (le32_to_cpu(msg[59]) & 0xff) + 2;
 		min_dpb_size = image_size * num_dpb_buffer;
@@ -697,6 +697,8 @@ static int amdgpu_uvd_cs_msg_decode(struct amdgpu_device *adev, uint32_t *msg,
 	buf_sizes[0x1] = dpb_size;
 	buf_sizes[0x2] = image_size;
 	buf_sizes[0x4] = min_ctx_size;
+	/* store image width to adjust nb memory pstate */
+	adev->uvd.decode_image_width = width;
 	return 0;
 }
 
@@ -730,7 +732,7 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 		return r;
 	}
 
-	msg = (void *)((char *)ptr + offset);
+	msg = ptr + offset;
 
 	msg_type = msg[1];
 	handle = msg[2];
@@ -856,14 +858,14 @@ static int amdgpu_uvd_cs_pass2(struct amdgpu_uvd_cs_ctx *ctx)
 
 	if (!ctx->parser->adev->uvd.address_64_bit) {
 		if ((start >> 28) != ((end - 1) >> 28)) {
-			DRM_ERROR("reloc %"PRIX64"-%"PRIX64" crossing 256MB boundary!\n",
+			DRM_ERROR("reloc %LX-%LX crossing 256MB boundary!\n",
 				  start, end);
 			return -EINVAL;
 		}
 
 		if ((cmd == 0 || cmd == 0x3) &&
 		    (start >> 28) != (ctx->parser->adev->uvd.inst->gpu_addr >> 28)) {
-			DRM_ERROR("msg/fb buffer %"PRIX64"-%"PRIX64" out of 256MB segment!\n",
+			DRM_ERROR("msg/fb buffer %LX-%LX out of 256MB segment!\n",
 				  start, end);
 			return -EINVAL;
 		}
@@ -1248,30 +1250,20 @@ int amdgpu_uvd_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
 	struct dma_fence *fence;
 	long r;
-	uint32_t ip_instance = ring->me;
 
 	r = amdgpu_uvd_get_create_msg(ring, 1, NULL);
-	if (r) {
-		DRM_ERROR("amdgpu: (%d)failed to get create msg (%ld).\n", ip_instance, r);
+	if (r)
 		goto error;
-	}
 
 	r = amdgpu_uvd_get_destroy_msg(ring, 1, true, &fence);
-	if (r) {
-		DRM_ERROR("amdgpu: (%d)failed to get destroy ib (%ld).\n", ip_instance, r);
+	if (r)
 		goto error;
-	}
 
 	r = dma_fence_wait_timeout(fence, false, timeout);
-	if (r == 0) {
-		DRM_ERROR("amdgpu: (%d)IB test timed out.\n", ip_instance);
+	if (r == 0)
 		r = -ETIMEDOUT;
-	} else if (r < 0) {
-		DRM_ERROR("amdgpu: (%d)fence wait failed (%ld).\n", ip_instance, r);
-	} else {
-		DRM_DEBUG("ib test on (%d)ring %d succeeded\n", ip_instance, ring->idx);
+	else if (r > 0)
 		r = 0;
-	}
 
 	dma_fence_put(fence);
 

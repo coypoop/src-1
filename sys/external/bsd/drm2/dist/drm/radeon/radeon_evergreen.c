@@ -4773,6 +4773,10 @@ restart_ih:
 					radeon_crtc_handle_vblank(rdev,
 								  crtc_idx);
 				}
+				if (atomic_read(&rdev->irq.pflip[crtc_idx])) {
+					radeon_crtc_handle_vblank(rdev,
+								  crtc_idx);
+				}
 
 			} else if (src_data == 1) { /* vline */
 				mask = LB_D1_VLINE_INTERRUPT;

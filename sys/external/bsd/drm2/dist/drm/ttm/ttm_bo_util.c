@@ -57,6 +57,11 @@ struct ttm_transfer_obj {
 	struct ttm_buffer_object *bo;
 };
 
+struct ttm_transfer_obj {
+	struct ttm_buffer_object base;
+	struct ttm_buffer_object *bo;
+};
+
 void ttm_bo_free_old_node(struct ttm_buffer_object *bo)
 {
 	ttm_bo_mem_put(bo, &bo->mem);
@@ -329,11 +334,13 @@ static int ttm_copy_io_page(void *dst, void *src, unsigned long page)
 #define __ttm_kunmap_atomic(__addr) kunmap_atomic(__addr)
 #else
 #define __ttm_kmap_atomic_prot(__page, __prot) vmap(&__page, 1, 0,  __prot)
+
 #ifdef __NetBSD__
 #define __ttm_kunmap_atomic(__addr) vunmap(__addr, 1)
 #else
 #define __ttm_kunmap_atomic(__addr) vunmap(__addr)
 #endif
+
 #endif
 
 /**
@@ -558,8 +565,10 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	if (!fbo)
 		return -ENOMEM;
 
-	ttm_bo_get(bo);
 	fbo->base = *bo;
+	fbo->base.mem.placement |= TTM_PL_FLAG_NO_EVICT;
+
+	ttm_bo_get(bo);
 	fbo->bo = bo;
 
 	/**
@@ -750,10 +759,7 @@ int ttm_bo_kmap(struct ttm_buffer_object *bo,
 		return -EINVAL;
 	if (start_page > bo->num_pages)
 		return -EINVAL;
-#if 0
-	if (num_pages > 1 && !capable(CAP_SYS_ADMIN))
-		return -EPERM;
-#endif
+
 	(void) ttm_mem_io_lock(man, false);
 	ret = ttm_mem_io_reserve(bo->bdev, &bo->mem);
 	ttm_mem_io_unlock(man);

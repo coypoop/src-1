@@ -44,6 +44,7 @@ nvkm_subdev_name[NVKM_SUBDEV_NR] = {
 	[NVKM_SUBDEV_FB      ] = "fb",
 	[NVKM_SUBDEV_FUSE    ] = "fuse",
 	[NVKM_SUBDEV_GPIO    ] = "gpio",
+	[NVKM_SUBDEV_GSP     ] = "gsp",
 	[NVKM_SUBDEV_I2C     ] = "i2c",
 	[NVKM_SUBDEV_IBUS    ] = "priv",
 	[NVKM_SUBDEV_ICCSENSE] = "iccsense",
@@ -84,7 +85,9 @@ nvkm_subdev_name[NVKM_SUBDEV_NR] = {
 	[NVKM_ENGINE_NVENC0  ] = "nvenc0",
 	[NVKM_ENGINE_NVENC1  ] = "nvenc1",
 	[NVKM_ENGINE_NVENC2  ] = "nvenc2",
-	[NVKM_ENGINE_NVDEC   ] = "nvdec",
+	[NVKM_ENGINE_NVDEC0  ] = "nvdec0",
+	[NVKM_ENGINE_NVDEC1  ] = "nvdec1",
+	[NVKM_ENGINE_NVDEC2  ] = "nvdec2",
 	[NVKM_ENGINE_PM      ] = "pm",
 	[NVKM_ENGINE_SEC     ] = "sec",
 	[NVKM_ENGINE_SEC2    ] = "sec2",
@@ -130,7 +133,7 @@ nvkm_subdev_fini(struct nvkm_subdev *subdev, bool suspend)
 	nvkm_mc_reset(device, subdev->index);
 
 	time = ktime_to_us(ktime_get()) - time;
-	nvkm_trace(subdev, "%s completed in %"PRId64"us\n", action, time);
+	nvkm_trace(subdev, "%s completed in %lldus\n", action, time);
 	return 0;
 }
 
@@ -151,7 +154,7 @@ nvkm_subdev_preinit(struct nvkm_subdev *subdev)
 	}
 
 	time = ktime_to_us(ktime_get()) - time;
-	nvkm_trace(subdev, "preinit completed in %"PRId64"us\n", time);
+	nvkm_trace(subdev, "preinit completed in %lldus\n", time);
 	return 0;
 }
 
@@ -176,7 +179,7 @@ nvkm_subdev_init(struct nvkm_subdev *subdev)
 
 		subdev->oneinit = true;
 		time = ktime_to_us(ktime_get()) - time;
-		nvkm_trace(subdev, "one-time init completed in %"PRId64"us\n", time);
+		nvkm_trace(subdev, "one-time init completed in %lldus\n", time);
 	}
 
 	if (subdev->func->init) {
@@ -188,7 +191,7 @@ nvkm_subdev_init(struct nvkm_subdev *subdev)
 	}
 
 	time = ktime_to_us(ktime_get()) - time;
-	nvkm_trace(subdev, "init completed in %"PRId64"us\n", time);
+	nvkm_trace(subdev, "init completed in %lldus\n", time);
 	return 0;
 }
 
@@ -204,7 +207,7 @@ nvkm_subdev_del(struct nvkm_subdev **psubdev)
 		if (subdev->func->dtor)
 			*psubdev = subdev->func->dtor(subdev);
 		time = ktime_to_us(ktime_get()) - time;
-		nvkm_trace(subdev, "destroy completed in %"PRId64"us\n", time);
+		nvkm_trace(subdev, "destroy completed in %lldus\n", time);
 		kfree(*psubdev);
 		*psubdev = NULL;
 	}

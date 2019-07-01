@@ -156,7 +156,7 @@ nvkm_client_notify_new(struct nvkm_object *object,
 	nvif_ioctl(object, "notify new size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, req->v0, 0, 0, true))) {
 		nvif_ioctl(object, "notify new vers %d reply %d route %02x "
-				   "token %"PRIx64"", req->v0.version,
+				   "token %llx\n", req->v0.version,
 			   req->v0.reply, req->v0.route, req->v0.token);
 		notify->version = req->v0.version;
 		notify->size = sizeof(notify->rep.v0);
@@ -276,7 +276,6 @@ nvkm_client_dtor(struct nvkm_object *object)
 	int i;
 	for (i = 0; i < ARRAY_SIZE(client->notify); i++)
 		nvkm_client_notify_del(client, i);
-	spin_lock_destroy(&client->lock);
 	return client;
 }
 
@@ -287,40 +286,6 @@ nvkm_client = {
 	.mthd = nvkm_client_mthd,
 	.sclass = nvkm_client_child_get,
 };
-
-#ifdef __NetBSD__
-static int
-compare_object_nodes(void *cookie, const void *va, const void *vb)
-{
-	const struct nvkm_object *oa = va;
-	const struct nvkm_object *ob = vb;
-
-	if (oa->object < ob->object)
-		return -1;
-	if (oa->object > ob->object)
-		return +1;
-	return 0;
-}
-
-static int
-compare_object_key(void *cookie, const void *vo, const void *vk)
-{
-	const struct nvkm_object *o = vo;
-	const u64 *k = vk;
-
-	if (o->object < *k)
-		return -1;
-	if (o->object > *k)
-		return +1;
-	return 0;
-}
-
-static const rb_tree_ops_t nvkm_client_objtree_ops = {
-	.rbto_compare_nodes = compare_object_nodes,
-	.rbto_compare_key = compare_object_key,
-	.rbto_node_offset = offsetof(struct nvkm_object, node),
-};
-#endif
 
 int
 nvkm_client_new(const char *name, u64 device, const char *cfg,
@@ -339,11 +304,7 @@ nvkm_client_new(const char *name, u64 device, const char *cfg,
 	snprintf(client->name, sizeof(client->name), "%s", name);
 	client->device = device;
 	client->debug = nvkm_dbgopt(dbg, "CLIENT");
-#ifdef __NetBSD__
-	rb_tree_init(&client->objtree, &nvkm_client_objtree_ops);
-#else
 	client->objroot = RB_ROOT;
-#endif
 	client->ntfy = ntfy;
 	INIT_LIST_HEAD(&client->umem);
 	spin_lock_init(&client->lock);

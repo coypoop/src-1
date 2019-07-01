@@ -37,11 +37,6 @@ nvkm_object_search(struct nvkm_client *client, u64 handle,
 	struct nvkm_object *object;
 
 	if (handle) {
-#ifdef __NetBSD__
-		object = rb_tree_find_node(&client->objtree, &handle);
-		if (object)
-			goto done;
-#else
 		struct rb_node *node = client->objroot.rb_node;
 		while (node) {
 			object = rb_entry(node, typeof(*object), node);
@@ -53,7 +48,6 @@ nvkm_object_search(struct nvkm_client *client, u64 handle,
 			else
 				goto done;
 		}
-#endif
 		return ERR_PTR(-ENOENT);
 	} else {
 		object = &client->object;
@@ -68,29 +62,13 @@ done:
 void
 nvkm_object_remove(struct nvkm_object *object)
 {
-#ifdef __NetBSD__
-	if (object->on_tree) {
-		rb_tree_remove_node(&object->client->objtree, object);
-		object->on_tree = false;
-	}
-#else
 	if (!RB_EMPTY_NODE(&object->node))
 		rb_erase(&object->node, &object->client->objroot);
-#endif
 }
 
 bool
 nvkm_object_insert(struct nvkm_object *object)
 {
-#ifdef __NetBSD__
-	struct nvkm_object *collision;
-
-	collision = rb_tree_insert_node(&object->client->objtree, object);
-	if (collision != object)
-		return false;
-	object->on_tree = true;
-	return true;
-#else
 	struct rb_node **ptr = &object->client->objroot.rb_node;
 	struct rb_node *parent = NULL;
 
@@ -109,7 +87,6 @@ nvkm_object_insert(struct nvkm_object *object)
 	rb_link_node(&object->node, parent, ptr);
 	rb_insert_color(&object->node, &object->client->objroot);
 	return true;
-#endif
 }
 
 int
@@ -129,16 +106,6 @@ nvkm_object_ntfy(struct nvkm_object *object, u32 mthd,
 	return -ENODEV;
 }
 
-#ifdef __NetBSD__
-int
-nvkm_object_map(struct nvkm_object *object, bus_space_tag_t *tagp, u64 *addr,
-    u64 *size)
-{
-	if (likely(object->func->map))
-		return object->func->map(object, tagp, addr, size);
-	return -ENODEV;
-}
-#else
 int
 nvkm_object_map(struct nvkm_object *object, void *argv, u32 argc,
 		enum nvkm_object_map *type, u64 *addr, u64 *size)
@@ -147,7 +114,6 @@ nvkm_object_map(struct nvkm_object *object, void *argv, u32 argc,
 		return object->func->map(object, argv, argc, type, addr, size);
 	return -ENODEV;
 }
-#endif
 
 int
 nvkm_object_unmap(struct nvkm_object *object)
@@ -241,7 +207,7 @@ nvkm_object_fini(struct nvkm_object *object, bool suspend)
 	}
 
 	time = ktime_to_us(ktime_get()) - time;
-	nvif_debug(object, "%s completed in %"PRId64"us\n", action, time);
+	nvif_debug(object, "%s completed in %lldus\n", action, time);
 	return 0;
 
 fail:
@@ -280,7 +246,7 @@ nvkm_object_init(struct nvkm_object *object)
 	}
 
 	time = ktime_to_us(ktime_get()) - time;
-	nvif_debug(object, "init completed in %"PRId64"us\n", time);
+	nvif_debug(object, "init completed in %lldus\n", time);
 	return 0;
 
 fail_child:
@@ -312,7 +278,7 @@ nvkm_object_dtor(struct nvkm_object *object)
 		data = object->func->dtor(object);
 	nvkm_engine_unref(&object->engine);
 	time = ktime_to_us(ktime_get()) - time;
-	nvif_debug(object, "destroy completed in %"PRId64"us...\n", time);
+	nvif_debug(object, "destroy completed in %lldus...\n", time);
 	return data;
 }
 
@@ -343,11 +309,7 @@ nvkm_object_ctor(const struct nvkm_object_func *func,
 	object->object = oclass->object;
 	INIT_LIST_HEAD(&object->head);
 	INIT_LIST_HEAD(&object->tree);
-#ifdef __NetBSD__
-	object->on_tree = false;
-#else
 	RB_CLEAR_NODE(&object->node);
-#endif
 	WARN_ON(IS_ERR(object->engine));
 }
 

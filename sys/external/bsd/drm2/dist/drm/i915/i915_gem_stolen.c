@@ -31,9 +31,6 @@
 #include <sys/cdefs.h>
 __KERNEL_RCSID(0, "$NetBSD$");
 
-#include <linux/printk.h>
-#include <linux/err.h>
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
@@ -113,7 +110,7 @@ static int i915_adjust_stolen(struct drm_i915_private *dev_priv,
 		resource_size_t ggtt_start;
 
 		ggtt_start = I915_READ(PGTBL_CTL);
-		if (IS_GEN4(dev_priv))
+		if (IS_GEN(dev_priv, 4))
 			ggtt_start = (ggtt_start & PGTBL_ADDRESS_LO_MASK) |
 				     (ggtt_start & PGTBL_ADDRESS_HI_MASK) << 28;
 		else
@@ -167,7 +164,7 @@ static int i915_adjust_stolen(struct drm_i915_private *dev_priv,
 		 * GEN3 firmware likes to smash pci bridges into the stolen
 		 * range. Apparently this works.
 		 */
-		if (r == NULL && !IS_GEN3(dev_priv)) {
+		if (r == NULL && !IS_GEN(dev_priv, 3)) {
 			DRM_ERROR("conflict detected with stolen region: %pR\n",
 				  dsm);
 
@@ -179,10 +176,8 @@ static int i915_adjust_stolen(struct drm_i915_private *dev_priv,
 	return 0;
 }
 
-void i915_gem_cleanup_stolen(struct drm_device *dev)
+void i915_gem_cleanup_stolen(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
 		return;
 
@@ -214,7 +209,8 @@ static void g4x_get_stolen_reserved(struct drm_i915_private *dev_priv,
 	 * Whether ILK really reuses the ELK register for this is unclear.
 	 * Let's see if we catch anyone with this supposedly enabled on ILK.
 	 */
-	WARN(IS_GEN5(dev_priv), "ILK stolen reserved found? 0x%08x\n", reg_val);
+	WARN(IS_GEN(dev_priv, 5), "ILK stolen reserved found? 0x%08x\n",
+	     reg_val);
 
 	if (!(reg_val & G4X_STOLEN_RESERVED_ADDR2_MASK))
 		return;
@@ -368,7 +364,7 @@ static void icl_get_stolen_reserved(struct drm_i915_private *dev_priv,
 {
 	u64 reg_val = I915_READ64(GEN6_STOLEN_RESERVED);
 
-	DRM_DEBUG_DRIVER("GEN6_STOLEN_RESERVED = 0x%016"PRIx64"\n", reg_val);
+	DRM_DEBUG_DRIVER("GEN6_STOLEN_RESERVED = 0x%016llx\n", reg_val);
 
 	*base = reg_val & GEN11_STOLEN_RESERVED_ADDR_MASK;
 
@@ -401,6 +397,11 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 #else
 	mutex_init(&dev_priv->mm.stolen_lock);
 #endif
+
+	if (intel_vgpu_active(dev_priv)) {
+		DRM_INFO("iGVT-g active, disabling use of stolen memory\n");
+		return 0;
+	}
 
 	if (intel_vgpu_active(dev_priv)) {
 		DRM_INFO("iGVT-g active, disabling use of stolen memory\n");
@@ -493,7 +494,7 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 	 * memory, so just consider the start. */
 	reserved_total = stolen_top - reserved_base;
 
-	DRM_DEBUG_DRIVER("Memory reserved for graphics device: %"PRIu64"K, usable: %"PRIu64"K\n",
+	DRM_DEBUG_DRIVER("Memory reserved for graphics device: %lluK, usable: %lluK\n",
 			 (u64)resource_size(&dev_priv->dsm) >> 10,
 			 ((u64)resource_size(&dev_priv->dsm) - reserved_total) >> 10);
 
@@ -789,7 +790,10 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	vma->pages = obj->mm.pages;
 	vma->flags |= I915_VMA_GLOBAL_BIND;
 	__i915_vma_set_map_and_fenceable(vma);
-	list_move_tail(&vma->vm_link, &ggtt->vm.inactive_list);
+
+	mutex_lock(&ggtt->vm.mutex);
+	list_move_tail(&vma->vm_link, &ggtt->vm.bound_list);
+	mutex_unlock(&ggtt->vm.mutex);
 
 	spin_lock(&dev_priv->mm.obj_lock);
 	list_move_tail(&obj->mm.link, &dev_priv->mm.bound_list);

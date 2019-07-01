@@ -30,6 +30,11 @@ enum nvkm_object_map {
 	NVKM_OBJECT_MAP_VA
 };
 
+enum nvkm_object_map {
+	NVKM_OBJECT_MAP_IO,
+	NVKM_OBJECT_MAP_VA
+};
+
 struct nvkm_object_func {
 	void *(*dtor)(struct nvkm_object *);
 	int (*init)(struct nvkm_object *);

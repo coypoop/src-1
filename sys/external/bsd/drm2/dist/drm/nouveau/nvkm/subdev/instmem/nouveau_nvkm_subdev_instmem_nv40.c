@@ -32,18 +32,9 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <core/ramht.h>
 #include <engine/gr/nv40.h>
 
-#ifdef __NetBSD__
-#  define	__iomem	__nvkm_memory_iomem
-#endif
-
 struct nv40_instmem {
 	struct nvkm_instmem base;
 	struct nvkm_mm heap;
-#ifdef __NetBSD__
-	bus_space_tag_t iomemt;
-	bus_space_handle_t iomemh;
-	bus_size_t iomemsz;
-#endif
 	void __iomem *iomem;
 };
 
@@ -62,26 +53,14 @@ static void
 nv40_instobj_wr32(struct nvkm_memory *memory, u64 offset, u32 data)
 {
 	struct nv40_instobj *iobj = nv40_instobj(memory);
-#ifdef __NetBSD__
-	offset += iobj->node->offset;
-	bus_space_write_stream_4(iobj->imem->iomemt, iobj->imem->iomemh,
-	    offset, data);
-#else
 	iowrite32_native(data, iobj->imem->iomem + iobj->node->offset + offset);
-#endif
 }
 
 static u32
 nv40_instobj_rd32(struct nvkm_memory *memory, u64 offset)
 {
 	struct nv40_instobj *iobj = nv40_instobj(memory);
-#ifdef __NetBSD__
-	offset += iobj->node->offset;
-	return bus_space_read_stream_4(iobj->imem->iomemt, iobj->imem->iomemh,
-	    offset);
-#else
 	return ioread32_native(iobj->imem->iomem + iobj->node->offset + offset);
-#endif
 }
 
 static const struct nvkm_memory_ptrs
@@ -100,7 +79,7 @@ static void __iomem *
 nv40_instobj_acquire(struct nvkm_memory *memory)
 {
 	struct nv40_instobj *iobj = nv40_instobj(memory);
-	return (char __iomem *)iobj->imem->iomem + iobj->node->offset;
+	return iobj->imem->iomem + iobj->node->offset;
 }
 
 static u64
@@ -172,23 +151,13 @@ nv40_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 static u32
 nv40_instmem_rd32(struct nvkm_instmem *base, u32 addr)
 {
-#ifdef __NetBSD__
-	struct nv40_instmem *imem = nv40_instmem(base);
-	return bus_space_read_stream_4(imem->iomemt, imem->iomemh, addr);
-#else
 	return ioread32_native(nv40_instmem(base)->iomem + addr);
-#endif
 }
 
 static void
 nv40_instmem_wr32(struct nvkm_instmem *base, u32 addr, u32 data)
 {
-#ifdef __NetBSD__
-	struct nv40_instmem *imem = nv40_instmem(base);
-	bus_space_write_stream_4(imem->iomemt, imem->iomemh, addr, data);
-#else
 	iowrite32_native(data, nv40_instmem(base)->iomem + addr);
-#endif
 }
 
 static int
@@ -257,11 +226,7 @@ nv40_instmem_dtor(struct nvkm_instmem *base)
 	nvkm_memory_unref(&imem->base.vbios);
 	nvkm_mm_fini(&imem->heap);
 	if (imem->iomem)
-#ifdef __NetBSD__
-		bus_space_unmap(imem->iomemt, imem->iomemh, imem->iomemsz);
-#else
 		iounmap(imem->iomem);
-#endif
 	return imem;
 }
 
@@ -293,34 +258,12 @@ nv40_instmem_new(struct nvkm_device *device, int index,
 	else
 		bar = 3;
 
-#ifdef __NetBSD__
-    {
-	bus_addr_t iomembase;
-	bus_size_t iomemsz;
-	int ret;
-
-	imem->iomemt = device->func->resource_tag(device, bar);
-	iomembase = device->func->resource_addr(device, bar);
-	iomemsz = device->func->resource_size(device, bar);
-	/* XXX errno NetBSD->Linux */
-	ret = -bus_space_map(imem->iomemt, iomembase, iomemsz,
-	    BUS_SPACE_MAP_PREFETCHABLE|BUS_SPACE_MAP_LINEAR, &imem->iomemh);
-	if (ret) {
-		nvkm_error(&imem->base.subdev, "unable to map PRAMIN BAR %d"
-		    ": %d\n", bar, ret);
-		return ret;
-	}
-	imem->iomemsz = iomemsz;
-	imem->iomem = bus_space_vaddr(imem->iomemt, imem->iomemh);
-    }
-#else
 	imem->iomem = ioremap_wc(device->func->resource_addr(device, bar),
 				 device->func->resource_size(device, bar));
 	if (!imem->iomem) {
 		nvkm_error(&imem->base.subdev, "unable to map PRAMIN BAR\n");
 		return -EFAULT;
 	}
-#endif
 
 	return 0;
 }

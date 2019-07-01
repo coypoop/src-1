@@ -37,14 +37,11 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <acpi/video.h>
 #include <asm/io.h>
 
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
 
 #include "intel_opregion.h"
 #include "i915_drv.h"
 #include "intel_drv.h"
-
-#ifdef CONFIG_ACPI
 
 #define OPREGION_HEADER_OFFSET 0
 #define OPREGION_ACPI_OFFSET   0x100
@@ -64,7 +61,12 @@ __KERNEL_RCSID(0, "$NetBSD$");
 struct opregion_header {
 	u8 signature[16];
 	u32 size;
-	u32 opregion_ver;
+	struct {
+		u8 rsvd;
+		u8 revision;
+		u8 minor;
+		u8 major;
+	}  __packed over;
 	u8 bios_ver[32];
 	u8 vbios_ver[16];
 	u8 driver_ver[16];
@@ -128,7 +130,8 @@ struct opregion_asle {
 	u64 fdss;
 	u32 fdsp;
 	u32 stat;
-	u64 rvda;	/* Physical address of raw vbt data */
+	u64 rvda;	/* Physical (2.0) or relative from opregion (2.1+)
+			 * address of raw VBT data. */
 	u32 rvds;	/* Size of raw vbt data */
 	u8 rsvd[58];
 } __packed;
@@ -805,85 +808,6 @@ static void intel_setup_cadls(struct drm_i915_private *dev_priv)
 		opregion->acpi->cadl[i] = 0;
 }
 
-void intel_opregion_register(struct drm_i915_private *dev_priv)
-{
-	struct intel_opregion *opregion = &dev_priv->opregion;
-
-	if (!opregion->header)
-		return;
-
-	if (opregion->acpi) {
-		intel_didl_outputs(dev_priv);
-		intel_setup_cadls(dev_priv);
-
-		/* Notify BIOS we are ready to handle ACPI video ext notifs.
-		 * Right now, all the events are handled by the ACPI video module.
-		 * We don't actually need to do anything with them. */
-		opregion->acpi->csts = 0;
-		opregion->acpi->drdy = 1;
-
-#ifdef __NetBSD__
-		if (dev->pdev->pd_ad != NULL)
-			acpi_register_notify(dev->pdev->pd_ad,
-			    intel_opregion_video_event);
-#else
-		opregion->acpi_notifier.notifier_call = intel_opregion_video_event;
-		register_acpi_notifier(&opregion->acpi_notifier);
-#endif
-	}
-
-	if (opregion->asle) {
-		opregion->asle->tche = ASLE_TCHE_BLC_EN;
-		opregion->asle->ardy = ASLE_ARDY_READY;
-	}
-}
-
-void intel_opregion_unregister(struct drm_i915_private *dev_priv)
-{
-	struct intel_opregion *opregion = &dev_priv->opregion;
-
-	if (!opregion->header)
-		return;
-
-	if (opregion->asle)
-		opregion->asle->ardy = ASLE_ARDY_NOT_READY;
-
-	cancel_work_sync(&dev_priv->opregion.asle_work);
-
-	if (opregion->acpi) {
-		opregion->acpi->drdy = 0;
-
-#ifdef __NetBSD__
-		if (dev->pdev->pd_ad != NULL)
-			acpi_deregister_notify(dev->pdev->pd_ad);
-#else
-		unregister_acpi_notifier(&opregion->acpi_notifier);
-		opregion->acpi_notifier.notifier_call = NULL;
-#endif
-	}
-
-	/* just clear all opregion memory pointers now */
-#ifdef __NetBSD__
-	bus_space_unmap(opregion->bst, opregion->bsh, OPREGION_SIZE);
-#else
-	memunmap(opregion->header);
-#endif
-	if (opregion->rvda) {
-		memunmap(opregion->rvda);
-		opregion->rvda = NULL;
-	}
-	if (opregion->vbt_firmware) {
-		kfree(opregion->vbt_firmware);
-		opregion->vbt_firmware = NULL;
-	}
-	opregion->header = NULL;
-	opregion->acpi = NULL;
-	opregion->swsci = NULL;
-	opregion->asle = NULL;
-	opregion->vbt = NULL;
-	opregion->lid_state = NULL;
-}
-
 static void swsci_setup(struct drm_i915_private *dev_priv)
 {
 	struct intel_opregion *opregion = &dev_priv->opregion;
@@ -969,7 +893,7 @@ static int intel_load_vbt_firmware(struct drm_i915_private *dev_priv)
 	if (!name || !*name)
 		return -ENOENT;
 
-	ret = request_firmware(&fw, name, dev_priv->drm.pdev);
+	ret = request_firmware(&fw, name, &dev_priv->drm.pdev->dev);
 	if (ret) {
 		DRM_ERROR("Requesting VBT firmware \"%s\" failed (%d)\n",
 			  name, ret);
@@ -1047,6 +971,11 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 	opregion->header = base;
 	opregion->lid_state = (void *)((char *)base + ACPI_CLID);
 
+	DRM_DEBUG_DRIVER("ACPI OpRegion version %u.%u.%u\n",
+			 opregion->header->over.major,
+			 opregion->header->over.minor,
+			 opregion->header->over.revision);
+
 	mboxes = opregion->header->mboxes;
 	if (mboxes & MBOX_ACPI) {
 		DRM_DEBUG_DRIVER("Public ACPI methods supported\n");
@@ -1075,11 +1004,26 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 	if (dmi_check_system(intel_no_opregion_vbt))
 		goto out;
 
-	if (opregion->header->opregion_ver >= 2 && opregion->asle &&
+	if (opregion->header->over.major >= 2 && opregion->asle &&
 	    opregion->asle->rvda && opregion->asle->rvds) {
-		opregion->rvda = memremap(opregion->asle->rvda,
-					  opregion->asle->rvds,
+		resource_size_t rvda = opregion->asle->rvda;
+
+		/*
+		 * opregion 2.0: rvda is the physical VBT address.
+		 *
+		 * opregion 2.1+: rvda is unsigned, relative offset from
+		 * opregion base, and should never point within opregion.
+		 */
+		if (opregion->header->over.major > 2 ||
+		    opregion->header->over.minor >= 1) {
+			WARN_ON(rvda < OPREGION_SIZE);
+
+			rvda += asls;
+		}
+
+		opregion->rvda = memremap(rvda, opregion->asle->rvds,
 					  MEMREMAP_WB);
+
 		vbt = opregion->rvda;
 		vbt_size = opregion->asle->rvds;
 		if (intel_bios_is_valid_vbt(vbt, vbt_size)) {
@@ -1089,6 +1033,8 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 			goto out;
 		} else {
 			DRM_DEBUG_KMS("Invalid VBT in ACPI OpRegion (RVDA)\n");
+			memunmap(opregion->rvda);
+			opregion->rvda = NULL;
 		}
 	}
 
@@ -1178,4 +1124,111 @@ intel_opregion_get_panel_type(struct drm_i915_private *dev_priv)
 	return ret - 1;
 }
 
-#endif	/* CONFIG_ACPI */
+void intel_opregion_register(struct drm_i915_private *i915)
+{
+	struct intel_opregion *opregion = &i915->opregion;
+
+	if (!opregion->header)
+		return;
+
+#ifdef __NetBSD__
+	if (dev->pdev->pd_ad != NULL)
+			acpi_register_notify(dev->pdev->pd_ad,
+			    intel_opregion_video_event);
+#else
+	if (opregion->acpi) {
+		opregion->acpi_notifier.notifier_call =
+			intel_opregion_video_event;
+		register_acpi_notifier(&opregion->acpi_notifier);
+	}
+#endif
+
+	intel_opregion_resume(i915);
+}
+
+void intel_opregion_resume(struct drm_i915_private *i915)
+{
+	struct intel_opregion *opregion = &i915->opregion;
+
+	if (!opregion->header)
+		return;
+
+	if (opregion->acpi) {
+		intel_didl_outputs(i915);
+		intel_setup_cadls(i915);
+
+		/*
+		 * Notify BIOS we are ready to handle ACPI video ext notifs.
+		 * Right now, all the events are handled by the ACPI video
+		 * module. We don't actually need to do anything with them.
+		 */
+		opregion->acpi->csts = 0;
+		opregion->acpi->drdy = 1;
+	}
+
+	if (opregion->asle) {
+		opregion->asle->tche = ASLE_TCHE_BLC_EN;
+		opregion->asle->ardy = ASLE_ARDY_READY;
+	}
+
+	intel_opregion_notify_adapter(i915, PCI_D0);
+}
+
+void intel_opregion_suspend(struct drm_i915_private *i915, pci_power_t state)
+{
+	struct intel_opregion *opregion = &i915->opregion;
+
+	if (!opregion->header)
+		return;
+
+	intel_opregion_notify_adapter(i915, state);
+
+	if (opregion->asle)
+		opregion->asle->ardy = ASLE_ARDY_NOT_READY;
+
+	cancel_work_sync(&i915->opregion.asle_work);
+
+	if (opregion->acpi)
+		opregion->acpi->drdy = 0;
+}
+
+void intel_opregion_unregister(struct drm_i915_private *i915)
+{
+	struct intel_opregion *opregion = &i915->opregion;
+
+	intel_opregion_suspend(i915, PCI_D1);
+
+	if (!opregion->header)
+		return;
+
+#ifdef __NetBSD__
+	if (dev->pdev->pd_ad != NULL)
+			acpi_deregister_notify(dev->pdev->pd_ad);
+#else
+	if (opregion->acpi_notifier.notifier_call) {
+		unregister_acpi_notifier(&opregion->acpi_notifier);
+		opregion->acpi_notifier.notifier_call = NULL;
+	}
+#endif
+
+	/* just clear all opregion memory pointers now */
+#ifdef __NetBSD__
+	bus_space_unmap(opregion->bst, opregion->bsh, OPREGION_SIZE);
+#else
+	memunmap(opregion->header);
+#endif
+	if (opregion->rvda) {
+		memunmap(opregion->rvda);
+		opregion->rvda = NULL;
+	}
+	if (opregion->vbt_firmware) {
+		kfree(opregion->vbt_firmware);
+		opregion->vbt_firmware = NULL;
+	}
+	opregion->header = NULL;
+	opregion->acpi = NULL;
+	opregion->swsci = NULL;
+	opregion->asle = NULL;
+	opregion->vbt = NULL;
+	opregion->lid_state = NULL;
+}

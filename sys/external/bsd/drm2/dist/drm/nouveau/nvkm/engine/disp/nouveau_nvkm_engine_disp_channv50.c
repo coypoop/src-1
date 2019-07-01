@@ -213,21 +213,12 @@ nv50_disp_chan_ntfy(struct nvkm_object *object, u32 type,
 }
 
 static int
-#ifdef __NetBSD__
-nv50_disp_chan_map(struct nvkm_object *object, void *argv, u32 argc,
-		   enum nvkm_object_map *type, bus_space_tag_t *tag, u64 *addr,
-		   u64 *size)
-#else
 nv50_disp_chan_map(struct nvkm_object *object, void *argv, u32 argc,
 		   enum nvkm_object_map *type, u64 *addr, u64 *size)
-#endif
 {
 	struct nv50_disp_chan *chan = nv50_disp_chan(object);
 	struct nvkm_device *device = chan->disp->base.engine.subdev.device;
 	const u64 base = device->func->resource_addr(device, 0);
-#ifdef __NetBSD__
-	*tag = device->func->resource_tag(device, 0);
-#endif
 	*type = NVKM_OBJECT_MAP_IO;
 	*addr = base + chan->func->user(chan, size);
 	return 0;

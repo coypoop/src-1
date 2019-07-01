@@ -71,7 +71,7 @@ nvkm_pci_rom_shadow(struct nvkm_pci *pci, bool shadow)
 }
 
 static irqreturn_t
-nvkm_pci_intr(DRM_IRQ_ARGS)
+nvkm_pci_intr(int irq, void *arg)
 {
 	struct nvkm_pci *pci = arg;
 	struct nvkm_device *device = pci->subdev.device;
@@ -121,27 +121,11 @@ nvkm_pci_oneinit(struct nvkm_subdev *subdev)
 			return ret;
 	}
 
-#ifdef __NetBSD__
-    {
-	const struct pci_attach_args *pa = &pdev->pd_pa;
-
-	/* XXX errno NetBSD->Linux */
-	ret = -pci_intr_alloc(pa, &pci->pci_ihp, NULL, 0);
-	if (ret)
-		return ret;
-	pci->pci_intrcookie = pci_intr_establish_xname(pa->pa_pc,
-	    pci->pci_ihp[0], IPL_DRM, nvkm_pci_intr, pci,
-	    device_xname(pci_dev_dev(pdev)));
-	if (pci->pci_intrcookie == NULL)
-		return -EIO;	/* XXX er? */
-    }
-#else
 	ret = request_irq(pdev->irq, nvkm_pci_intr, IRQF_SHARED, "nvkm", pci);
 	if (ret)
 		return ret;
 
 	pci->irq = pdev->irq;
-#endif
 	return 0;
 }
 
@@ -178,17 +162,6 @@ nvkm_pci_dtor(struct nvkm_subdev *subdev)
 
 	nvkm_agp_dtor(pci);
 
-#ifdef __NetBSD__
-	const struct pci_attach_args *pa = &pci->pdev->pd_pa;
-	if (pci->pci_intrcookie != NULL) {
-		pci_intr_disestablish(pa->pa_pc, pci->pci_intrcookie);
-		pci->pci_intrcookie = NULL;
-	}
-	if (pci->pci_ihp != NULL) {
-		pci_intr_release(pa->pa_pc, pci->pci_ihp, 1);
-		pci->pci_ihp = NULL;
-	}
-#else
 	if (pci->irq >= 0) {
 		/* freq_irq() will call the handler, we use pci->irq == -1
 		 * to signal that it's been torn down and should be a noop.
@@ -197,7 +170,6 @@ nvkm_pci_dtor(struct nvkm_subdev *subdev)
 		pci->irq = -1;
 		free_irq(irq, pci);
 	}
-#endif
 
 	if (pci->msi)
 		pci_disable_msi(pci->pdev);
@@ -225,9 +197,7 @@ nvkm_pci_new_(const struct nvkm_pci_func *func, struct nvkm_device *device,
 	nvkm_subdev_ctor(&nvkm_pci_func, device, index, &pci->subdev);
 	pci->func = func;
 	pci->pdev = device->func->pci(device)->pdev;
-#ifndef __NetBSD__
 	pci->irq = -1;
-#endif
 	pci->pcie.speed = -1;
 	pci->pcie.width = -1;
 

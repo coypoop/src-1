@@ -93,7 +93,7 @@ gk20a_pllg_write_mnp(struct gk20a_clk *clk, const struct gk20a_pll *pll)
 u32
 gk20a_pllg_calc_rate(struct gk20a_clk *clk, struct gk20a_pll *pll)
 {
-	u64 rate;
+	u32 rate;
 	u32 divider;
 
 	rate = clk->parent_rate * pll->n;

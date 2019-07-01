@@ -279,8 +279,8 @@ void drm_dev_dbg(const struct device *dev, unsigned int category,
 
 __printf(2, 3)
 void drm_dbg(unsigned int category, const char *format, ...);
-__printf(4, 5)
-void drm_err(const char *file, int line, const char *func, const char *format, ...);
+__printf(1, 2)
+void drm_err(const char *format, ...);
 
 /* Macros to make printk easier */
 
@@ -310,7 +310,7 @@ void drm_err(const char *file, int line, const char *func, const char *format, .
 #define DRM_DEV_ERROR(dev, fmt, ...)					\
 	drm_dev_printk(dev, KERN_ERR, "*ERROR* " fmt, ##__VA_ARGS__)
 #define DRM_ERROR(fmt, ...)						\
-	drm_err(__FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
+	drm_err(fmt, ##__VA_ARGS__)
 
 /**
  * Rate limited error output.  Like DRM_ERROR() but won't flood the log.
@@ -383,7 +383,7 @@ void drm_err(const char *file, int line, const char *func, const char *format, .
 
 #define	DRM_DEV_DEBUG_DP(dev, fmt, ...)					\
 	drm_dev_dbg(dev, DRM_UT_DP, fmt, ## __VA_ARGS__)
-#define DRM_DEBUG_DP(dev, fmt, ...)					\
+#define DRM_DEBUG_DP(fmt, ...)						\
 	drm_dbg(DRM_UT_DP, fmt, ## __VA_ARGS__)
 
 #define _DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, category, fmt, ...)	\

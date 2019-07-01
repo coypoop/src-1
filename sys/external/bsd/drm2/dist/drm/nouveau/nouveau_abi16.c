@@ -219,6 +219,7 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 			WARN_ON(1);
 			break;
 		}
+		break;
 	case NOUVEAU_GETPARAM_FB_SIZE:
 		getparam->value = drm->gem.vram_available;
 		break;
@@ -241,7 +242,7 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 		getparam->value = nvkm_gr_units(gr);
 		break;
 	default:
-		NV_PRINTK(dbg, cli, "unknown parameter %"PRId64"\n", getparam->param);
+		NV_PRINTK(dbg, cli, "unknown parameter %lld\n", getparam->param);
 		return -EINVAL;
 	}
 
@@ -311,7 +312,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 
 	/* create channel object and initialise dma and fence management */
 	ret = nouveau_channel_new(drm, device, init->fb_ctxdma_handle,
-				  init->tt_ctxdma_handle, &chan->chan);
+				  init->tt_ctxdma_handle, false, &chan->chan);
 	if (ret)
 		goto done;
 
@@ -343,7 +344,8 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 		goto done;
 
 	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nouveau_vma_new(chan->ntfy, &cli->vmm, &chan->ntfy_vma);
+		ret = nouveau_vma_new(chan->ntfy, chan->chan->vmm,
+				      &chan->ntfy_vma);
 		if (ret)
 			goto done;
 	}
@@ -530,8 +532,7 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	struct nouveau_abi16_ntfy *ntfy;
 	struct nvif_device *device = &abi16->device;
 	struct nvif_client *client;
-	static const struct nv_dma_v0 zero_args;
-	struct nv_dma_v0 args = zero_args;
+	struct nv_dma_v0 args = {};
 	int ret;
 
 	if (unlikely(!abi16))

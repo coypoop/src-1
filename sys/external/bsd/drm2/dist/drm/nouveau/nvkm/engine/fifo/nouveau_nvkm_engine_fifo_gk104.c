@@ -154,16 +154,41 @@ gk104_fifo_uevent_init(struct nvkm_fifo *fifo)
 }
 
 void
-gk104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl)
+gk104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl,
+			  struct nvkm_memory *mem, int nr)
+{
+	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	int target;
+
+	switch (nvkm_memory_target(mem)) {
+	case NVKM_MEM_TARGET_VRAM: target = 0; break;
+	case NVKM_MEM_TARGET_NCOH: target = 3; break;
+	default:
+		WARN_ON(1);
+		return;
+	}
+
+	nvkm_wr32(device, 0x002270, (nvkm_memory_addr(mem) >> 12) |
+				    (target << 28));
+	nvkm_wr32(device, 0x002274, (runl << 20) | nr);
+
+	if (nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x002284 + (runl * 0x08)) & 0x00100000))
+			break;
+	) < 0)
+		nvkm_error(subdev, "runlist %d update timeout\n", runl);
+}
+
+void
+gk104_fifo_runlist_update(struct gk104_fifo *fifo, int runl)
 {
 	const struct gk104_fifo_runlist_func *func = fifo->func->runlist;
 	struct gk104_fifo_chan *chan;
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
 	struct nvkm_memory *mem;
 	struct nvkm_fifo_cgrp *cgrp;
 	int nr = 0;
-	int target;
 
 	mutex_lock(&subdev->mutex);
 	mem = fifo->runlist[runl].mem[fifo->runlist[runl].next];
@@ -182,24 +207,7 @@ gk104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl)
 	}
 	nvkm_done(mem);
 
-	switch (nvkm_memory_target(mem)) {
-	case NVKM_MEM_TARGET_VRAM: target = 0; break;
-	case NVKM_MEM_TARGET_NCOH: target = 3; break;
-	default:
-		WARN_ON(1);
-		goto unlock;
-	}
-
-	nvkm_wr32(device, 0x002270, (nvkm_memory_addr(mem) >> 12) |
-				    (target << 28));
-	nvkm_wr32(device, 0x002274, (runl << 20) | nr);
-
-	if (nvkm_msec(device, 2000,
-		if (!(nvkm_rd32(device, 0x002284 + (runl * 0x08)) & 0x00100000))
-			break;
-	) < 0)
-		nvkm_error(subdev, "runlist %d update timeout\n", runl);
-unlock:
+	func->commit(fifo, runl, mem, nr);
 	mutex_unlock(&subdev->mutex);
 }
 
@@ -243,6 +251,29 @@ const struct gk104_fifo_runlist_func
 gk104_fifo_runlist = {
 	.size = 8,
 	.chan = gk104_fifo_runlist_chan,
+	.commit = gk104_fifo_runlist_commit,
+};
+
+void
+gk104_fifo_pbdma_init(struct gk104_fifo *fifo)
+{
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	nvkm_wr32(device, 0x000204, (1 << fifo->pbdma_nr) - 1);
+}
+
+int
+gk104_fifo_pbdma_nr(struct gk104_fifo *fifo)
+{
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	/* Determine number of PBDMAs by checking valid enable bits. */
+	nvkm_wr32(device, 0x000204, 0xffffffff);
+	return hweight32(nvkm_rd32(device, 0x000204));
+}
+
+const struct gk104_fifo_pbdma_func
+gk104_fifo_pbdma = {
+	.nr = gk104_fifo_pbdma_nr,
+	.init = gk104_fifo_pbdma_init,
 };
 
 static void
@@ -264,7 +295,7 @@ gk104_fifo_recover_work(struct work_struct *w)
 
 	nvkm_mask(device, 0x002630, runm, runm);
 
-	for (todo = engm; todo && (engn = __ffs(todo), 1); todo &= ~BIT(engn)) {
+	for (todo = engm; engn = __ffs(todo), todo; todo &= ~BIT(engn)) {
 		if ((engine = fifo->engine[engn].engine)) {
 			nvkm_subdev_fini(&engine->subdev, false);
 			WARN_ON(nvkm_subdev_init(&engine->subdev));
@@ -272,7 +303,7 @@ gk104_fifo_recover_work(struct work_struct *w)
 	}
 
 	for (todo = runm; runl = __ffs(todo), todo; todo &= ~BIT(runl))
-		gk104_fifo_runlist_commit(fifo, runl);
+		gk104_fifo_runlist_update(fifo, runl);
 
 	nvkm_wr32(device, 0x00262c, runm);
 	nvkm_mask(device, 0x002630, runm, 0x00000000);
@@ -461,10 +492,10 @@ gk104_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 	if (ee && ee->data2) {
 		switch (ee->data2) {
 		case NVKM_SUBDEV_BAR:
-			nvkm_mask(device, 0x001704, 0x00000000, 0x00000000);
+			nvkm_bar_bar1_reset(device);
 			break;
 		case NVKM_SUBDEV_INSTMEM:
-			nvkm_mask(device, 0x001714, 0x00000000, 0x00000000);
+			nvkm_bar_bar2_reset(device);
 			break;
 		case NVKM_ENGINE_IFB:
 			nvkm_mask(device, 0x001718, 0x00000000, 0x00000000);
@@ -493,8 +524,8 @@ gk104_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 	chan = nvkm_fifo_chan_inst_locked(&fifo->base, info->inst);
 
 	nvkm_error(subdev,
-		   "fault %02x [%s] at %016"PRIx64" engine %02x [%s] client %02x "
-		   "[%s%s] reason %02x [%s] on channel %d [%010"PRIx64" %s]\n",
+		   "fault %02x [%s] at %016llx engine %02x [%s] client %02x "
+		   "[%s%s] reason %02x [%s] on channel %d [%010llx %s]\n",
 		   info->access, ea ? ea->name : "", info->addr,
 		   info->engine, ee ? ee->name : en,
 		   info->client, ct, ec ? ec->name : "",
@@ -708,7 +739,7 @@ gk104_fifo_intr_pbdma_0(struct gk104_fifo *fifo, int unit)
 	if (show) {
 		nvkm_snprintbf(msg, sizeof(msg), gk104_fifo_pbdma_intr_0, show);
 		chan = nvkm_fifo_chan_chid(&fifo->base, chid, &flags);
-		nvkm_error(subdev, "PBDMA%d: %08x [%s] ch %d [%010"PRIx64" %s] "
+		nvkm_error(subdev, "PBDMA%d: %08x [%s] ch %d [%010llx %s] "
 				   "subc %d mthd %04x data %08x\n",
 			   unit, show, msg, chid, chan ? chan->inst->addr : 0,
 			   chan ? chan->object.client->name : "unknown",
@@ -916,9 +947,7 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 	enum nvkm_devidx engidx;
 	u32 *map;
 
-	/* Determine number of PBDMAs by checking valid enable bits. */
-	nvkm_wr32(device, 0x000204, 0xffffffff);
-	fifo->pbdma_nr = hweight32(nvkm_rd32(device, 0x000204));
+	fifo->pbdma_nr = fifo->func->pbdma->nr(fifo);
 	nvkm_debug(subdev, "%d PBDMA(s)\n", fifo->pbdma_nr);
 
 	/* Read PBDMA->runlist(s) mapping from HW. */
@@ -995,7 +1024,7 @@ gk104_fifo_init(struct nvkm_fifo *base)
 	int i;
 
 	/* Enable PBDMAs. */
-	nvkm_wr32(device, 0x000204, (1 << fifo->pbdma_nr) - 1);
+	fifo->func->pbdma->init(fifo);
 
 	/* PBDMA[n] */
 	for (i = 0; i < fifo->pbdma_nr; i++) {
@@ -1012,8 +1041,8 @@ gk104_fifo_init(struct nvkm_fifo *base)
 
 	nvkm_wr32(device, 0x002254, 0x10000000 | fifo->user.bar->addr >> 12);
 
-	if (fifo->func->init_pbdma_timeout)
-		fifo->func->init_pbdma_timeout(fifo);
+	if (fifo->func->pbdma->init_timeout)
+		fifo->func->pbdma->init_timeout(fifo);
 
 	nvkm_wr32(device, 0x002100, 0xffffffff);
 	nvkm_wr32(device, 0x002140, 0x7fffffff);
@@ -1196,6 +1225,7 @@ gk104_fifo_fault_gpcclient[] = {
 
 static const struct gk104_fifo_func
 gk104_fifo = {
+	.pbdma = &gk104_fifo_pbdma,
 	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gk104_fifo_fault_engine,
 	.fault.reason = gk104_fifo_fault_reason,

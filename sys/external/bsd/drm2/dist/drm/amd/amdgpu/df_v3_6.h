@@ -22,6 +22,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#ifndef _VEGA10_SMUMANAGER_H_
+#define _VEGA10_SMUMANAGER_H_
 
 #ifndef __DF_V3_6_H__
 #define __DF_V3_6_H__
@@ -40,3 +42,4 @@ enum DF_V3_6_MGCG {
 extern const struct amdgpu_df_funcs df_v3_6_funcs;
 
 #endif
+

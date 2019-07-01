@@ -200,7 +200,7 @@ nv40_fifo_dma_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 
 	nvif_ioctl(parent, "create channel dma size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(parent, "create channel dma vers %d pushbuf %"PRIx64" "
+		nvif_ioctl(parent, "create channel dma vers %d pushbuf %llx "
 				   "offset %08x\n", args->v0.version,
 			   args->v0.pushbuf, args->v0.offset);
 		if (!args->v0.pushbuf)

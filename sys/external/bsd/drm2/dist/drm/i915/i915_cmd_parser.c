@@ -870,7 +870,7 @@ void intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
 	int cmd_table_count;
 	int ret;
 
-	if (!IS_GEN7(engine->i915))
+	if (!IS_GEN(engine->i915, 7))
 		return;
 
 	switch (engine->id) {
@@ -1082,8 +1082,8 @@ static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 		src = i915_gem_object_pin_map(src_obj, I915_MAP_WC);
 		if (!IS_ERR(src)) {
 			i915_memcpy_from_wc(dst,
-					    (char *)src + batch_start_offset,
-					    round_up(batch_len, 16));
+					    src + batch_start_offset,
+					    ALIGN(batch_len, 16));
 			i915_gem_object_unpin_map(src_obj);
 		}
 	}
@@ -1100,14 +1100,9 @@ static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 		 * We don't care about copying too much here as we only
 		 * validate up to the end of the batch.
 		 */
-		if (dst_needs_clflush & CLFLUSH_BEFORE) {
-#ifdef __NetBSD__
-			size_t clflush_size = cpu_info_primary.ci_cflush_lsize;
-#else
-			size_t clflush_size = boot_cpu_data.x86_clflush_size;
-#endif
-			batch_len = roundup(batch_len, clflush_size);
-		}
+		if (dst_needs_clflush & CLFLUSH_BEFORE)
+			batch_len = roundup(batch_len,
+					    boot_cpu_data.x86_clflush_size);
 
 		ptr = dst;
 		for (n = batch_start_offset >> PAGE_SHIFT; batch_len; n++) {
@@ -1115,11 +1110,11 @@ static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 
 			src = kmap_atomic(i915_gem_object_get_page(src_obj, n));
 			if (src_needs_clflush)
-				drm_clflush_virt_range((char *)src + offset, len);
-			memcpy(ptr, (char *)src + offset, len);
+				drm_clflush_virt_range(src + offset, len);
+			memcpy(ptr, src + offset, len);
 			kunmap_atomic(src);
 
-			ptr = (char *)ptr + len;
+			ptr += len;
 			batch_len -= len;
 			offset = 0;
 		}
@@ -1296,7 +1291,7 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 			if (needs_clflush_after) {
 				void *ptr = page_mask_bits(shadow_batch_obj->mm.mapping);
 				drm_clflush_virt_range(ptr,
-						       (char *)(cmd + 1) - (char *)ptr);
+						       (void *)(cmd + 1) - ptr);
 			}
 			break;
 		}

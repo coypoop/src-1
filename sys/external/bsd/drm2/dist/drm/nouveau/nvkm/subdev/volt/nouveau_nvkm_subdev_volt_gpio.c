@@ -32,8 +32,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <subdev/gpio.h>
 #include "priv.h"
 
-#include "priv.h"
-
 static const u8 tags[] = {
 	DCB_GPIO_VID0, DCB_GPIO_VID1, DCB_GPIO_VID2, DCB_GPIO_VID3,
 	DCB_GPIO_VID4, DCB_GPIO_VID5, DCB_GPIO_VID6, DCB_GPIO_VID7,

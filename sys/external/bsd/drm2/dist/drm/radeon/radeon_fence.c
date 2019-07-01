@@ -147,7 +147,7 @@ int radeon_fence_emit(struct radeon_device *rdev,
 	(*fence)->ring = ring;
 	(*fence)->is_vm_update = false;
 	dma_fence_init(&(*fence)->base, &radeon_fence_ops,
-		       &rdev->fence_lock,
+		       &rdev->fence_queue.lock,
 		       rdev->fence_context + ring,
 		       seq);
 	radeon_fence_ring_emit(rdev, ring, *fence);
@@ -513,7 +513,7 @@ bool radeon_fence_signaled(struct radeon_fence *fence)
 	if (radeon_fence_seq_signaled(fence->rdev, fence->seq, fence->ring)) {
 		int ret;
 
-		ret = dma_fence_signal_locked(&fence->base);
+		ret = dma_fence_signal(&fence->base);
 		if (!ret)
 			DMA_FENCE_TRACE(&fence->base, "signaled from radeon_fence_signaled\n");
 		return true;

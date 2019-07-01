@@ -86,34 +86,10 @@ gf100_fifo_runlist_commit(struct gf100_fifo *fifo)
 				    (target << 28));
 	nvkm_wr32(device, 0x002274, 0x01f00000 | nr);
 
-#ifdef __NetBSD__
-	/* XXX it is wrong to wait under mutex */
-	if (cold) {
-		uint count = 2000;
-		while (count-- > 0) {
-			if (!(nvkm_rd32(device, 0x00227c) & 0x00100000))
-				break;
-			delay(1000);
-		}
-		if (count == 0)
-			nvkm_error(subdev, "runlist update timeout\n");
-	} else {
-		int ret;
-
-		spin_lock(&fifo->runlist.lock);
-		DRM_SPIN_TIMED_WAIT_NOINTR_UNTIL(ret, &fifo->runlist.wait,
-		    &fifo->runlist.lock, msecs_to_jiffies(2000),
-		    !(nvkm_rd32(device, 0x00227c) & 0x00100000));
-		if (ret == 0)
-			nvkm_error(subdev, "runlist update timeout\n");
-		spin_unlock(&fifo->runlist.lock);
-	}
-#else
 	if (wait_event_timeout(fifo->runlist.wait,
 			       !(nvkm_rd32(device, 0x00227c) & 0x00100000),
 			       msecs_to_jiffies(2000)) == 0)
 		nvkm_error(subdev, "runlist update timeout\n");
-#endif
 	mutex_unlock(&subdev->mutex);
 }
 
@@ -184,15 +160,11 @@ gf100_fifo_recover_work(struct work_struct *w)
 	fifo->recover.mask = 0ULL;
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
 
-	for (todo = mask;
-	     todo && (engn = __ffs64(todo), 1);
-	     todo &= ~BIT_ULL(engn))
+	for (todo = mask; engn = __ffs64(todo), todo; todo &= ~BIT_ULL(engn))
 		engm |= 1 << gf100_fifo_engidx(fifo, engn);
 	nvkm_mask(device, 0x002630, engm, engm);
 
-	for (todo = mask;
-	     todo && (engn = __ffs64(todo), 1);
-	     todo &= ~BIT_ULL(engn)) {
+	for (todo = mask; engn = __ffs64(todo), todo; todo &= ~BIT_ULL(engn)) {
 		if ((engine = nvkm_device_engine(device, engn))) {
 			nvkm_subdev_fini(&engine->subdev, false);
 			WARN_ON(nvkm_subdev_init(&engine->subdev));
@@ -379,10 +351,10 @@ gf100_fifo_intr_fault(struct gf100_fifo *fifo, int unit)
 	if (eu && eu->data2) {
 		switch (eu->data2) {
 		case NVKM_SUBDEV_BAR:
-			nvkm_mask(device, 0x001704, 0x00000000, 0x00000000);
+			nvkm_bar_bar1_reset(device);
 			break;
 		case NVKM_SUBDEV_INSTMEM:
-			nvkm_mask(device, 0x001714, 0x00000000, 0x00000000);
+			nvkm_bar_bar2_reset(device);
 			break;
 		case NVKM_ENGINE_IFB:
 			nvkm_mask(device, 0x001718, 0x00000000, 0x00000000);
@@ -396,8 +368,8 @@ gf100_fifo_intr_fault(struct gf100_fifo *fifo, int unit)
 	chan = nvkm_fifo_chan_inst(&fifo->base, (u64)inst << 12, &flags);
 
 	nvkm_error(subdev,
-		   "%s fault at %010"PRIx64" engine %02x [%s] client %02x [%s%s] "
-		   "reason %02x [%s] on channel %d [%010"PRIx64" %s]\n",
+		   "%s fault at %010llx engine %02x [%s] client %02x [%s%s] "
+		   "reason %02x [%s] on channel %d [%010llx %s]\n",
 		   write ? "write" : "read", (u64)vahi << 32 | valo,
 		   unit, eu ? eu->name : "", client, gpcid, ec ? ec->name : "",
 		   reason, er ? er->name : "", chan ? chan->chid : -1,
@@ -443,7 +415,7 @@ gf100_fifo_intr_pbdma(struct gf100_fifo *fifo, int unit)
 	if (show) {
 		nvkm_snprintbf(msg, sizeof(msg), gf100_fifo_pbdma_intr, show);
 		chan = nvkm_fifo_chan_chid(&fifo->base, chid, &flags);
-		nvkm_error(subdev, "PBDMA%d: %08x [%s] ch %d [%010"PRIx64" %s] "
+		nvkm_error(subdev, "PBDMA%d: %08x [%s] ch %d [%010llx %s] "
 				   "subc %d mthd %04x data %08x\n",
 			   unit, show, msg, chid, chan ? chan->inst->addr : 0,
 			   chan ? chan->object.client->name : "unknown",
@@ -463,13 +435,7 @@ gf100_fifo_intr_runlist(struct gf100_fifo *fifo)
 	u32 intr = nvkm_rd32(device, 0x002a00);
 
 	if (intr & 0x10000000) {
-#ifdef __NetBSD__
-		spin_lock(&fifo->runlist.lock);
-		DRM_SPIN_WAKEUP_ONE(&fifo->runlist.wait, &fifo->runlist.lock);
-		spin_unlock(&fifo->runlist.lock);
-#else
 		wake_up(&fifo->runlist.wait);
-#endif
 		nvkm_wr32(device, 0x002a00, 0x10000000);
 		intr &= ~0x10000000;
 	}
@@ -617,12 +583,7 @@ gf100_fifo_oneinit(struct nvkm_fifo *base)
 	if (ret)
 		return ret;
 
-#ifdef __NetBSD__
-	spin_lock_init(&fifo->runlist.lock);
-	DRM_INIT_WAITQUEUE(&fifo->runlist.wait, "gf100fifo");
-#else
 	init_waitqueue_head(&fifo->runlist.wait);
-#endif
 
 	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 128 * 0x1000,
 			      0x1000, false, &fifo->user.mem);
@@ -689,10 +650,6 @@ gf100_fifo_dtor(struct nvkm_fifo *base)
 	nvkm_memory_unref(&fifo->user.mem);
 	nvkm_memory_unref(&fifo->runlist.mem[0]);
 	nvkm_memory_unref(&fifo->runlist.mem[1]);
-#ifdef __NetBSD__
-	DRM_DESTROY_WAITQUEUE(&fifo->runlist.wait);
-	spin_lock_destroy(&fifo->runlist.lock);
-#endif
 	return fifo;
 }
 

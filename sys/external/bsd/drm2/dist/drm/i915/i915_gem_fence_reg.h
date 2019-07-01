@@ -52,4 +52,3 @@ struct drm_i915_fence_reg {
 };
 
 #endif
-

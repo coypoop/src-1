@@ -43,9 +43,12 @@ struct nv50_disp_interlock {
 		NV50_DISP_INTERLOCK__SIZE
 	} type;
 	u32 data;
+	u32 wimm;
 };
 
 void corec37d_ntfy_init(struct nouveau_bo *, u32);
+
+void head907d_olut_load(struct drm_color_lut *, int size, void __iomem *);
 
 struct nv50_chan {
 	struct nvif_object user;
@@ -64,7 +67,7 @@ struct nv50_dmac {
 	/* Protects against concurrent pushbuf access to this channel, lock is
 	 * grabbed by evo_wait (if the pushbuf reservation is successful) and
 	 * dropped again by evo_kick. */
-	struct spinlock lock;
+	struct mutex lock;
 };
 
 int nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,

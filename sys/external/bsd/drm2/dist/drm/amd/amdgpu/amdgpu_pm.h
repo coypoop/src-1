@@ -26,10 +26,6 @@
 #ifndef __AMDGPU_PM_H__
 #define __AMDGPU_PM_H__
 
-#include <sys/stdbool.h>
-
-struct amdgpu_device;
-
 struct cg_flag_name
 {
 	u32 flag;
@@ -44,7 +40,5 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev);
 void amdgpu_dpm_thermal_work_handler(struct work_struct *work);
 void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable);
 void amdgpu_dpm_enable_vce(struct amdgpu_device *adev, bool enable);
-
-void amdgpu_pm_acpi_event_handler(struct amdgpu_device *adev);
 
 #endif

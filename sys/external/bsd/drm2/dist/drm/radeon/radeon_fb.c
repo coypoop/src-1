@@ -355,9 +355,7 @@ static int radeon_fbdev_destroy(struct drm_device *dev, struct radeon_fbdev *rfb
 	struct drm_framebuffer *fb = &rfbdev->fb;
 #ifdef __NetBSD__
 	int ret;
-#endif
 
-#ifdef __NetBSD__
 	/* XXX errno NetBSD->Linux */
 	ret = -config_detach(rfbdev->helper.fbdev, DETACH_FORCE);
 	if (ret)

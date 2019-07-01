@@ -49,6 +49,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <drm/drm_fb_helper.h>
 
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 
 /*
  * KMS wrapper.
@@ -307,6 +308,16 @@ module_param_named(mst, radeon_mst, int, 0444);
 
 MODULE_PARM_DESC(uvd, "uvd enable/disable uvd support (1 = enable, 0 = disable)");
 module_param_named(uvd, radeon_uvd, int, 0444);
+#ifdef __NetBSD__
+
+struct drm_driver *const radeon_drm_driver = &kms_driver;
+const struct pci_device_id *const radeon_device_ids = pciidlist;
+const size_t radeon_n_device_ids = __arraycount(pciidlist);
+
+/* XXX Kludge for the non-GEM GEM that radeon uses.  */
+static const struct uvm_pagerops radeon_gem_uvm_ops;
+
+#else
 
 MODULE_PARM_DESC(vce, "vce enable/disable vce support (1 = enable, 0 = disable)");
 module_param_named(vce, radeon_vce, int, 0444);
@@ -325,41 +336,7 @@ static struct pci_device_id pciidlist[] = {
 
 MODULE_DEVICE_TABLE(pci, pciidlist);
 
-static struct drm_driver kms_driver;
-
-#ifdef __NetBSD__
-
-struct drm_driver *const radeon_drm_driver = &kms_driver;
-const struct pci_device_id *const radeon_device_ids = pciidlist;
-const size_t radeon_n_device_ids = __arraycount(pciidlist);
-
-/* XXX Kludge for the non-GEM GEM that radeon uses.  */
-static const struct uvm_pagerops radeon_gem_uvm_ops;
-
-#else
-
 bool radeon_device_is_virtual(void);
-
-static int radeon_kick_out_firmware_fb(struct pci_dev *pdev)
-{
-	struct apertures_struct *ap;
-	bool primary = false;
-
-	ap = alloc_apertures(1);
-	if (!ap)
-		return -ENOMEM;
-
-	ap->ranges[0].base = pci_resource_start(pdev, 0);
-	ap->ranges[0].size = pci_resource_len(pdev, 0);
-
-#ifdef CONFIG_X86
-	primary = pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
-#endif
-	drm_fb_helper_remove_conflicting_framebuffers(ap, "radeondrmfb", primary);
-	kfree(ap);
-
-	return 0;
-}
 
 static int radeon_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
@@ -370,7 +347,7 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 		return -EPROBE_DEFER;
 
 	/* Get rid of things like offb */
-	ret = radeon_kick_out_firmware_fb(pdev);
+	ret = drm_fb_helper_remove_conflicting_pci_framebuffers(pdev, 0, "radeondrmfb");
 	if (ret)
 		return ret;
 
@@ -577,11 +554,19 @@ radeon_get_crtc_scanout_position(struct drm_device *dev, unsigned int pipe,
 					  stime, etime, mode);
 }
 
+static bool
+radeon_get_crtc_scanout_position(struct drm_device *dev, unsigned int pipe,
+				 bool in_vblank_irq, int *vpos, int *hpos,
+				 ktime_t *stime, ktime_t *etime,
+				 const struct drm_display_mode *mode)
+{
+	return radeon_get_crtc_scanoutpos(dev, pipe, 0, vpos, hpos,
+					  stime, etime, mode);
+}
+
 static struct drm_driver kms_driver = {
 	.driver_features =
-	    DRIVER_USE_AGP |
-	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM |
-	    DRIVER_PRIME | DRIVER_RENDER,
+	    DRIVER_USE_AGP | DRIVER_GEM | DRIVER_PRIME | DRIVER_RENDER,
 	.load = radeon_driver_load_kms,
 	.open = radeon_driver_open_kms,
 	.postclose = radeon_driver_postclose_kms,

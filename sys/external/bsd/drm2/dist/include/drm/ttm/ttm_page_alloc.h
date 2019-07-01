@@ -71,12 +71,10 @@ int ttm_populate_and_map_pages(struct device *dev, struct ttm_dma_tt *tt,
  * ttm_dma_unpopulate() request */
 void ttm_unmap_and_unpopulate_pages(struct device *dev, struct ttm_dma_tt *tt);
 
-#ifdef CONFIG_DEBUG_FS
 /**
  * Output the state of pools to debugfs file
  */
 int ttm_page_alloc_debugfs(struct seq_file *m, void *data);
-#endif
 
 #if defined(CONFIG_SWIOTLB) || defined(CONFIG_INTEL_IOMMU)
 /**
@@ -89,12 +87,10 @@ int ttm_dma_page_alloc_init(struct ttm_mem_global *glob, unsigned max_pages);
  */
 void ttm_dma_page_alloc_fini(void);
 
-#ifdef CONFIG_DEBUG_FS
 /**
  * Output the state of pools to debugfs file
  */
 int ttm_dma_page_alloc_debugfs(struct seq_file *m, void *data);
-#endif
 
 int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev,
 			struct ttm_operation_ctx *ctx);
@@ -109,12 +105,10 @@ static inline int ttm_dma_page_alloc_init(struct ttm_mem_global *glob,
 
 static inline void ttm_dma_page_alloc_fini(void) { return; }
 
-#ifdef CONFIG_DEBUG_FS
 static inline int ttm_dma_page_alloc_debugfs(struct seq_file *m, void *data)
 {
 	return 0;
 }
-#endif
 static inline int ttm_dma_populate(struct ttm_dma_tt *ttm_dma,
 				struct device *dev,
 				struct ttm_operation_ctx *ctx)

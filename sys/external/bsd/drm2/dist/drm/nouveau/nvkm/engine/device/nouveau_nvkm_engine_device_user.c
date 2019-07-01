@@ -96,7 +96,7 @@ nvkm_udevice_info_v1(struct nvkm_device *device,
 	case ENGINE_A(MSENC ); break;
 	case ENGINE_A(VIC   ); break;
 	case ENGINE_A(SEC2  ); break;
-	case ENGINE_A(NVDEC ); break;
+	case ENGINE_B(NVDEC ); break;
 	case ENGINE_B(NVENC ); break;
 	default:
 		args->mthd = NV_DEVICE_INFO_INVALID;
@@ -180,6 +180,7 @@ nvkm_udevice_info(struct nvkm_udevice *udev, void *data, u32 size)
 	case GM100: args->v0.family = NV_DEVICE_INFO_V0_MAXWELL; break;
 	case GP100: args->v0.family = NV_DEVICE_INFO_V0_PASCAL; break;
 	case GV100: args->v0.family = NV_DEVICE_INFO_V0_VOLTA; break;
+	case TU100: args->v0.family = NV_DEVICE_INFO_V0_TURING; break;
 	default:
 		args->v0.family = 0;
 		break;
@@ -283,21 +284,12 @@ nvkm_udevice_wr32(struct nvkm_object *object, u64 addr, u32 data)
 }
 
 static int
-#ifdef __NetBSD__
-nvkm_udevice_map(struct nvkm_object *object, void *argv, u32 argc,
-		 enum nvkm_object_map *type, bus_space_tag_t *tag, u64 *addr,
-		 u64 *size)
-#else
 nvkm_udevice_map(struct nvkm_object *object, void *argv, u32 argc,
 		 enum nvkm_object_map *type, u64 *addr, u64 *size)
-#endif
 {
 	struct nvkm_udevice *udev = nvkm_udevice(object);
 	struct nvkm_device *device = udev->device;
 	*type = NVKM_OBJECT_MAP_IO;
-#ifdef __NetBSD__
-	*tag = device->func->resource_tag(device, 0);
-#endif
 	*addr = device->func->resource_addr(device, 0);
 	*size = device->func->resource_size(device, 0);
 	return 0;
@@ -368,7 +360,7 @@ nvkm_udevice_child_get(struct nvkm_object *object, int index,
 	const struct nvkm_device_oclass *sclass = NULL;
 	int i;
 
-	for (; mask && !sclass && (i = __ffs64(mask), 1); mask &= ~(1ULL << i)) {
+	for (; i = __ffs64(mask), mask && !sclass; mask &= ~(1ULL << i)) {
 		if (!(engine = nvkm_device_engine(device, i)) ||
 		    !(engine->func->base.sclass))
 			continue;
@@ -378,16 +370,15 @@ nvkm_udevice_child_get(struct nvkm_object *object, int index,
 	}
 
 	if (!sclass) {
-		switch (index) {
-		case 0: sclass = &nvkm_control_oclass; break;
-		case 1:
-			if (!device->mmu)
-				return -EINVAL;
+		if (index-- == 0)
+			sclass = &nvkm_control_oclass;
+		else if (device->mmu && index-- == 0)
 			sclass = &device->mmu->user;
-			break;
-		default:
+		else if (device->fault && index-- == 0)
+			sclass = &device->fault->user;
+		else
 			return -EINVAL;
-		}
+
 		oclass->base = sclass->base;
 	}
 
@@ -434,7 +425,7 @@ nvkm_udevice_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 
 	nvif_ioctl(parent, "create device size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(parent, "create device v%d device %016"PRIx64"\n",
+		nvif_ioctl(parent, "create device v%d device %016llx\n",
 			   args->v0.version, args->v0.device);
 	} else
 		return ret;

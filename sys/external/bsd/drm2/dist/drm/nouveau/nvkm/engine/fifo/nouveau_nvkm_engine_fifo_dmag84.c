@@ -49,8 +49,8 @@ g84_fifo_dma_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 
 	nvif_ioctl(parent, "create channel dma size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(parent, "create channel dma vers %d vmm %"PRIx64" "
-				   "pushbuf %"PRIx64" offset %016"PRIx64"\n",
+		nvif_ioctl(parent, "create channel dma vers %d vmm %llx "
+				   "pushbuf %llx offset %016llx\n",
 			   args->v0.version, args->v0.vmm, args->v0.pushbuf,
 			   args->v0.offset);
 		if (!args->v0.pushbuf)

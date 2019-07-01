@@ -137,11 +137,12 @@ nvkm_therm_update(struct nvkm_therm *therm, int mode)
 			duty = nvkm_therm_update_linear(therm);
 			break;
 		case NVBIOS_THERM_FAN_OTHER:
-			if (therm->cstate)
+			if (therm->cstate) {
 				duty = therm->cstate;
-			else
+				poll = false;
+			} else {
 				duty = nvkm_therm_update_linear_fallback(therm);
-			poll = false;
+			}
 			break;
 		}
 		immd = false;
@@ -157,9 +158,7 @@ nvkm_therm_update(struct nvkm_therm *therm, int mode)
 	spin_unlock_irqrestore(&therm->lock, flags);
 
 	if (duty >= 0) {
-#if 0 /* XXXMRG one log per second is a little excessive */
 		nvkm_debug(subdev, "FAN target request: %d%%\n", duty);
-#endif
 		nvkm_therm_fan_set(therm, immd, duty);
 	}
 }

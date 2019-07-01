@@ -44,7 +44,7 @@ nvkm_ioctl_nop(struct nvkm_client *client,
 
 	nvif_ioctl(object, "nop size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(object, "nop vers %"PRId64"\n", args->v0.version);
+		nvif_ioctl(object, "nop vers %lld\n", args->v0.version);
 		args->v0.version = NVIF_VERSION_LATEST;
 	}
 
@@ -98,7 +98,7 @@ nvkm_ioctl_new(struct nvkm_client *client,
 	nvif_ioctl(parent, "new size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
 		nvif_ioctl(parent, "new vers %d handle %08x class %08x "
-				   "route %02x token %"PRIx64" object %016"PRIx64"\n",
+				   "route %02x token %llx object %016llx\n",
 			   args->v0.version, args->v0.handle, args->v0.oclass,
 			   args->v0.route, args->v0.token, args->v0.object);
 	} else
@@ -202,7 +202,7 @@ nvkm_ioctl_rd(struct nvkm_client *client,
 
 	nvif_ioctl(object, "rd size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(object, "rd vers %d size %d addr %016"PRIx64"\n",
+		nvif_ioctl(object, "rd vers %d size %d addr %016llx\n",
 			   args->v0.version, args->v0.size, args->v0.addr);
 		switch (args->v0.size) {
 		case 1:
@@ -238,7 +238,7 @@ nvkm_ioctl_wr(struct nvkm_client *client,
 	nvif_ioctl(object, "wr size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(object,
-			   "wr vers %d size %d addr %016"PRIx64" data %08x\n",
+			   "wr vers %d size %d addr %016llx data %08x\n",
 			   args->v0.version, args->v0.size, args->v0.addr,
 			   args->v0.data);
 	} else
@@ -267,43 +267,10 @@ nvkm_ioctl_map(struct nvkm_client *client,
 
 	nvif_ioctl(object, "map size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
-		bus_space_tag_t dummy __unused;
 		nvif_ioctl(object, "map vers %d\n", args->v0.version);
 		ret = nvkm_object_map(object, data, size, &type,
-				      &dummy,
 				      &args->v0.handle,
 				      &args->v0.length);
-		if (type == NVKM_OBJECT_MAP_IO)
-			args->v0.type = NVIF_IOCTL_MAP_V0_IO;
-		else
-			args->v0.type = NVIF_IOCTL_MAP_V0_VA;
-	}
-
-	return ret;
-}
-
-static int
-nvkm_ioctl_map_netbsd(struct nvkm_object *object, void *data, u32 size)
-{
-	union {
-		struct nvif_ioctl_map_netbsd_v0 v0;
-	} *args = data;
-	enum nvkm_object_map type;
-	int ret = -ENOSYS;
-
-	nvif_ioctl(object, "map size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
-		nvif_ioctl(object, "map vers %d\n", args->v0.version);
-		ret = nvkm_object_map(object, data, size, &type,
-				      &args->v0.tag,
-				      &args->v0.handle,
-				      &args->v0.length);
-		/*
-		 * XXX Not sure this makes sense...  Note: I/O means
-		 * memory-mapped I/O address, not I/O port.
-		 * Conceivably we could just invent a bus space tag for
-		 * VA rather than use the type here...
-		 */
 		if (type == NVKM_OBJECT_MAP_IO)
 			args->v0.type = NVIF_IOCTL_MAP_V0_IO;
 		else
@@ -433,7 +400,6 @@ nvkm_ioctl_v0[] = {
 	{ 0x00, nvkm_ioctl_ntfy_del },
 	{ 0x00, nvkm_ioctl_ntfy_get },
 	{ 0x00, nvkm_ioctl_ntfy_put },
-	{ 0x00, nvkm_ioctl_map_netbsd },
 };
 
 static int
@@ -479,7 +445,7 @@ nvkm_ioctl(struct nvkm_client *client, bool supervisor,
 
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
 		nvif_ioctl(object,
-			   "vers %d type %02x object %016"PRIx64" owner %02x\n",
+			   "vers %d type %02x object %016llx owner %02x\n",
 			   args->v0.version, args->v0.type, args->v0.object,
 			   args->v0.owner);
 		ret = nvkm_ioctl_path(client, args->v0.object, args->v0.type,

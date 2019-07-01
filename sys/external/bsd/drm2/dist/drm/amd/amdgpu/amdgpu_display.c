@@ -193,10 +193,12 @@ int amdgpu_display_crtc_page_flip_target(struct drm_crtc *crtc,
 		goto cleanup;
 	}
 
-	r = amdgpu_bo_pin(new_abo, amdgpu_display_supported_domains(adev));
-	if (unlikely(r != 0)) {
-		DRM_ERROR("failed to pin new abo buffer before flip\n");
-		goto unreserve;
+	if (!adev->enable_virtual_display) {
+		r = amdgpu_bo_pin(new_abo, amdgpu_display_supported_domains(adev));
+		if (unlikely(r != 0)) {
+			DRM_ERROR("failed to pin new abo buffer before flip\n");
+			goto unreserve;
+		}
 	}
 
 	r = amdgpu_ttm_alloc_gart(&new_abo->tbo);
@@ -216,7 +218,8 @@ int amdgpu_display_crtc_page_flip_target(struct drm_crtc *crtc,
 	amdgpu_bo_get_tiling_flags(new_abo, &tiling_flags);
 	amdgpu_bo_unreserve(new_abo);
 
-	work->base = amdgpu_bo_gpu_offset(new_abo);
+	if (!adev->enable_virtual_display)
+		work->base = amdgpu_bo_gpu_offset(new_abo);
 	work->target_vblank = target - (uint32_t)drm_crtc_vblank_count(crtc) +
 		amdgpu_get_vblank_counter_kms(dev, work->crtc_id);
 
@@ -247,9 +250,10 @@ pflip_cleanup:
 		goto cleanup;
 	}
 unpin:
-	if (unlikely(amdgpu_bo_unpin(new_abo) != 0)) {
-		DRM_ERROR("failed to unpin new abo in error path\n");
-	}
+	if (!adev->enable_virtual_display)
+		if (unlikely(amdgpu_bo_unpin(new_abo) != 0))
+			DRM_ERROR("failed to unpin new abo in error path\n");
+
 unreserve:
 	amdgpu_bo_unreserve(new_abo);
 
@@ -535,7 +539,7 @@ amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 
 	obj = drm_gem_object_lookup(file_priv, mode_cmd->handles[0]);
 	if (obj ==  NULL) {
-		dev_err(pci_dev_dev(dev->pdev), "No GEM object associated to handle 0x%08X, "
+		dev_err(&dev->pdev->dev, "No GEM object associated to handle 0x%08X, "
 			"can't create framebuffer\n", mode_cmd->handles[0]);
 		return ERR_PTR(-ENOENT);
 	}
@@ -631,6 +635,18 @@ int amdgpu_display_modeset_create_props(struct amdgpu_device *adev)
 					 "dither",
 					 amdgpu_dither_enum_list, sz);
 
+	if (amdgpu_device_has_dc_support(adev)) {
+		adev->mode_info.max_bpc_property =
+			drm_property_create_range(adev->ddev, 0, "max bpc", 8, 16);
+		if (!adev->mode_info.max_bpc_property)
+			return -ENOMEM;
+		adev->mode_info.abm_level_property =
+			drm_property_create_range(adev->ddev, 0,
+						"abm level", 0, 4);
+		if (!adev->mode_info.abm_level_property)
+			return -ENOMEM;
+	}
+
 	return 0;
 }
 
@@ -665,7 +681,7 @@ bool amdgpu_display_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct amdgpu_encoder *amdgpu_encoder;
 	struct drm_connector *connector;
-	struct amdgpu_connector *amdgpu_connector __unused;
+	struct amdgpu_connector *amdgpu_connector;
 	u32 src_v = 1, dst_v = 1;
 	u32 src_h = 1, dst_h = 1;
 
@@ -855,7 +871,12 @@ int amdgpu_display_get_crtc_scanoutpos(struct drm_device *dev,
 	/* Inside "upper part" of vblank area? Apply corrective offset if so: */
 	if (in_vbl && (*vpos >= vbl_start)) {
 		vtotal = mode->crtc_vtotal;
-		*vpos = *vpos - vtotal;
+
+		/* With variable refresh rate displays the vpos can exceed
+		 * the vtotal value. Clamp to 0 to return -vbl_end instead
+		 * of guessing the remaining number of lines until scanout.
+		 */
+		*vpos = (*vpos < vtotal) ? (*vpos - vtotal) : 0;
 	}
 
 	/* Correct for shifted end of vbl at vbl_end. */

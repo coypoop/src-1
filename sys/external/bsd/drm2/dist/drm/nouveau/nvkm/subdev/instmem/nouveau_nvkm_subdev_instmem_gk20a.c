@@ -53,10 +53,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <subdev/ltc.h>
 #include <subdev/mmu.h>
 
-#ifdef __NetBSD__
-#  define	__iomem	__nvkm_memory_iomem
-#endif
-
 struct gk20a_instobj {
 	struct nvkm_memory memory;
 	struct nvkm_mm_node *mn;
@@ -67,7 +63,6 @@ struct gk20a_instobj {
 };
 #define gk20a_instobj(p) container_of((p), struct gk20a_instobj, memory)
 
-#ifndef __NetBSD__
 /*
  * Used for objects allocated using the DMA API
  */
@@ -79,7 +74,6 @@ struct gk20a_instobj_dma {
 };
 #define gk20a_instobj_dma(p) \
 	container_of(gk20a_instobj(p), struct gk20a_instobj_dma, base)
-#endif
 
 /*
  * Used for objects flattened using the IOMMU API
@@ -92,17 +86,10 @@ struct gk20a_instobj_iommu {
 	/* how many clients are using vaddr? */
 	u32 use_cpt;
 
-#ifdef __NetBSD__
-	struct nvkm_mm_node r;
-	bus_dmamap_t map;
-	int nsegs;
-	bus_dma_segment_t segs[];
-#else
 	/* will point to the higher half of pages */
 	dma_addr_t *dma_addrs;
 	/* array of base.mem->size pages (+ dma_addr_ts) */
 	struct page *pages[];
-#endif
 };
 #define gk20a_instobj_iommu(p) \
 	container_of(gk20a_instobj(p), struct gk20a_instobj_iommu, base)
@@ -118,9 +105,6 @@ struct gk20a_instmem {
 	unsigned int vaddr_max;
 	struct list_head vaddr_lru;
 
-#ifdef __NetBSD__
-	bus_dma_tag_t dmat;
-#else
 	/* Only used if IOMMU if present */
 	struct mutex *mm_mutex;
 	struct nvkm_mm *mm;
@@ -130,7 +114,6 @@ struct gk20a_instmem {
 
 	/* Only used by DMA API */
 	unsigned long attrs;
-#endif
 };
 #define gk20a_instmem(p) container_of((p), struct gk20a_instmem, base)
 
@@ -168,12 +151,7 @@ gk20a_instobj_iommu_recycle_vaddr(struct gk20a_instobj_iommu *obj)
 	/* there should not be any user left... */
 	WARN_ON(obj->use_cpt);
 	list_del(&obj->vaddr_node);
-#ifdef __NetBSD__
-	bus_dmamem_unmap(obj->dmat, obj->base.vaddr,
-	    nvkm_memory_size(&obj->base.memory));
-#else
 	vunmap(obj->base.vaddr);
-#endif
 	obj->base.vaddr = NULL;
 	imem->vaddr_use -= nvkm_memory_size(&obj->base.memory);
 	nvkm_debug(&imem->base.subdev, "vaddr used: %x/%x\n", imem->vaddr_use,
@@ -197,7 +175,6 @@ gk20a_instmem_vaddr_gc(struct gk20a_instmem *imem, const u64 size)
 	}
 }
 
-#ifndef __NetBSD__
 static void __iomem *
 gk20a_instobj_acquire_dma(struct nvkm_memory *memory)
 {
@@ -209,7 +186,6 @@ gk20a_instobj_acquire_dma(struct nvkm_memory *memory)
 
 	return node->vaddr;
 }
-#endif
 
 static void __iomem *
 gk20a_instobj_acquire_iommu(struct nvkm_memory *memory)
@@ -235,22 +211,8 @@ gk20a_instobj_acquire_iommu(struct nvkm_memory *memory)
 	gk20a_instmem_vaddr_gc(imem, size);
 
 	/* map the pages */
-#ifdef __NetBSD__
-	/*
-	 * XXX This happens under a mutex -- not cool!  Could pass
-	 * BUS_DMA_NOWAIT, but I'm not sure that will work out better.
-	 *
-	 * Can we allocate some VA up front using uvm_km_alloc, carve
-	 * chunks out of it with vmem(9), and use bus_dmamem_mmap to
-	 * get a pmap cookie for pmap_kenter?
-	 */
-	if (bus_dmamem_map(imem->dmat, node->segs, node->nsegs, size,
-		&node->base.vaddr, BUS_DMA_WAITOK))
-		node->base.vaddr = NULL;
-#else
 	node->base.vaddr = vmap(node->pages, size >> PAGE_SHIFT, VM_MAP,
 				pgprot_writecombine(PAGE_KERNEL));
-#endif
 	if (!node->base.vaddr) {
 		nvkm_error(&imem->base.subdev, "cannot map instobj - "
 			   "this is not going to end well...\n");
@@ -268,7 +230,6 @@ out:
 	return node->base.vaddr;
 }
 
-#ifndef __NetBSD__
 static void
 gk20a_instobj_release_dma(struct nvkm_memory *memory)
 {
@@ -280,7 +241,6 @@ gk20a_instobj_release_dma(struct nvkm_memory *memory)
 	wmb();
 	nvkm_ltc_invalidate(ltc);
 }
-#endif
 
 static void
 gk20a_instobj_release_iommu(struct nvkm_memory *memory)
@@ -336,7 +296,6 @@ gk20a_instobj_map(struct nvkm_memory *memory, u64 offset, struct nvkm_vmm *vmm,
 	return nvkm_vmm_map(vmm, vma, argv, argc, &map);
 }
 
-#ifndef __NetBSD__
 static void *
 gk20a_instobj_dtor_dma(struct nvkm_memory *memory)
 {
@@ -353,7 +312,6 @@ gk20a_instobj_dtor_dma(struct nvkm_memory *memory)
 out:
 	return node;
 }
-#endif
 
 static void *
 gk20a_instobj_dtor_iommu(struct nvkm_memory *memory)
@@ -375,11 +333,6 @@ gk20a_instobj_dtor_iommu(struct nvkm_memory *memory)
 
 	mutex_unlock(&imem->lock);
 
-#ifdef __NetBSD__
-	bus_dmamap_unload(imem->dmat, node->map);
-	bus_dmamap_destroy(imem->dmat, node->map);
-	bus_dmamem_free(imem->dmat, node->segs, nvkm_memory_size(memory));
-#else
 	/* clear IOMMU bit to unmap pages */
 	r->offset &= ~BIT(imem->iommu_bit - imem->iommu_pgshift);
 
@@ -396,13 +349,11 @@ gk20a_instobj_dtor_iommu(struct nvkm_memory *memory)
 	mutex_lock(imem->mm_mutex);
 	nvkm_mm_free(imem->mm, &r);
 	mutex_unlock(imem->mm_mutex);
-#endif
 
 out:
 	return node;
 }
 
-#ifndef __NetBSD__
 static const struct nvkm_memory_func
 gk20a_instobj_func_dma = {
 	.dtor = gk20a_instobj_dtor_dma,
@@ -414,7 +365,6 @@ gk20a_instobj_func_dma = {
 	.release = gk20a_instobj_release_dma,
 	.map = gk20a_instobj_map,
 };
-#endif
 
 static const struct nvkm_memory_func
 gk20a_instobj_func_iommu = {
@@ -434,7 +384,6 @@ gk20a_instobj_ptrs = {
 	.wr32 = gk20a_instobj_wr32,
 };
 
-#ifndef __NetBSD__
 static int
 gk20a_instobj_ctor_dma(struct gk20a_instmem *imem, u32 npages, u32 align,
 		       struct gk20a_instobj **_node)
@@ -472,47 +421,18 @@ gk20a_instobj_ctor_dma(struct gk20a_instmem *imem, u32 npages, u32 align,
 	node->base.mn = &node->r;
 	return 0;
 }
-#endif
 
 static int
 gk20a_instobj_ctor_iommu(struct gk20a_instmem *imem, u32 npages, u32 align,
 			 struct gk20a_instobj **_node)
 {
 	struct gk20a_instobj_iommu *node;
-#ifndef __NetBSD__
 	struct nvkm_subdev *subdev = &imem->base.subdev;
 	struct device *dev = subdev->device->dev;
-#endif
 	struct nvkm_mm_node *r;
 	int ret;
-#ifndef __NetBSD__
 	int i;
-#endif
 
-#ifdef __NetBSD__
-	bus_size_t nbytes = (bus_size_t)npages << PAGE_SHIFT;
-	if (!(node = kzalloc(offsetof(struct gk20a_instobj_iommu, seg[npages]),
-		    GFP_KERNEL)))
-		return -ENOMEM;
-	*_node = &node->base;
-	ret = -bus_dmamem_alloc(imem->dmat, nbytes, align, 0, node->segs,
-	    npages, &node->nsegs, BUS_DMA_WAITOK);
-	if (ret)
-		return -ENOMEM;
-	/* Must be contiguous address range, so maxsegsz=nbytes.  */
-	ret = -bus_dmamap_create(imem->dmat, nbytes, node->nsegs, nbytes, 0,
-	    BUS_DMA_WAITOK, &node->map);
-	if (ret)
-		goto free_dmamem;
-	ret = -bus_dmamap_load_raw(imem->dmat, node->map, node->segs,
-	    node->nsegs, nbytes, BUS_DMA_WAITOK);
-	if (ret)
-		goto destroy_dmamap;
-	node->r.type = 1;	/* XXX cargo cult */
-	node->r.offset = node->map->dm_segs[0].ds_addr >> 12;
-	node->r.length = nbytes >> 12;
-	r = &node->r;
-#else
 	/*
 	 * despite their variable size, instmem allocations are small enough
 	 * (< 1 page) to be handled by kzalloc
@@ -574,17 +494,10 @@ gk20a_instobj_ctor_iommu(struct gk20a_instmem *imem, u32 npages, u32 align,
 
 	/* IOMMU bit tells that an address is to be resolved through the IOMMU */
 	r->offset |= BIT(imem->iommu_bit - imem->iommu_pgshift);
-#endif
 
 	node->base.mn = r;
 	return 0;
 
-#ifdef __NetBSD__
-destroy_dmamap:
-	bus_dmamap_destroy(imem->dmat, node->map);
-free_dmamem:
-	bus_dmamem_free(imem->dmat, node->segs, node->nsegs);
-#else
 release_area:
 	mutex_lock(imem->mm_mutex);
 	nvkm_mm_free(imem->mm, &r);
@@ -598,11 +511,9 @@ free_pages:
 				       DMA_BIDIRECTIONAL);
 		__free_page(node->pages[i]);
 	}
-#endif
 
 	return ret;
 }
-
 
 static int
 gk20a_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
@@ -613,28 +524,19 @@ gk20a_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 	struct gk20a_instobj *node = NULL;
 	int ret;
 
-#ifdef __NetBSD__
-	nvkm_debug(subdev, "%s (%s): size: %x align: %x\n", __func__,
-		   "bus_dma", size, align);
-#else
 	nvkm_debug(subdev, "%s (%s): size: %x align: %x\n", __func__,
 		   imem->domain ? "IOMMU" : "DMA", size, align);
-#endif
 
 	/* Round size and align to page bounds */
 	size = max(roundup(size, PAGE_SIZE), PAGE_SIZE);
 	align = max(roundup(align, PAGE_SIZE), PAGE_SIZE);
 
-#ifdef __NetBSD__
-	ret = gk20a_instobj_ctor_iommu(imem, size >> PAGE_SHIFT, align, &node);
-#else
 	if (imem->domain)
 		ret = gk20a_instobj_ctor_iommu(imem, size >> PAGE_SHIFT,
 					       align, &node);
 	else
 		ret = gk20a_instobj_ctor_dma(imem, size >> PAGE_SHIFT,
 					     align, &node);
-#endif
 	*pmemory = node ? &node->memory : NULL;
 	if (ret)
 		return ret;
@@ -674,9 +576,7 @@ int
 gk20a_instmem_new(struct nvkm_device *device, int index,
 		  struct nvkm_instmem **pimem)
 {
-#ifndef __NetBSD__
 	struct nvkm_device_tegra *tdev = device->func->tegra(device);
-#endif
 	struct gk20a_instmem *imem;
 
 	if (!(imem = kzalloc(sizeof(*imem), GFP_KERNEL)))
@@ -690,10 +590,6 @@ gk20a_instmem_new(struct nvkm_device *device, int index,
 	imem->vaddr_max = 0x100000;
 	INIT_LIST_HEAD(&imem->vaddr_lru);
 
-#ifdef __NetBSD__
-	imem->dmat = device->func->dma_tag(device);
-	nvkm_info(&imem->base.subdev, "using bus_dma\n");
-#else
 	if (tdev->iommu.domain) {
 		imem->mm_mutex = &tdev->iommu.mutex;
 		imem->mm = &tdev->iommu.mm;
@@ -709,7 +605,6 @@ gk20a_instmem_new(struct nvkm_device *device, int index,
 
 		nvkm_info(&imem->base.subdev, "using DMA API\n");
 	}
-#endif
 
 	return 0;
 }

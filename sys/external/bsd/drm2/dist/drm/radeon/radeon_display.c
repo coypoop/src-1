@@ -35,12 +35,12 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "atom.h"
 #include <asm/div64.h>
 
-#include <linux/err.h>
 #include <linux/pm_runtime.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_edid.h>
 
 #include <linux/gcd.h>
@@ -203,39 +203,15 @@ static void legacy_crtc_load_lut(struct drm_crtc *crtc)
 		dac2_cntl |= RADEON_DAC2_PALETTE_ACC_CTL;
 	WREG32(RADEON_DAC_CNTL2, dac2_cntl);
 
-	/*
-	 * At least the RV100 [vendor 1002 product 515e (rev. 0x02)]
-	 * has an old style palette
-	 */
-	if (rdev->family < CHIP_RV280) {
-#ifdef notyet
-		/*
-		 * Leave CLUT alone for now. The code below gives us a
-		 * nice 444 grayscale, but we are not in true color mode
-		 * anymore and I don't have any docs how to do this right.
-		 */
-		WREG8(RADEON_PALETTE_INDEX, 0);
-		for (i = 0; i < 256; i++) {
-#define R(x) (radeon_crtc->lut_r[i] >> 2)
-#define G(x) (radeon_crtc->lut_g[i] >> 2)
-#define B(x) (radeon_crtc->lut_b[i] >> 2)
-			WREG32(RADEON_PALETTE_DATA, ((R(i) << 16)
-				| (G(i) << 8) | B(i)) << 4);
-		}
-#else
-		printf("%s: unknown DAC, can't set lookup table\n", __func__);
-#endif
-	} else {
-		WREG8(RADEON_PALETTE_INDEX, 0);
-		r = crtc->gamma_store;
-		g = r + crtc->gamma_size;
-		b = g + crtc->gamma_size;
-		for (i = 0; i < 256; i++) {
-			WREG32(RADEON_PALETTE_30_DATA,
-			    ((*r++ & 0xffc0) << 14) |
-			    ((*g++ & 0xffc0) << 4) |
-			    (*b++ >> 6));
-		}
+	WREG8(RADEON_PALETTE_INDEX, 0);
+	r = crtc->gamma_store;
+	g = r + crtc->gamma_size;
+	b = g + crtc->gamma_size;
+	for (i = 0; i < 256; i++) {
+		WREG32(RADEON_PALETTE_30_DATA,
+		       ((*r++ & 0xffc0) << 14) |
+		       ((*g++ & 0xffc0) << 4) |
+		       (*b++ >> 6));
 	}
 }
 
@@ -951,12 +927,12 @@ static void avivo_get_fb_ref_div(unsigned nom, unsigned den, unsigned post_div,
 	ref_div_max = max(min(100 / post_div, ref_div_max), 1u);
 
 	/* get matching reference and feedback divider */
-	*ref_div = min(max(DIV_ROUND_CLOSEST(den, post_div), 1u), ref_div_max);
+	*ref_div = min(max(den/post_div, 1u), ref_div_max);
 	*fb_div = DIV_ROUND_CLOSEST(nom * *ref_div * post_div, den);
 
 	/* limit fb divider to its maximum */
 	if (*fb_div > fb_div_max) {
-		*ref_div = DIV_ROUND_CLOSEST(*ref_div * fb_div_max, *fb_div);
+		*ref_div = (*ref_div * fb_div_max)/(*fb_div);
 		*fb_div = fb_div_max;
 	}
 }
@@ -1119,7 +1095,7 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 /* pre-avivo */
 static inline uint32_t radeon_div(uint64_t n, uint32_t d)
 {
-	uint64_t mod __unused;
+	uint64_t mod;
 
 	n += d / 2;
 
@@ -1152,7 +1128,7 @@ void radeon_compute_pll_legacy(struct radeon_pll *pll,
 	uint32_t post_div;
 	u32 pll_out_min, pll_out_max;
 
-	DRM_DEBUG_KMS("PLL freq %"PRIu64" %u %u\n", freq, pll->min_ref_div, pll->max_ref_div);
+	DRM_DEBUG_KMS("PLL freq %llu %u %u\n", freq, pll->min_ref_div, pll->max_ref_div);
 	freq = freq * 1000;
 
 	if (pll->flags & RADEON_PLL_IS_LCD) {
@@ -1345,7 +1321,7 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 
 	obj = drm_gem_object_lookup(file_priv, mode_cmd->handles[0]);
 	if (obj ==  NULL) {
-		dev_err(dev->dev, "No GEM object associated to handle 0x%08X, "
+		dev_err(&dev->pdev->dev, "No GEM object associated to handle 0x%08X, "
 			"can't create framebuffer\n", mode_cmd->handles[0]);
 		return ERR_PTR(-ENOENT);
 	}
@@ -1676,7 +1652,7 @@ void radeon_modeset_fini(struct radeon_device *rdev)
 	if (rdev->mode_info.mode_config_initialized) {
 		drm_kms_helper_poll_fini(rdev->ddev);
 		radeon_hpd_fini(rdev);
-		drm_crtc_force_disable_all(rdev->ddev);
+		drm_helper_force_disable_all(rdev->ddev);
 		radeon_fbdev_fini(rdev);
 		radeon_afmt_fini(rdev);
 		drm_mode_config_cleanup(rdev->ddev);
@@ -1711,7 +1687,7 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct radeon_encoder *radeon_encoder;
 	struct drm_connector *connector;
-	struct radeon_connector *radeon_connector __unused;
+	struct radeon_connector *radeon_connector;
 	bool first = true;
 	u32 src_v = 1, dst_v = 1;
 	u32 src_h = 1, dst_h = 1;

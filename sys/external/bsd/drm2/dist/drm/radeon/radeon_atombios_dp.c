@@ -41,10 +41,10 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #define DP_LINK_CONFIGURATION_SIZE 9
 #define DP_DPCD_SIZE DP_RECEIVER_CAP_SIZE
 
-static const char *voltage_names[] = {
+static char *voltage_names[] = {
 	"0.4V", "0.6V", "0.8V", "1.2V"
 };
-static const char *pre_emph_names[] = {
+static char *pre_emph_names[] = {
 	"0dB", "3.5dB", "6dB", "9.5dB"
 };
 
