@@ -26,6 +26,30 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 #include "ior.h"
 
+<<<<<<< HEAD:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/engine/fifo/nouveau_nvkm_engine_fifo_gk208.c
+#include <nvif/class.h>
+
+void
+gk208_fifo_init_pbdma_timeout(struct gk104_fifo *fifo)
+{
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	int i;
+
+	for (i = 0; i < fifo->pbdma_nr; i++)
+		nvkm_wr32(device, 0x04012c + (i * 0x2000), 0x0000ffff);
+}
+
+static const struct gk104_fifo_func
+gk208_fifo = {
+	.init_pbdma_timeout = gk208_fifo_init_pbdma_timeout,
+	.fault.access = gk104_fifo_fault_access,
+	.fault.engine = gk104_fifo_fault_engine,
+	.fault.reason = gk104_fifo_fault_reason,
+	.fault.hubclient = gk104_fifo_fault_hubclient,
+	.fault.gpcclient = gk104_fifo_fault_gpcclient,
+	.runlist = &gk110_fifo_runlist,
+	.chan = {{0,0,KEPLER_CHANNEL_GPFIFO_A}, gk104_fifo_gpfifo_new },
+=======
 static const struct nvkm_ior_func
 mcp77_sor = {
 	.state = g94_sor_state,
@@ -44,6 +68,7 @@ mcp77_sor = {
 		.activesym = g94_sor_dp_activesym,
 		.watermark = g94_sor_dp_watermark,
 	},
+>>>>>>> linux-drm:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/engine/disp/sormcp77.c
 };
 
 int

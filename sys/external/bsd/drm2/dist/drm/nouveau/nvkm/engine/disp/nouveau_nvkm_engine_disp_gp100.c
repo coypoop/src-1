@@ -21,11 +21,33 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs <bskeggs@redhat.com>
+ * Authors: Ben Skeggs
  */
 #include <sys/cdefs.h>
 __KERNEL_RCSID(0, "$NetBSD$");
 
+<<<<<<< HEAD:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/engine/ce/nouveau_nvkm_engine_ce_gp102.c
+#include "priv.h"
+#include <core/enum.h>
+
+#include <nvif/class.h>
+
+static const struct nvkm_engine_func
+gp102_ce = {
+	.intr = gp100_ce_intr,
+	.sclass = {
+		{ -1, -1, PASCAL_DMA_COPY_B },
+		{ -1, -1, PASCAL_DMA_COPY_A },
+		{}
+	}
+};
+
+int
+gp102_ce_new(struct nvkm_device *device, int index,
+	     struct nvkm_engine **pengine)
+{
+	return nvkm_engine_new_(&gp102_ce, device, index, true, pengine);
+=======
 #include "nv50.h"
 #include "head.h"
 #include "ior.h"
@@ -48,4 +70,5 @@ int
 gp100_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
 {
 	return nv50_disp_new_(&gp100_disp, device, index, pdisp);
+>>>>>>> linux-drm:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/engine/disp/gp100.c
 }
