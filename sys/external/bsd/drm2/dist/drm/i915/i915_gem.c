@@ -46,7 +46,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <uvm/uvm_prot.h>
 
 #include <drm/bus_dma_hacks.h>
-#endif
 
 #include <drm/drm_vma_manager.h>
 #include <drm/drm_pci.h>

@@ -1094,9 +1094,7 @@ static void cnp_enable_backlight(const struct intel_crtc_state *crtc_state,
 	I915_WRITE(BXT_BLC_PWM_CTL(panel->backlight.controller),
 		   pwm_ctl | BXT_BLC_PWM_ENABLE);
 }
-#endif
 
-#ifndef __NetBSD__		/* XXX mipi */
 static void pwm_enable_backlight(const struct intel_crtc_state *crtc_state,
 				 const struct drm_connector_state *conn_state)
 {

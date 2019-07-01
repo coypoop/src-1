@@ -26,23 +26,10 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 #include "channv50.h"
 
-<<<<<<< HEAD:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/engine/disp/nouveau_nvkm_engine_disp_changv100.c
-const struct nvkm_event_func
-gv100_disp_chan_uevent = {
-	.ctor = nv50_disp_chan_uevent_ctor,
-};
-
-u64
-gv100_disp_chan_user(struct nv50_disp_chan *chan, u64 *psize)
-{
-	*psize = 0x1000;
-	return 0x690000 + ((chan->chid.user - 1) * 0x1000);
-=======
 int
 gf119_disp_curs_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		    struct nv50_disp *disp, struct nvkm_object **pobject)
 {
 	return nv50_disp_curs_new_(&gf119_disp_pioc_func, disp, 13, 13,
 				   oclass, argv, argc, pobject);
->>>>>>> linux-drm:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/engine/disp/cursgf119.c
 }

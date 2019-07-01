@@ -110,8 +110,6 @@ pmu_load(struct nv50_devinit *init, u8 type, bool post,
 	return pmu_exec(init, pmu.init_addr_pmu), 0;
 }
 
-<<<<<<< HEAD:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/subdev/devinit/nouveau_nvkm_subdev_devinit_gm200.c
-=======
 void
 gm200_devinit_preos(struct nv50_devinit *init, bool post)
 {
@@ -121,7 +119,6 @@ gm200_devinit_preos(struct nv50_devinit *init, bool post)
 	pmu_load(init, 0x01, post, NULL, NULL);
 }
 
->>>>>>> linux-drm:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/subdev/devinit/gm200.c
 int
 gm200_devinit_post(struct nvkm_devinit *base, bool post)
 {
@@ -139,10 +136,7 @@ gm200_devinit_post(struct nvkm_devinit *base, bool post)
 		return -EINVAL;
 	}
 
-<<<<<<< HEAD:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/subdev/devinit/nouveau_nvkm_subdev_devinit_gm200.c
-=======
 	/* Upload DEVINIT application from VBIOS onto PMU. */
->>>>>>> linux-drm:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/subdev/devinit/gm200.c
 	ret = pmu_load(init, 0x04, post, &exec, &args);
 	if (ret) {
 		nvkm_error(subdev, "VBIOS PMU/DEVINIT not found\n");

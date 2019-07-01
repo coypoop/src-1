@@ -1,11 +1,7 @@
 /*	$NetBSD$	*/
 
 /*
-<<<<<<< HEAD:sys/external/bsd/drm2/dist/drm/amd/powerplay/smumgr/vega10_smumgr.h
- * Copyright 2016 Advanced Micro Devices, Inc.
-=======
  * Copyright 2018 Advanced Micro Devices, Inc.
->>>>>>> linux-drm:sys/external/bsd/drm2/dist/drm/amd/amdgpu/df_v3_6.h
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,27 +25,6 @@
 #ifndef _VEGA10_SMUMANAGER_H_
 #define _VEGA10_SMUMANAGER_H_
 
-<<<<<<< HEAD:sys/external/bsd/drm2/dist/drm/amd/powerplay/smumgr/vega10_smumgr.h
-#define MAX_SMU_TABLE 5
-
-struct smu_table_entry {
-	uint32_t version;
-	uint32_t size;
-	uint32_t table_id;
-	uint64_t mc_addr;
-	void *table;
-	struct amdgpu_bo *handle;
-};
-
-struct smu_table_array {
-	struct smu_table_entry entry[MAX_SMU_TABLE];
-};
-
-struct vega10_smumgr {
-	struct smu_table_array            smu_tables;
-};
-
-=======
 #ifndef __DF_V3_6_H__
 #define __DF_V3_6_H__
 
@@ -65,7 +40,6 @@ enum DF_V3_6_MGCG {
 };
 
 extern const struct amdgpu_df_funcs df_v3_6_funcs;
->>>>>>> linux-drm:sys/external/bsd/drm2/dist/drm/amd/amdgpu/df_v3_6.h
 
 #endif
 

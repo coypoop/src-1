@@ -2277,9 +2277,7 @@ static inline unsigned int i915_sg_page_sizes(struct scatterlist *sg)
 
 	return page_sizes;
 }
-#endif
 
-#ifndef __NetBSD__
 static inline unsigned int i915_sg_segment_size(void)
 {
 	unsigned int size = swiotlb_max_segment();
@@ -2294,6 +2292,7 @@ static inline unsigned int i915_sg_segment_size(void)
 
 	return size;
 }
+#endif
 
 #define INTEL_INFO(dev_priv)	(&(dev_priv)->__info)
 #define RUNTIME_INFO(dev_priv)	(&(dev_priv)->__runtime)

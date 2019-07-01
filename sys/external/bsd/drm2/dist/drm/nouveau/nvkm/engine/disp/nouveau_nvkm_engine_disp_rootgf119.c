@@ -32,15 +32,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <nvif/class.h>
 
 static const struct nv50_disp_root_func
-<<<<<<< HEAD:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/engine/disp/nouveau_nvkm_engine_disp_rootgm200.c
-gm200_disp_root = {
-	.user = {
-		{{0,0,GK104_DISP_CURSOR             }, gf119_disp_curs_new },
-		{{0,0,GK104_DISP_OVERLAY            }, gf119_disp_oimm_new },
-		{{0,0,GK110_DISP_BASE_CHANNEL_DMA   }, gf119_disp_base_new },
-		{{0,0,GM200_DISP_CORE_CHANNEL_DMA   }, gk104_disp_core_new },
-		{{0,0,GK104_DISP_OVERLAY_CONTROL_DMA}, gk104_disp_ovly_new },
-=======
 gf119_disp_root = {
 	.user = {
 		{{0,0,GF110_DISP_CURSOR             }, gf119_disp_curs_new },
@@ -48,38 +39,22 @@ gf119_disp_root = {
 		{{0,0,GF110_DISP_BASE_CHANNEL_DMA   }, gf119_disp_base_new },
 		{{0,0,GF110_DISP_CORE_CHANNEL_DMA   }, gf119_disp_core_new },
 		{{0,0,GF110_DISP_OVERLAY_CONTROL_DMA}, gf119_disp_ovly_new },
->>>>>>> linux-drm:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/engine/disp/rootgf119.c
 		{}
 	},
 };
 
 static int
-<<<<<<< HEAD:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/engine/disp/nouveau_nvkm_engine_disp_rootgm200.c
-gm200_disp_root_new(struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
-		    void *data, u32 size, struct nvkm_object **pobject)
-{
-	return nv50_disp_root_new_(&gm200_disp_root, disp, oclass,
-=======
 gf119_disp_root_new(struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
 		    void *data, u32 size, struct nvkm_object **pobject)
 {
 	return nv50_disp_root_new_(&gf119_disp_root, disp, oclass,
->>>>>>> linux-drm:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/engine/disp/rootgf119.c
 				   data, size, pobject);
 }
 
 const struct nvkm_disp_oclass
-<<<<<<< HEAD:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/engine/disp/nouveau_nvkm_engine_disp_rootgm200.c
-gm200_disp_root_oclass = {
-	.base.oclass = GM200_DISP,
-	.base.minver = -1,
-	.base.maxver = -1,
-	.ctor = gm200_disp_root_new,
-=======
 gf119_disp_root_oclass = {
 	.base.oclass = GF110_DISP,
 	.base.minver = -1,
 	.base.maxver = -1,
 	.ctor = gf119_disp_root_new,
->>>>>>> linux-drm:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/engine/disp/rootgf119.c
 };

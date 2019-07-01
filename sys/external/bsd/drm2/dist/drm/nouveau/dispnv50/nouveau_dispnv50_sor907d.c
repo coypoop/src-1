@@ -20,28 +20,10 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
-<<<<<<< HEAD:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/engine/ce/nouveau_nvkm_engine_ce_gm200.c
- *
- * Authors: Ben Skeggs
-=======
->>>>>>> linux-drm:sys/external/bsd/drm2/dist/drm/nouveau/dispnv50/sor907d.c
  */
 #include <sys/cdefs.h>
 __KERNEL_RCSID(0, "$NetBSD$");
 
-<<<<<<< HEAD:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/engine/ce/nouveau_nvkm_engine_ce_gm200.c
-#include "priv.h"
-
-#include <nvif/class.h>
-
-static const struct nvkm_engine_func
-gm200_ce = {
-	.intr = gk104_ce_intr,
-	.sclass = {
-		{ -1, -1, MAXWELL_DMA_COPY_A },
-		{}
-	}
-=======
 #include "core.h"
 
 #include <nvif/class.h>
@@ -61,7 +43,6 @@ sor907d_ctrl(struct nv50_core *core, int or, u32 ctrl,
 const struct nv50_outp_func
 sor907d = {
 	.ctrl = sor907d_ctrl,
->>>>>>> linux-drm:sys/external/bsd/drm2/dist/drm/nouveau/dispnv50/sor907d.c
 };
 
 int

@@ -3252,7 +3252,6 @@ int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 	struct fb_info *fbi;
 #endif
 	u32 format;
->>>>>>> linux-drm
 
 	DRM_DEBUG_KMS("surface width(%d), height(%d) and bpp(%d)\n",
 		      sizes->surface_width, sizes->surface_height,

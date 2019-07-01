@@ -114,33 +114,6 @@ gm107_sor_dp_pattern(struct nvkm_ior *sor, int pattern)
 		nvkm_mask(device, 0x61c12c + soff, 0x0f0f0f0f, data);
 }
 
-<<<<<<< HEAD:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/subdev/pci/nouveau_nvkm_subdev_pci_g84.c
-int
-g84_pcie_init(struct nvkm_pci *pci)
-{
-	bool full_speed = g84_pcie_cur_speed(pci) == NVKM_PCIE_SPEED_5_0;
-	g84_pcie_set_cap_speed(pci, full_speed);
-	return 0;
-}
-
-static const struct nvkm_pci_func
-g84_pci_func = {
-	.init = g84_pci_init,
-	.rd32 = nv40_pci_rd32,
-	.wr08 = nv40_pci_wr08,
-	.wr32 = nv40_pci_wr32,
-	.msi_rearm = nv46_pci_msi_rearm,
-
-	.pcie.init = g84_pcie_init,
-	.pcie.set_link = g84_pcie_set_link,
-
-	.pcie.max_speed = g84_pcie_max_speed,
-	.pcie.cur_speed = g84_pcie_cur_speed,
-
-	.pcie.set_version = g84_pcie_set_version,
-	.pcie.version = g84_pcie_version,
-	.pcie.version_supported = g84_pcie_version_supported,
-=======
 static const struct nvkm_ior_func
 gm107_sor = {
 	.state = gf119_sor_state,
@@ -164,7 +137,6 @@ gm107_sor = {
 		.hpd = gf119_hda_hpd,
 		.eld = gf119_hda_eld,
 	},
->>>>>>> linux-drm:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/engine/disp/sorgm107.c
 };
 
 int

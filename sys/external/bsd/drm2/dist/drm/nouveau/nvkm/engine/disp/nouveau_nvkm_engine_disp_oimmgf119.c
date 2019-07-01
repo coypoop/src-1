@@ -24,21 +24,6 @@
 #include <sys/cdefs.h>
 __KERNEL_RCSID(0, "$NetBSD$");
 
-<<<<<<< HEAD:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/subdev/i2c/nouveau_nvkm_subdev_i2c_auxgf119.c
-#include "aux.h"
-
-static const struct nvkm_i2c_aux_func
-gf119_i2c_aux = {
-	.address_only = true,
-	.xfer = g94_i2c_aux_xfer,
-};
-
-int
-gf119_i2c_aux_new(struct nvkm_i2c_pad *pad, int index, u8 drive,
-		  struct nvkm_i2c_aux **paux)
-{
-	return g94_i2c_aux_new_(&gf119_i2c_aux, pad, index, drive, paux);
-=======
 #include "channv50.h"
 
 int
@@ -47,5 +32,4 @@ gf119_disp_oimm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 {
 	return nv50_disp_oimm_new_(&gf119_disp_pioc_func, disp, 9, 9,
 				   oclass, argv, argc, pobject);
->>>>>>> linux-drm:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/engine/disp/oimmgf119.c
 }

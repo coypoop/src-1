@@ -29,17 +29,9 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "channv50.h"
 
 int
-<<<<<<< HEAD:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/engine/disp/nouveau_nvkm_engine_disp_oimmgf119.c
-gf119_disp_oimm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nv50_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_oimm_new_(&gf119_disp_pioc_func, disp, 9, 9,
-				   oclass, argv, argc, pobject);
-=======
 gp102_disp_ovly_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		    struct nv50_disp *disp, struct nvkm_object **pobject)
 {
 	return nv50_disp_ovly_new_(&gp102_disp_dmac_func, &gk104_disp_ovly_mthd,
 				   disp, 5, oclass, argv, argc, pobject);
->>>>>>> linux-drm:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/engine/disp/ovlygp102.c
 }

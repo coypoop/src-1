@@ -367,7 +367,6 @@ static const struct fileops drm_syncobj_file_ops = {
 static const struct file_operations drm_syncobj_file_fops = {
 	.release = drm_syncobj_file_release,
 };
->>>>>>> linux-drm
 #endif
 
 /**

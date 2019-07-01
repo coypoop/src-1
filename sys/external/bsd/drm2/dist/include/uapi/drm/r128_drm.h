@@ -33,15 +33,12 @@
 #ifndef __R128_DRM_H__
 #define __R128_DRM_H__
 
-<<<<<<< HEAD:sys/external/bsd/drm/dist/shared-core/r128_drm.h
-=======
 #include "drm.h"
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
->>>>>>> linux-drm:sys/external/bsd/drm2/dist/include/uapi/drm/r128_drm.h
 /* WARNING: If you change any of these defines, make sure to change the
  * defines in the X server file (r128_sarea.h)
  */

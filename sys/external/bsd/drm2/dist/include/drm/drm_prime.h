@@ -96,10 +96,6 @@ void drm_gem_unmap_dma_buf(struct dma_buf_attachment *attach,
 			   enum dma_data_direction dir);
 void *drm_gem_dmabuf_vmap(struct dma_buf *dma_buf);
 void drm_gem_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr);
-<<<<<<< HEAD
-void *drm_gem_dmabuf_kmap(struct dma_buf *dma_buf, unsigned long page_num);
-void drm_gem_dmabuf_kunmap(struct dma_buf *dma_buf, unsigned long page_num,
-			   void *addr);
 #ifdef __NetBSD__
 int
 drm_gem_dmabuf_mmap(struct dma_buf *dma_buf, off_t *offp, size_t size,
@@ -107,9 +103,8 @@ drm_gem_dmabuf_mmap(struct dma_buf *dma_buf, off_t *offp, size_t size,
     int *maxprotp);
 #else
 int drm_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma);
-#endif
 
-int drm_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma);
+#endif
 
 #ifdef __NetBSD__
 struct sg_table *drm_prime_bus_dmamem_to_sg(bus_dma_tag_t,

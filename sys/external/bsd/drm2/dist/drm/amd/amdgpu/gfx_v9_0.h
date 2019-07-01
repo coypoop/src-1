@@ -23,17 +23,6 @@
  *
  */
 
-<<<<<<< HEAD:sys/external/bsd/drm2/dist/drm/nouveau/nvkm/engine/disp/nouveau_nvkm_engine_disp_ovlygp102.c
-#include "channv50.h"
-
-int
-gp102_disp_ovly_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nv50_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_ovly_new_(&gp102_disp_dmac_func, &gk104_disp_ovly_mthd,
-				   disp, 5, oclass, argv, argc, pobject);
-}
-=======
 #ifndef __GFX_V9_0_H__
 #define __GFX_V9_0_H__
 
@@ -45,4 +34,3 @@ uint64_t gfx_v9_0_get_gpu_clock_counter(struct amdgpu_device *adev);
 int gfx_v9_0_get_cu_info(struct amdgpu_device *adev, struct amdgpu_cu_info *cu_info);
 
 #endif
->>>>>>> linux-drm:sys/external/bsd/drm2/dist/drm/amd/amdgpu/gfx_v9_0.h
