@@ -879,6 +879,7 @@ out_unlock:
 }
 EXPORT_SYMBOL(drm_gem_prime_handle_to_fd);
 
+#ifndef __NetBSD__ /* currently unused */
 /**
  * drm_gem_prime_mmap - PRIME mmap function for GEM drivers
  * @obj: GEM object
@@ -924,6 +925,7 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL(drm_gem_prime_mmap);
+#endif
 
 /**
  * drm_gem_prime_import_dev - core implementation of the import callback
