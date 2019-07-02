@@ -34,6 +34,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <drm/drm_file.h>
 
 #include <linux/uaccess.h>
+#include <linux/list.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
