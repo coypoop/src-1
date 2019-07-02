@@ -516,7 +516,7 @@ static int drm_syncobj_export_sync_file(struct drm_file *file_private,
 		goto out;
 
 	/* Find the fence.  */
-	ret = drm_syncobj_find_fence(file_private, handle, &fence);
+	ret = drm_syncobj_find_fence(file_private, handle, 0, 0, &fence);
 	if (ret)
 		goto out;
 
@@ -703,7 +703,6 @@ static void syncobj_wait_fence_func(struct dma_fence *fence,
 		container_of(cb, struct syncobj_wait_entry, fence_cb);
 
 #ifdef __NetBSD__
-	KASSERT(spin_is_locked(&syncobj->lock));
 	mutex_enter(wait->lock);
 	cv_broadcast(wait->cv);
 	mutex_exit(wait->lock);
@@ -736,6 +735,7 @@ static signed long drm_syncobj_array_wait_timeout(struct drm_syncobj **syncobjs,
 {
 	struct syncobj_wait_entry *entries;
 	struct dma_fence *fence;
+	uint32_t signaled_count, i;
 #ifdef __NetBSD__
 	kmutex_t lock;
 	kcondvar_t cv;
@@ -837,21 +837,18 @@ static signed long drm_syncobj_array_wait_timeout(struct drm_syncobj **syncobjs,
 			goto done_waiting;
 		}
 #ifdef __NetBSD__
-		unsigned long ticks = ret;
-		unsigned starttime = hardclock_ticks;
+		unsigned long ticks = timeout;
 		mutex_enter(&lock);
-		ret = -cv_timedwait_sig(&cv, &lock, MIN(ticks, INT_MAX));
+		timeout = -cv_timedwait_sig(&cv, &lock, MIN(ticks, INT_MAX));
 		mutex_exit(&lock);
-		unsigned endtime = hardclock_ticks;
-		if (ret == -EINTR || ret == -ERESTART) {
-			ret = -ERESTARTSYS;
-		} else if (ret == -EWOULDBLOCK) {
-			if (endtime - starttime < ticks)
-				ret = ticks - (endtime - starttime);
-			else
-				ret = 0;
+		if (timeout == -EINTR || timeout == -ERESTART) {
+			timeout = -ERESTARTSYS;
+			goto done_waiting;
+		} else if (timeout == -EWOULDBLOCK) {
+			timeout = -ETIME;
+			goto done_waiting;
 		} else {
-			KASSERTMSG(ret == 0, "%ld", ret);
+			KASSERTMSG(timeout == 0, "%ld", timeout);
 		}
 #else
 		timeout = schedule_timeout(timeout);
