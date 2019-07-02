@@ -2261,7 +2261,7 @@ gf100_gr_init_zcull(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
-	const u8 tile_nr = ALIGN(gr->tpc_total, 32);
+	const u8 tile_nr = round_up(gr->tpc_total, 32);
 	u8 bank[GPC_MAX] = {}, gpc, i, j;
 	u32 data;
 

@@ -46,7 +46,7 @@ int qxl_mode_dumb_create(struct drm_file *file_priv,
 
 	pitch = args->width * ((args->bpp + 1) / 8);
 	args->size = pitch * args->height;
-	args->size = ALIGN(args->size, PAGE_SIZE);
+	args->size = round_up(args->size, PAGE_SIZE);
 
 	switch (args->bpp) {
 	case 16:

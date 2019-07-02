@@ -1976,7 +1976,7 @@ intel_fb_align_height(const struct drm_framebuffer *fb,
 {
 	unsigned int tile_height = intel_tile_height(fb, color_plane);
 
-	return ALIGN(height, tile_height);
+	return round_up(height, tile_height);
 }
 
 unsigned int intel_rotation_info_size(const struct intel_rotation_info *rot_info)
@@ -2399,7 +2399,7 @@ static int intel_fb_offset_to_xy(int *x, int *y,
 	}
 
 	height = drm_framebuffer_plane_height(fb->height, fb, color_plane);
-	height = ALIGN(height, intel_tile_height(fb, color_plane));
+	height = round_up(height, intel_tile_height(fb, color_plane));
 
 	/* Catch potential overflows early */
 	if (add_overflows_t(u32, mul_u32_u32(height, fb->pitches[color_plane]),

@@ -267,7 +267,7 @@ gf100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 
 	if (kindm[kind] != kind) {
 		u32 comp = (page->shift == 16 && !gm20x) ? 16 : 17;
-		u32 tags = ALIGN(nvkm_memory_size(memory), 1 << 17) >> comp;
+		u32 tags = round_up(nvkm_memory_size(memory), 1 << 17) >> comp;
 		if (aper != 0 || !(page->type & NVKM_VMM_PAGE_COMP)) {
 			VMM_DEBUG(vmm, "comp %d %02x", aper, page->type);
 			return -EINVAL;

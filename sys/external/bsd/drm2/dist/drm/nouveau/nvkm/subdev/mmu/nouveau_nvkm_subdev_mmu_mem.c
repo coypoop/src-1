@@ -194,7 +194,7 @@ nvkm_mem_new_host(struct nvkm_mmu *mmu, int type, u8 page, u64 size,
 	}
 
 	nvkm_memory_ctor(&nvkm_mem_dma, &mem->memory);
-	size = ALIGN(size, PAGE_SIZE) >> PAGE_SHIFT;
+	size = round_up(size, PAGE_SIZE) >> PAGE_SHIFT;
 
 	if (!(mem->mem = kvmalloc_array(size, sizeof(*mem->mem), GFP_KERNEL)))
 		return -ENOMEM;

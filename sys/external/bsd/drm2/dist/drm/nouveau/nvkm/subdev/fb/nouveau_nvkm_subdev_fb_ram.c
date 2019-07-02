@@ -115,7 +115,7 @@ nvkm_ram_get(struct nvkm_device *device, u8 heap, u8 type, u8 rpage, u64 size,
 	struct nvkm_vram *vram;
 	u8   page = max(rpage, (u8)NVKM_RAM_MM_SHIFT);
 	u32 align = (1 << page) >> NVKM_RAM_MM_SHIFT;
-	u32   max = ALIGN(size, 1 << page) >> NVKM_RAM_MM_SHIFT;
+	u32   max = round_up(size, 1 << page) >> NVKM_RAM_MM_SHIFT;
 	u32   min = contig ? max : align;
 	int ret;
 

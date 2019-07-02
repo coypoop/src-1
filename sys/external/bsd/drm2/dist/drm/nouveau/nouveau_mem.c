@@ -142,7 +142,7 @@ nouveau_mem_vram(struct ttm_mem_reg *reg, bool contig, u8 page)
 	struct nouveau_drm *drm = cli->drm;
 	struct nvif_mmu *mmu = &cli->mmu;
 	bool super = cli->base.super;
-	u64 size = ALIGN(reg->num_pages << PAGE_SHIFT, 1 << page);
+	u64 size = round_up(reg->num_pages << PAGE_SHIFT, 1 << page);
 	int ret;
 
 	mutex_lock(&drm->master.lock);

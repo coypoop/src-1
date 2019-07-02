@@ -101,7 +101,7 @@ msg_queue_pop(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
 	}
 
 	nvkm_falcon_read_dmem(priv->falcon, tail, size, 0, data);
-	queue->position += ALIGN(size, QUEUE_ALIGNMENT);
+	queue->position += round_up(size, QUEUE_ALIGNMENT);
 
 	return size;
 }
@@ -163,7 +163,7 @@ cmd_queue_has_room(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue
 	struct nvkm_falcon *falcon = priv->falcon;
 	u32 head, tail, free;
 
-	size = ALIGN(size, QUEUE_ALIGNMENT);
+	size = round_up(size, QUEUE_ALIGNMENT);
 
 	head = nvkm_falcon_rd32(falcon, queue->head_reg);
 	tail = nvkm_falcon_rd32(falcon, queue->tail_reg);
@@ -189,7 +189,7 @@ cmd_queue_push(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
 	       void *data, u32 size)
 {
 	nvkm_falcon_load_dmem(priv->falcon, data, queue->position, size, 0);
-	queue->position += ALIGN(size, QUEUE_ALIGNMENT);
+	queue->position += round_up(size, QUEUE_ALIGNMENT);
 
 	return 0;
 }
@@ -425,7 +425,7 @@ msgqueue_handle_init_msg(struct nvkm_msgqueue *priv,
 	nvkm_falcon_read_dmem(falcon, tail + HDR_SIZE, hdr->size - HDR_SIZE, 0,
 			      (hdr + 1));
 
-	tail += ALIGN(hdr->size, QUEUE_ALIGNMENT);
+	tail += round_up(hdr->size, QUEUE_ALIGNMENT);
 	nvkm_falcon_wr32(falcon, tail_reg, tail);
 
 	ret = priv->func->init_func->init_callback(priv, hdr);

@@ -54,25 +54,25 @@ ls_ucode_img_build(const struct firmware *bl, const struct firmware *code,
 	void *image;
 
 	desc->bootloader_start_offset = pos;
-	desc->bootloader_size = ALIGN(bl_desc->code_size, sizeof(u32));
+	desc->bootloader_size = round_up(bl_desc->code_size, sizeof(u32));
 	desc->bootloader_imem_offset = bl_desc->start_tag * 256;
 	desc->bootloader_entry_point = bl_desc->start_tag * 256;
 
-	pos = ALIGN(pos + desc->bootloader_size, BL_DESC_BLK_SIZE);
+	pos = round_up(pos + desc->bootloader_size, BL_DESC_BLK_SIZE);
 	desc->app_start_offset = pos;
-	desc->app_size = ALIGN(code->size, BL_DESC_BLK_SIZE) +
-			 ALIGN(data->size, BL_DESC_BLK_SIZE);
+	desc->app_size = round_up(code->size, BL_DESC_BLK_SIZE) +
+			 round_up(data->size, BL_DESC_BLK_SIZE);
 	desc->app_imem_offset = 0;
 	desc->app_imem_entry = 0;
 	desc->app_dmem_offset = 0;
 	desc->app_resident_code_offset = 0;
-	desc->app_resident_code_size = ALIGN(code->size, BL_DESC_BLK_SIZE);
+	desc->app_resident_code_size = round_up(code->size, BL_DESC_BLK_SIZE);
 
-	pos = ALIGN(pos + desc->app_resident_code_size, BL_DESC_BLK_SIZE);
+	pos = round_up(pos + desc->app_resident_code_size, BL_DESC_BLK_SIZE);
 	desc->app_resident_data_offset = pos - desc->app_start_offset;
-	desc->app_resident_data_size = ALIGN(data->size, BL_DESC_BLK_SIZE);
+	desc->app_resident_data_size = round_up(data->size, BL_DESC_BLK_SIZE);
 
-	desc->image_size = ALIGN(bl_desc->code_size, BL_DESC_BLK_SIZE) +
+	desc->image_size = round_up(bl_desc->code_size, BL_DESC_BLK_SIZE) +
 			   desc->app_size;
 
 	image = kzalloc(desc->image_size, GFP_KERNEL);

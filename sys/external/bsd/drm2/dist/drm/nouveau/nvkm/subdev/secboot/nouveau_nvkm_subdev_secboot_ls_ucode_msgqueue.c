@@ -64,7 +64,7 @@ acr_ls_ucode_load_msgqueue(const struct nvkm_subdev *subdev, const char *name,
 	if (ret)
 		return ret;
 	memcpy(&img->ucode_desc, desc->data, sizeof(img->ucode_desc));
-	img->ucode_size = ALIGN(img->ucode_desc.app_start_offset + img->ucode_desc.app_size, 256);
+	img->ucode_size = round_up(img->ucode_desc.app_start_offset + img->ucode_desc.app_size, 256);
 	nvkm_firmware_put(desc);
 
 	snprintf(f, sizeof(f), "%s/sig", name);

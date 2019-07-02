@@ -600,7 +600,7 @@ nouveau_dmem_init(struct nouveau_drm *drm)
 	INIT_LIST_HEAD(&drm->dmem->chunk_full);
 	INIT_LIST_HEAD(&drm->dmem->chunk_empty);
 
-	size = ALIGN(drm->client.device.info.ram_user, DMEM_CHUNK_SIZE);
+	size = round_up(drm->client.device.info.ram_user, DMEM_CHUNK_SIZE);
 
 	/* Initialize migration dma helpers before registering memory */
 	ret = nouveau_dmem_migrate_init(drm);

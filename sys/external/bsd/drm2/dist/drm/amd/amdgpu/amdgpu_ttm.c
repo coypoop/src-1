@@ -1778,7 +1778,7 @@ static int amdgpu_ttm_fw_reserve_vram_init(struct amdgpu_device *adev)
 		 * request position
 		 */
 		bo = adev->fw_vram_usage.reserved_bo;
-		offset = ALIGN(offset, PAGE_SIZE);
+		offset = round_up(offset, PAGE_SIZE);
 		for (i = 0; i < bo->placement.num_placement; ++i) {
 			bo->placements[i].fpfn = offset >> PAGE_SHIFT;
 			bo->placements[i].lpfn = (offset + size) >> PAGE_SHIFT;

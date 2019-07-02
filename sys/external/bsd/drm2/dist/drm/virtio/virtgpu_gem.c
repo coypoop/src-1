@@ -99,7 +99,7 @@ int virtio_gpu_mode_dumb_create(struct drm_file *file_priv,
 
 	pitch = args->width * 4;
 	args->size = pitch * args->height;
-	args->size = ALIGN(args->size, PAGE_SIZE);
+	args->size = round_up(args->size, PAGE_SIZE);
 
 	ret = virtio_gpu_gem_create(file_priv, dev, args->size, &gobj,
 				    &args->handle);

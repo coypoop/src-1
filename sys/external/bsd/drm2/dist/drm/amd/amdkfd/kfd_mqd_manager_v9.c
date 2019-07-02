@@ -90,8 +90,8 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 		if (!*mqd_mem_obj)
 			return -ENOMEM;
 		retval = amdgpu_amdkfd_alloc_gtt_mem(kfd->kgd,
-			ALIGN(q->ctl_stack_size, PAGE_SIZE) +
-				ALIGN(sizeof(struct v9_mqd), PAGE_SIZE),
+			round_up(q->ctl_stack_size, PAGE_SIZE) +
+				round_up(sizeof(struct v9_mqd), PAGE_SIZE),
 			&((*mqd_mem_obj)->gtt_mem),
 			&((*mqd_mem_obj)->gpu_addr),
 			(void *)&((*mqd_mem_obj)->cpu_ptr), true);

@@ -49,7 +49,7 @@ MODULE_FIRMWARE(FIRMWARE_G400);
 
 #define MGA_WARP_CODE_ALIGN		256	/* in bytes */
 
-#define WARP_UCODE_SIZE(size)		ALIGN(size, MGA_WARP_CODE_ALIGN)
+#define WARP_UCODE_SIZE(size)		round_up(size, MGA_WARP_CODE_ALIGN)
 
 int mga_warp_install_microcode(drm_mga_private_t *dev_priv)
 {

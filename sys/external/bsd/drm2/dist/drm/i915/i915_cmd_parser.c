@@ -1083,7 +1083,7 @@ static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 		if (!IS_ERR(src)) {
 			i915_memcpy_from_wc(dst,
 					    src + batch_start_offset,
-					    ALIGN(batch_len, 16));
+					    round_up(batch_len, 16));
 			i915_gem_object_unpin_map(src_obj);
 		}
 	}

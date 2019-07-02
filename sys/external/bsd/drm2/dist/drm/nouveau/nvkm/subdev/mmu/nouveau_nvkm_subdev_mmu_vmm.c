@@ -641,7 +641,7 @@ nvkm_vmm_ptes_sparse(struct nvkm_vmm *vmm, u64 addr, u64 size, bool ref)
 		if (i != m) {
 			/* Limited to alignment boundary of next page size. */
 			u64 next = 1ULL << page[i - 1].shift;
-			u64 part = ALIGN(addr, next) - addr;
+			u64 part = round_up(addr, next) - addr;
 			if (size - part >= next)
 				block = (part >> page[i].shift) << page[i].shift;
 			else
@@ -1363,8 +1363,8 @@ nvkm_vmm_get_locked(struct nvkm_vmm *vmm, bool getref, bool mapref, bool sparse,
 
 		addr = this->addr;
 		if (vmm->func->page_block && prev && prev->page != p)
-			addr = ALIGN(addr, vmm->func->page_block);
-		addr = ALIGN(addr, 1ULL << align);
+			addr = round_up(addr, vmm->func->page_block);
+		addr = round_up(addr, 1ULL << align);
 
 		tail = this->addr + this->size;
 		if (vmm->func->page_block && next && next->page != p)

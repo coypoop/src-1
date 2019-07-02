@@ -611,12 +611,12 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 	adev->firmware.ucode[AMDGPU_UCODE_ID_DMCU_ERAM].ucode_id = AMDGPU_UCODE_ID_DMCU_ERAM;
 	adev->firmware.ucode[AMDGPU_UCODE_ID_DMCU_ERAM].fw = adev->dm.fw_dmcu;
 	adev->firmware.fw_size +=
-		ALIGN(le32_to_cpu(hdr->header.ucode_size_bytes) - le32_to_cpu(hdr->intv_size_bytes), PAGE_SIZE);
+		round_up(le32_to_cpu(hdr->header.ucode_size_bytes) - le32_to_cpu(hdr->intv_size_bytes), PAGE_SIZE);
 
 	adev->firmware.ucode[AMDGPU_UCODE_ID_DMCU_INTV].ucode_id = AMDGPU_UCODE_ID_DMCU_INTV;
 	adev->firmware.ucode[AMDGPU_UCODE_ID_DMCU_INTV].fw = adev->dm.fw_dmcu;
 	adev->firmware.fw_size +=
-		ALIGN(le32_to_cpu(hdr->intv_size_bytes), PAGE_SIZE);
+		round_up(le32_to_cpu(hdr->intv_size_bytes), PAGE_SIZE);
 
 	adev->dm.dmcu_fw_version = le32_to_cpu(hdr->header.ucode_version);
 
@@ -2452,7 +2452,7 @@ static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 		plane_state->color_space = COLOR_SPACE_SRGB;
 
 	} else {
-		awidth = ALIGN(fb->width, 64);
+		awidth = round_up(fb->width, 64);
 		plane_state->address.type = PLN_ADDR_TYPE_VIDEO_PROGRESSIVE;
 		plane_state->plane_size.video.luma_size.x = 0;
 		plane_state->plane_size.video.luma_size.y = 0;
@@ -3711,7 +3711,7 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 			plane_state->address.grph.meta_addr.high_part =
 				upper_32_bits(dcc_address);
 		} else {
-			awidth = ALIGN(new_state->fb->width, 64);
+			awidth = round_up(new_state->fb->width, 64);
 			plane_state->address.type = PLN_ADDR_TYPE_VIDEO_PROGRESSIVE;
 			plane_state->address.video_progressive.luma_addr.low_part
 							= lower_32_bits(afb->address);

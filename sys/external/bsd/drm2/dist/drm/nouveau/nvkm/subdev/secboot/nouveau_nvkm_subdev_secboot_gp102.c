@@ -87,7 +87,7 @@ gp102_run_secure_scrub(struct nvkm_secboot *sb)
 			      lhdr->non_sec_code_size,
 			      lhdr->non_sec_code_off >> 8, 0, false);
 	nvkm_falcon_load_imem(falcon, scrub_data + lhdr->apps[0],
-			      ALIGN(lhdr->apps[0], 0x100),
+			      round_up(lhdr->apps[0], 0x100),
 			      lhdr->apps[1],
 			      lhdr->apps[0] >> 8, 0, true);
 	nvkm_falcon_load_dmem(falcon, scrub_data + lhdr->data_dma_base, 0,

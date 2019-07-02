@@ -231,7 +231,7 @@ head507d_core_calc(struct nv50_head *head, struct nv50_head_atom *asyh)
 	asyh->core.layout = 1;
 	asyh->core.blockh = 0;
 	asyh->core.blocks = 0;
-	asyh->core.pitch = ALIGN(asyh->core.w, 64) * 4;
+	asyh->core.pitch = round_up(asyh->core.w, 64) * 4;
 }
 
 static void

@@ -320,7 +320,7 @@ acr_r352_ls_img_fill_headers(struct acr_r352 *acr,
 		whdr->lazy_bootstrap = 1;
 
 	/* Align, save off, and include an LSB header size */
-	offset = ALIGN(offset, LSF_LSB_HEADER_ALIGN);
+	offset = round_up(offset, LSF_LSB_HEADER_ALIGN);
 	whdr->lsb_offset = offset;
 	offset += sizeof(*lhdr);
 
@@ -328,7 +328,7 @@ acr_r352_ls_img_fill_headers(struct acr_r352 *acr,
 	 * Align, save off, and include the original (static) ucode
 	 * image size
 	 */
-	offset = ALIGN(offset, LSF_UCODE_DATA_ALIGN);
+	offset = round_up(offset, LSF_UCODE_DATA_ALIGN);
 	_img->ucode_off = lhdr->ucode_off = offset;
 	offset += _img->ucode_size;
 
@@ -340,11 +340,11 @@ acr_r352_ls_img_fill_headers(struct acr_r352 *acr,
 	 * down) and the HS bin will then copy them to DMEM 0 for the
 	 * loader.
 	 */
-	lhdr->bl_code_size = ALIGN(desc->bootloader_size,
+	lhdr->bl_code_size = round_up(desc->bootloader_size,
 				   LSF_BL_CODE_SIZE_ALIGN);
-	lhdr->ucode_size = ALIGN(desc->app_resident_data_offset,
+	lhdr->ucode_size = round_up(desc->app_resident_data_offset,
 				 LSF_BL_CODE_SIZE_ALIGN) + lhdr->bl_code_size;
-	lhdr->data_size = ALIGN(desc->app_size, LSF_BL_CODE_SIZE_ALIGN) +
+	lhdr->data_size = round_up(desc->app_size, LSF_BL_CODE_SIZE_ALIGN) +
 				lhdr->bl_code_size - lhdr->ucode_size;
 	/*
 	 * Though the BL is located at 0th offset of the image, the VA
@@ -364,12 +364,12 @@ acr_r352_ls_img_fill_headers(struct acr_r352 *acr,
 		lhdr->flags |= LSF_FLAG_DMACTL_REQ_CTX;
 
 	/* Align and save off BL descriptor size */
-	lhdr->bl_data_size = ALIGN(func->bl_desc_size, LSF_BL_DATA_SIZE_ALIGN);
+	lhdr->bl_data_size = round_up(func->bl_desc_size, LSF_BL_DATA_SIZE_ALIGN);
 
 	/*
 	 * Align, save off, and include the additional BL data
 	 */
-	offset = ALIGN(offset, LSF_BL_DATA_ALIGN);
+	offset = round_up(offset, LSF_BL_DATA_ALIGN);
 	lhdr->bl_data_off = offset;
 	offset += lhdr->bl_data_size;
 
@@ -539,7 +539,7 @@ acr_r352_prepare_ls_blob(struct acr_r352 *acr, struct nvkm_secboot *sb)
 	 * required WPR size
 	 */
 	image_wpr_size = acr->func->ls_fill_headers(acr, &imgs);
-	image_wpr_size = ALIGN(image_wpr_size, WPR_ALIGNMENT);
+	image_wpr_size = round_up(image_wpr_size, WPR_ALIGNMENT);
 
 	ls_blob_size = image_wpr_size;
 
@@ -692,7 +692,7 @@ acr_r352_prepare_hs_blob(struct acr_r352 *acr, struct nvkm_secboot *sb,
 			  (sizeof(load_hdr->apps[0]) * 2 * load_hdr->num_apps));
 
 	/* Create ACR blob and copy HS data to it */
-	ret = nvkm_gpuobj_new(subdev->device, ALIGN(hsbin_hdr->data_size, 256),
+	ret = nvkm_gpuobj_new(subdev->device, round_up(hsbin_hdr->data_size, 256),
 			      0x1000, false, NULL, blob);
 	if (ret)
 		goto cleanup;
@@ -814,7 +814,7 @@ acr_r352_load(struct nvkm_acr *_acr, struct nvkm_falcon *falcon,
 	blob_data = bl + bl_hdr->data_offset;
 	hsbl_code = blob_data + hsbl_desc->code_off;
 	hsbl_data = blob_data + hsbl_desc->data_off;
-	code_size = ALIGN(hsbl_desc->code_size, 256);
+	code_size = round_up(hsbl_desc->code_size, 256);
 
 	/*
 	 * Copy HS bootloader data
