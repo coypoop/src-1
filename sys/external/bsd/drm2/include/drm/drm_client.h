@@ -28,7 +28,7 @@ drm_client_framebuffer_create(struct drm_client_dev *client,
 {
 	struct drm_client_buffer * buffer;
 
-	buffer = kmem_alloc(sizeof(*buffer), KM_NOSLEEP);
+	buffer = kmem_zalloc(sizeof(*buffer), KM_NOSLEEP);
 	buffer->fb = NULL;
 
 	return buffer;
