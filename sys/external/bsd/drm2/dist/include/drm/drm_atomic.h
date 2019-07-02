@@ -33,6 +33,8 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_util.h>
 
+#include <linux/completion.h>
+
 /**
  * struct drm_crtc_commit - track modeset commits on a CRTC
  *

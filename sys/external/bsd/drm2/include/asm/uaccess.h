@@ -32,6 +32,7 @@
 #ifndef _ASM_UACCESS_H_
 #define _ASM_UACCESS_H_
 
+#include <linux/compiler.h>
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <sys/systm.h>

@@ -34,6 +34,9 @@
 #include <drm/drm_wait_netbsd.h>
 #endif
 
+#include <linux/idr.h>
+#include <linux/kref.h>
+
 /*
  * Legacy DRI1 locking data structure. Only here instead of in drm_legacy.h for
  * include ordering reasons.
