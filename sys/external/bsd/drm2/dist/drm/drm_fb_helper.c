@@ -860,8 +860,8 @@ void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
 	spin_lock_init(&helper->dirty_lock);
 #endif
 	INIT_WORK(&helper->resume_work, drm_fb_helper_resume_worker);
-	INIT_WORK(&helper->dirty_work, drm_fb_helper_dirty_work);
 #ifndef __NetBSD__		/* XXX fb dirty */
+	INIT_WORK(&helper->dirty_work, drm_fb_helper_dirty_work);
 	helper->dirty_clip.x1 = helper->dirty_clip.y1 = ~0;
 	mutex_init(&helper->lock);
 #endif
