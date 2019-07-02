@@ -41,11 +41,6 @@ struct drm_fb_helper;
 #include <linux/kgdb.h>
 #include <linux/vgaarb.h>
 
-enum mode_set_atomic {
-	LEAVE_ATOMIC_MODE_SET,
-	ENTER_ATOMIC_MODE_SET,
-};
-
 #ifdef __NetBSD__
 #include <sys/device_if.h>
 #endif

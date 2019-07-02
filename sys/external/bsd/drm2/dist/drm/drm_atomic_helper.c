@@ -3144,7 +3144,6 @@ free:
 int drm_atomic_helper_disable_all(struct drm_device *dev,
 				  struct drm_modeset_acquire_ctx *ctx)
 {
-	struct drm_modeset_acquire_ctx ctx;
 	struct drm_atomic_state *state;
 	struct drm_connector_state *conn_state;
 	struct drm_connector *conn;
@@ -3626,7 +3625,6 @@ int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
 		blob = NULL;
 		goto fail;
 	}
-	drm_connector_list_iter_end(&conn_iter);
 
 	/* Prepare GAMMA_LUT with the legacy values. */
 	blob_data = blob->data;

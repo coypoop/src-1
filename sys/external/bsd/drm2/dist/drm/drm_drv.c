@@ -536,16 +536,6 @@ static void drm_fs_inode_free(struct inode *inode)
  * arbitrary offset, you must supply a &drm_driver.release callback and control
  * the finalization explicitly.
  *
- * Drivers that do not want to allocate their own device struct
- * embedding &struct drm_device can call drm_dev_alloc() instead. For drivers
- * that do embed &struct drm_device it must be placed first in the overall
- * structure, and the overall structure must be allocated using kmalloc(): The
- * drm core's release function unconditionally calls kfree() on the @dev pointer
- * when the final reference is released. To override this behaviour, and so
- * allow embedding of the drm_device inside the driver's device struct at an
- * arbitrary offset, you must supply a &drm_driver.release callback and control
- * the finalization explicitly.
- *
  * RETURNS:
  * 0 on success, or error code on failure.
  */
@@ -794,62 +784,6 @@ void drm_dev_put(struct drm_device *dev)
 		kref_put(&dev->ref, drm_dev_release);
 }
 EXPORT_SYMBOL(drm_dev_put);
-
-static int create_compat_control_link(struct drm_device *dev)
-{
-	struct drm_minor *minor;
-	char *name;
-	int ret;
-
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return 0;
-
-	minor = *drm_minor_get_slot(dev, DRM_MINOR_PRIMARY);
-	if (!minor)
-		return 0;
-
-	/*
-	 * Some existing userspace out there uses the existing of the controlD*
-	 * sysfs files to figure out whether it's a modeset driver. It only does
-	 * readdir, hence a symlink is sufficient (and the least confusing
-	 * option). Otherwise controlD* is entirely unused.
-	 *
-	 * Old controlD chardev have been allocated in the range
-	 * 64-127.
-	 */
-	name = kasprintf(GFP_KERNEL, "controlD%d", minor->index + 64);
-	if (!name)
-		return -ENOMEM;
-
-	ret = sysfs_create_link(minor->kdev->kobj.parent,
-				&minor->kdev->kobj,
-				name);
-
-	kfree(name);
-
-	return ret;
-}
-
-static void remove_compat_control_link(struct drm_device *dev)
-{
-	struct drm_minor *minor;
-	char *name;
-
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return;
-
-	minor = *drm_minor_get_slot(dev, DRM_MINOR_PRIMARY);
-	if (!minor)
-		return;
-
-	name = kasprintf(GFP_KERNEL, "controlD%d", minor->index + 64);
-	if (!name)
-		return;
-
-	sysfs_remove_link(minor->kdev->kobj.parent, name);
-
-	kfree(name);
-}
 
 static int create_compat_control_link(struct drm_device *dev)
 {

@@ -769,24 +769,6 @@ static void drm_fb_helper_modeset_release(struct drm_fb_helper *helper,
 	modeset->fb = NULL;
 }
 
-static void drm_fb_helper_modeset_release(struct drm_fb_helper *helper,
-					  struct drm_mode_set *modeset)
-{
-	int i;
-
-	for (i = 0; i < modeset->num_connectors; i++) {
-		drm_connector_put(modeset->connectors[i]);
-		modeset->connectors[i] = NULL;
-	}
-	modeset->num_connectors = 0;
-
-	drm_mode_destroy(helper->dev, modeset->mode);
-	modeset->mode = NULL;
-
-	/* FIXME should hold a ref? */
-	modeset->fb = NULL;
-}
-
 static void drm_fb_helper_crtc_free(struct drm_fb_helper *helper)
 {
 	int i;
@@ -1904,35 +1886,6 @@ static int pan_display_legacy(struct fb_var_screeninfo *var,
  * drm_fb_helper_pan_display - implementation for &fb_ops.fb_pan_display
  * @var: updated screen information
  * @info: fbdev registered by the helper
- */
-int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
-			      struct fb_info *info)
-{
-	struct drm_fb_helper *fb_helper = info->par;
-	struct drm_device *dev = fb_helper->dev;
-	int ret;
-
-	if (oops_in_progress)
-		return -EBUSY;
-
-	mutex_lock(&fb_helper->lock);
-	if (!drm_fb_helper_is_bound(fb_helper)) {
-		mutex_unlock(&fb_helper->lock);
-		return -EBUSY;
-	}
-
-	if (drm_drv_uses_atomic_modeset(dev))
-		ret = pan_display_atomic(var, info);
-	else
-		ret = pan_display_legacy(var, info);
-	mutex_unlock(&fb_helper->lock);
-
-	return ret;
-}
-
-/*
- * Allocates the backing storage and sets up the fbdev info structure through
- * the ->fb_probe callback.
  */
 int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 			      struct fb_info *info)
