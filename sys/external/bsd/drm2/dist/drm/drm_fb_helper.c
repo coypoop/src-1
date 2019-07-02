@@ -2798,13 +2798,13 @@ __drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper,
 #ifndef __NetBSD__		/* XXX fb info */
 	info = fb_helper->fbdev;
 	info->var.pixclock = 0;
-#endif
 	/* Shamelessly allow physical address leaking to userspace */
 #if IS_ENABLED(CONFIG_DRM_FBDEV_LEAK_PHYS_SMEM)
 	if (!drm_leak_fbdev_smem)
 #endif
 		/* don't leak any physical addresses to userspace */
 		info->flags |= FBINFO_HIDE_SMEM_START;
+#endif
 
 	/* Need to drop locks to avoid recursive deadlock in
 	 * register_framebuffer. This is ok because the only thing left to do is
