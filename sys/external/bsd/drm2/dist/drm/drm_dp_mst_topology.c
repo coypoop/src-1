@@ -3766,59 +3766,6 @@ drm_dp_mst_atomic_check_topology_state(struct drm_dp_mst_topology_mgr *mgr,
 	return 0;
 }
 
-static struct drm_private_state *
-drm_dp_mst_duplicate_state(struct drm_private_obj *obj)
-{
-	struct drm_dp_mst_topology_state *state;
-
-	state = kmemdup(obj->state, sizeof(*state), GFP_KERNEL);
-	if (!state)
-		return NULL;
-
-	__drm_atomic_helper_private_obj_duplicate_state(obj, &state->base);
-
-	return &state->base;
-}
-
-static void drm_dp_mst_destroy_state(struct drm_private_obj *obj,
-				     struct drm_private_state *state)
-{
-	struct drm_dp_mst_topology_state *mst_state =
-		to_dp_mst_topology_state(state);
-
-	kfree(mst_state);
-}
-
-static const struct drm_private_state_funcs mst_state_funcs = {
-	.atomic_duplicate_state = drm_dp_mst_duplicate_state,
-	.atomic_destroy_state = drm_dp_mst_destroy_state,
-};
-
-/**
- * drm_atomic_get_mst_topology_state: get MST topology state
- *
- * @state: global atomic state
- * @mgr: MST topology manager, also the private object in this case
- *
- * This function wraps drm_atomic_get_priv_obj_state() passing in the MST atomic
- * state vtable so that the private object state returned is that of a MST
- * topology object. Also, drm_atomic_get_private_obj_state() expects the caller
- * to care of the locking, so warn if don't hold the connection_mutex.
- *
- * RETURNS:
- *
- * The MST topology state or error pointer.
- */
-struct drm_dp_mst_topology_state *drm_atomic_get_mst_topology_state(struct drm_atomic_state *state,
-								    struct drm_dp_mst_topology_mgr *mgr)
-{
-	struct drm_device *dev = mgr->dev;
-
-	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
-	return to_dp_mst_topology_state(drm_atomic_get_private_obj_state(state, &mgr->base));
-}
-EXPORT_SYMBOL(drm_atomic_get_mst_topology_state);
-
 /**
  * drm_dp_mst_atomic_check - Check that the new state of an MST topology in an
  * atomic update is valid
