@@ -33,6 +33,10 @@
 #define _LINUX_MM_H_
 
 #include <sys/malloc.h>
+/* Avoid sys/malloc.h namespace pollution */
+#undef free
+#undef malloc
+#undef realloc
 
 #include <uvm/uvm_extern.h>
 
@@ -115,7 +119,7 @@ kvfree(void *ptr)
 {
 
 	if (ptr != NULL)
-		free(ptr, M_TEMP);
+		kern_free(ptr);
 }
 
 static inline void
@@ -124,5 +128,10 @@ set_page_dirty(struct page *page)
 
 	page->p_vmp.flags &= ~PG_CLEAN;
 }
+
+/* Avoid sys/malloc.h namespace pollution */
+#undef malloc
+#undef free
+#undef realloc
 
 #endif  /* _LINUX_MM_H_ */

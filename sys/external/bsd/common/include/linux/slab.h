@@ -34,6 +34,10 @@
 
 #include <sys/kmem.h>
 #include <sys/malloc.h>
+/* Avoid sys/malloc.h namespace pollution */
+#undef malloc
+#undef free
+#undef realloc
 
 #include <machine/limits.h>
 
@@ -93,13 +97,13 @@ linux_gfp_to_malloc(gfp_t gfp)
 static inline void *
 kmalloc(size_t size, gfp_t gfp)
 {
-	return malloc(size, M_TEMP, linux_gfp_to_malloc(gfp));
+	return kern_malloc(size, linux_gfp_to_malloc(gfp));
 }
 
 static inline void *
 kzalloc(size_t size, gfp_t gfp)
 {
-	return malloc(size, M_TEMP, (linux_gfp_to_malloc(gfp) | M_ZERO));
+	return kern_malloc(size, (linux_gfp_to_malloc(gfp) | M_ZERO));
 }
 
 static inline void *
@@ -107,7 +111,7 @@ kmalloc_array(size_t n, size_t size, gfp_t gfp)
 {
 	if ((size != 0) && (n > (SIZE_MAX / size)))
 		return NULL;
-	return malloc((n * size), M_TEMP, linux_gfp_to_malloc(gfp));
+	return kern_malloc((n * size), linux_gfp_to_malloc(gfp));
 }
 
 static inline void *
@@ -119,14 +123,14 @@ kcalloc(size_t n, size_t size, gfp_t gfp)
 static inline void *
 krealloc(void *ptr, size_t size, gfp_t gfp)
 {
-	return realloc(ptr, size, M_TEMP, linux_gfp_to_malloc(gfp));
+	return kern_realloc(ptr, size, linux_gfp_to_malloc(gfp));
 }
 
 static inline void
 kfree(void *ptr)
 {
 	if (ptr != NULL)
-		free(ptr, M_TEMP);
+		kern_free(ptr);
 }
 
 #define	SLAB_HWCACHE_ALIGN	__BIT(0)

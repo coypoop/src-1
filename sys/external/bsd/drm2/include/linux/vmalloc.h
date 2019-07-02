@@ -33,6 +33,10 @@
 #define _LINUX_VMALLOC_H_
 
 #include <sys/malloc.h>
+/* Avoid sys/malloc.h namespace pollution */
+#undef malloc
+#undef free
+#undef realloc
 
 #include <uvm/uvm_extern.h>
 
@@ -57,19 +61,19 @@ is_vmalloc_addr(void *addr)
 static inline void *
 vmalloc(unsigned long size)
 {
-	return malloc(size, M_TEMP, M_WAITOK);
+	return kern_malloc(size, M_WAITOK);
 }
 
 static inline void *
 vmalloc_user(unsigned long size)
 {
-	return malloc(size, M_TEMP, (M_WAITOK | M_ZERO));
+	return kern_malloc(size, (M_WAITOK | M_ZERO));
 }
 
 static inline void *
 vzalloc(unsigned long size)
 {
-	return malloc(size, M_TEMP, (M_WAITOK | M_ZERO));
+	return kern_malloc(size, (M_WAITOK | M_ZERO));
 }
 
 static inline void
@@ -77,7 +81,7 @@ vfree(void *ptr)
 {
 	if (ptr == NULL)
 		return;
-	return free(ptr, M_TEMP);
+	return kern_free(ptr);
 }
 
 #define	PAGE_KERNEL	UVM_PROT_RW
