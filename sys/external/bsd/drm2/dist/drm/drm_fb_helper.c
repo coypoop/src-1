@@ -3282,7 +3282,9 @@ static void drm_fbdev_client_unregister(struct drm_client_dev *client)
 
 	if (fb_helper->fbdev)
 		/* drm_fbdev_fb_destroy() takes care of cleanup */
-#ifndef __NetBSD__		/* XXX fb info */
+#ifdef __NetBSD__		/* XXX fb info */
+		;
+#else
 		drm_fb_helper_unregister_fbi(fb_helper);
 #endif
 	else
