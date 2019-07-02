@@ -926,8 +926,13 @@ void drm_mm_init(struct drm_mm *mm, u64 start, u64 size)
 	mm->color_adjust = NULL;
 
 	INIT_LIST_HEAD(&mm->hole_stack);
+#ifdef __NetBSD__
+	interval_tree_init(&mm->interval_tree);
+	interval_tree_init(&mm->holes_size);
+#else
 	mm->interval_tree = RB_ROOT_CACHED;
 	mm->holes_size = RB_ROOT_CACHED;
+#endif
 	mm->holes_addr = RB_ROOT;
 
 	/* Clever trick to avoid a special case in the free hole tracking. */

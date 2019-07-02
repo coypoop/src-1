@@ -1957,7 +1957,11 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	struct drm_mode_modeinfo u_mode;
 	struct drm_mode_modeinfo __user *mode_ptr;
 	uint32_t __user *encoder_ptr;
+#ifdef __NetBSD__
+	struct list_head export_list = LIST_HEAD_INIT(export_list);
+#else
 	LIST_HEAD(export_list);
+#endif
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
