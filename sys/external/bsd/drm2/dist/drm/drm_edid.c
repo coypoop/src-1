@@ -3804,93 +3804,6 @@ static void drm_parse_y420cmdb_bitmap(struct drm_connector *connector,
 static int
 add_cea_modes(struct drm_connector *connector, struct edid *edid)
 {
-	unsigned int oui;
-
-	if (cea_db_tag(db) != VENDOR_BLOCK)
-		return false;
-
-	if (cea_db_payload_len(db) < 7)
-		return false;
-
-	oui = db[3] << 16 | db[2] << 8 | db[1];
-
-	return oui == HDMI_FORUM_IEEE_OUI;
-}
-
-static bool cea_db_is_y420cmdb(const u8 *db)
-{
-	if (cea_db_tag(db) != USE_EXTENDED_TAG)
-		return false;
-
-	if (!cea_db_payload_len(db))
-		return false;
-
-	if (cea_db_extended_tag(db) != EXT_VIDEO_CAP_BLOCK_Y420CMDB)
-		return false;
-
-	return true;
-}
-
-static bool cea_db_is_y420vdb(const u8 *db)
-{
-	if (cea_db_tag(db) != USE_EXTENDED_TAG)
-		return false;
-
-	if (!cea_db_payload_len(db))
-		return false;
-
-	if (cea_db_extended_tag(db) != EXT_VIDEO_DATA_BLOCK_420)
-		return false;
-
-	return true;
-}
-
-#define for_each_cea_db(cea, i, start, end) \
-	for ((i) = (start); (i) < (end) && (i) + cea_db_payload_len(&(cea)[(i)]) < (end); (i) += cea_db_payload_len(&(cea)[(i)]) + 1)
-
-static void drm_parse_y420cmdb_bitmap(struct drm_connector *connector,
-				      const u8 *db)
-{
-	struct drm_display_info *info = &connector->display_info;
-	struct drm_hdmi_info *hdmi = &info->hdmi;
-	u8 map_len = cea_db_payload_len(db) - 1;
-	u8 count;
-	u64 map = 0;
-
-	if (map_len == 0) {
-		/* All CEA modes support ycbcr420 sampling also.*/
-		hdmi->y420_cmdb_map = U64_MAX;
-		info->color_formats |= DRM_COLOR_FORMAT_YCRCB420;
-		return;
-	}
-
-	/*
-	 * This map indicates which of the existing CEA block modes
-	 * from VDB can support YCBCR420 output too. So if bit=0 is
-	 * set, first mode from VDB can support YCBCR420 output too.
-	 * We will parse and keep this map, before parsing VDB itself
-	 * to avoid going through the same block again and again.
-	 *
-	 * Spec is not clear about max possible size of this block.
-	 * Clamping max bitmap block size at 8 bytes. Every byte can
-	 * address 8 CEA modes, in this way this map can address
-	 * 8*8 = first 64 SVDs.
-	 */
-	if (WARN_ON_ONCE(map_len > 8))
-		map_len = 8;
-
-	for (count = 0; count < map_len; count++)
-		map |= (u64)db[2 + count] << (8 * count);
-
-	if (map)
-		info->color_formats |= DRM_COLOR_FORMAT_YCRCB420;
-
-	hdmi->y420_cmdb_map = map;
-}
-
-static int
-add_cea_modes(struct drm_connector *connector, struct edid *edid)
-{
 	const u8 *cea = drm_find_cea_extension(edid);
 	const u8 *db, *hdmi = NULL, *video = NULL;
 	u8 dbl, hdmi_len, video_len = 0;
@@ -5003,7 +4916,6 @@ static bool is_hdmi2_sink(struct drm_connector *connector)
  * @frame: HDMI AVI infoframe
  * @connector: the connector
  * @mode: DRM display mode
- * @is_hdmi2_sink: Sink is HDMI 2.0 compliant
  *
  * Return: 0 on success or a negative error code on failure.
  */
