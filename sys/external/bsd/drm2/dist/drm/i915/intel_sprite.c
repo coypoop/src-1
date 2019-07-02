@@ -212,7 +212,7 @@ irq_disable:
 void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
-	enum pipe pipe = crtc->pipe;
+	enum i915_pipe pipe = crtc->pipe;
 	int scanline_end = intel_get_crtc_scanline(crtc);
 	u32 end_vbl_count = intel_crtc_get_vblank_counter(crtc);
 	ktime_t end_vbl_time = ktime_get();
@@ -347,7 +347,7 @@ skl_program_scaler(struct intel_plane *plane,
 		   const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	enum pipe pipe = plane->pipe;
+	enum i915_pipe pipe = plane->pipe;
 	int scaler_id = plane_state->scaler_id;
 	const struct intel_scaler *scaler =
 		&crtc_state->scaler_state.scalers[scaler_id];
@@ -409,7 +409,7 @@ icl_program_input_csc(struct intel_plane *plane,
 		      const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	enum pipe pipe = plane->pipe;
+	enum i915_pipe pipe = plane->pipe;
 	enum plane_id plane_id = plane->id;
 
 	static const u16 input_csc_matrix[][9] = {
@@ -502,7 +502,7 @@ skl_program_plane(struct intel_plane *plane,
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum plane_id plane_id = plane->id;
-	enum pipe pipe = plane->pipe;
+	enum i915_pipe pipe = plane->pipe;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	u32 surf_addr = plane_state->color_plane[color_plane].offset;
 	u32 stride = skl_plane_stride(plane_state, color_plane);
@@ -636,7 +636,7 @@ skl_disable_plane(struct intel_plane *plane,
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum plane_id plane_id = plane->id;
-	enum pipe pipe = plane->pipe;
+	enum i915_pipe pipe = plane->pipe;
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
@@ -651,7 +651,7 @@ skl_disable_plane(struct intel_plane *plane,
 
 static bool
 skl_plane_get_hw_state(struct intel_plane *plane,
-		       enum pipe *pipe)
+		       enum i915_pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
@@ -738,7 +738,7 @@ vlv_update_clrc(const struct intel_plane_state *plane_state)
 	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	const struct drm_framebuffer *fb = plane_state->base.fb;
-	enum pipe pipe = plane->pipe;
+	enum i915_pipe pipe = plane->pipe;
 	enum plane_id plane_id = plane->id;
 	int contrast, brightness, sh_scale, sh_sin, sh_cos;
 
@@ -849,7 +849,7 @@ vlv_update_plane(struct intel_plane *plane,
 		 const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	enum pipe pipe = plane->pipe;
+	enum i915_pipe pipe = plane->pipe;
 	enum plane_id plane_id = plane->id;
 	u32 sprsurf_offset = plane_state->color_plane[0].offset;
 	u32 linear_offset;
@@ -910,7 +910,7 @@ vlv_disable_plane(struct intel_plane *plane,
 		  const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	enum pipe pipe = plane->pipe;
+	enum i915_pipe pipe = plane->pipe;
 	enum plane_id plane_id = plane->id;
 	unsigned long irqflags;
 
@@ -924,7 +924,7 @@ vlv_disable_plane(struct intel_plane *plane,
 
 static bool
 vlv_plane_get_hw_state(struct intel_plane *plane,
-		       enum pipe *pipe)
+		       enum i915_pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
@@ -1024,7 +1024,7 @@ ivb_update_plane(struct intel_plane *plane,
 		 const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	enum pipe pipe = plane->pipe;
+	enum i915_pipe pipe = plane->pipe;
 	u32 sprsurf_offset = plane_state->color_plane[0].offset;
 	u32 linear_offset;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
@@ -1092,7 +1092,7 @@ ivb_disable_plane(struct intel_plane *plane,
 		  const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	enum pipe pipe = plane->pipe;
+	enum i915_pipe pipe = plane->pipe;
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
@@ -1108,7 +1108,7 @@ ivb_disable_plane(struct intel_plane *plane,
 
 static bool
 ivb_plane_get_hw_state(struct intel_plane *plane,
-		       enum pipe *pipe)
+		       enum i915_pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
@@ -1207,7 +1207,7 @@ g4x_update_plane(struct intel_plane *plane,
 		 const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	enum pipe pipe = plane->pipe;
+	enum i915_pipe pipe = plane->pipe;
 	u32 dvssurf_offset = plane_state->color_plane[0].offset;
 	u32 linear_offset;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
@@ -1268,7 +1268,7 @@ g4x_disable_plane(struct intel_plane *plane,
 		  const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	enum pipe pipe = plane->pipe;
+	enum i915_pipe pipe = plane->pipe;
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
@@ -1283,7 +1283,7 @@ g4x_disable_plane(struct intel_plane *plane,
 
 static bool
 g4x_plane_get_hw_state(struct intel_plane *plane,
-		       enum pipe *pipe)
+		       enum i915_pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
@@ -2036,7 +2036,7 @@ static const struct drm_plane_funcs skl_plane_funcs = {
 };
 
 static bool skl_plane_has_fbc(struct drm_i915_private *dev_priv,
-			      enum pipe pipe, enum plane_id plane_id)
+			      enum i915_pipe pipe, enum plane_id plane_id)
 {
 	if (!HAS_FBC(dev_priv))
 		return false;
@@ -2045,7 +2045,7 @@ static bool skl_plane_has_fbc(struct drm_i915_private *dev_priv,
 }
 
 static bool skl_plane_has_planar(struct drm_i915_private *dev_priv,
-				 enum pipe pipe, enum plane_id plane_id)
+				 enum i915_pipe pipe, enum plane_id plane_id)
 {
 	if (INTEL_GEN(dev_priv) >= 11)
 		return plane_id <= PLANE_SPRITE3;
@@ -2064,7 +2064,7 @@ static bool skl_plane_has_planar(struct drm_i915_private *dev_priv,
 }
 
 static bool skl_plane_has_ccs(struct drm_i915_private *dev_priv,
-			      enum pipe pipe, enum plane_id plane_id)
+			      enum i915_pipe pipe, enum plane_id plane_id)
 {
 	if (plane_id == PLANE_CURSOR)
 		return false;
@@ -2082,7 +2082,7 @@ static bool skl_plane_has_ccs(struct drm_i915_private *dev_priv,
 
 struct intel_plane *
 skl_universal_plane_create(struct drm_i915_private *dev_priv,
-			   enum pipe pipe, enum plane_id plane_id)
+			   enum i915_pipe pipe, enum plane_id plane_id)
 {
 	struct intel_plane *plane;
 	enum drm_plane_type plane_type;
@@ -2183,7 +2183,7 @@ fail:
 
 struct intel_plane *
 intel_sprite_plane_create(struct drm_i915_private *dev_priv,
-			  enum pipe pipe, int sprite)
+			  enum i915_pipe pipe, int sprite)
 {
 	struct intel_plane *plane;
 	const struct drm_plane_funcs *plane_funcs;

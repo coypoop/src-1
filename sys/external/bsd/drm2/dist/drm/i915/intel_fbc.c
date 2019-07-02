@@ -424,7 +424,7 @@ static bool multiple_pipes_ok(struct intel_crtc *crtc,
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
-	enum pipe pipe = crtc->pipe;
+	enum i915_pipe pipe = crtc->pipe;
 
 	/* Don't even bother tracking anything we don't need. */
 	if (!no_fbc_on_multiple_pipes(dev_priv))

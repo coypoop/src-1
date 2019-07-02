@@ -149,13 +149,13 @@ void intel_connector_attach_encoder(struct intel_connector *connector,
  */
 bool intel_connector_get_hw_state(struct intel_connector *connector)
 {
-	enum pipe pipe = 0;
+	enum i915_pipe pipe = 0;
 	struct intel_encoder *encoder = connector->encoder;
 
 	return encoder->get_hw_state(encoder, &pipe);
 }
 
-enum pipe intel_connector_get_pipe(struct intel_connector *connector)
+enum i915_pipe intel_connector_get_pipe(struct intel_connector *connector)
 {
 	struct drm_device *dev = connector->base.dev;
 

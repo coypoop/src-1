@@ -465,7 +465,7 @@ struct intel_fbc {
 		unsigned long flags;
 
 		struct {
-			enum pipe pipe;
+			enum i915_pipe pipe;
 			enum i9xx_plane_id i9xx_plane;
 			unsigned int fence_y_offset;
 		} crtc;
@@ -523,7 +523,7 @@ struct i915_psr {
 	bool sink_support;
 	bool prepared, enabled;
 	struct intel_dp *dp;
-	enum pipe pipe;
+	enum i915_pipe pipe;
 	bool active;
 	struct work_struct work;
 	unsigned busy_frontbuffer_bits;
@@ -2748,7 +2748,7 @@ static inline bool intel_vgpu_active(struct drm_i915_private *dev_priv)
 }
 
 u32 i915_pipestat_enable_mask(struct drm_i915_private *dev_priv,
-			      enum pipe pipe);
+			      enum i915_pipe pipe);
 void
 i915_enable_pipestat(struct drm_i915_private *dev_priv, enum i915_pipe pipe,
 		     u32 status_mask);
@@ -2776,16 +2776,16 @@ ilk_disable_display_irq(struct drm_i915_private *dev_priv, u32 bits)
 	ilk_update_display_irq(dev_priv, bits, 0);
 }
 void bdw_update_pipe_irq(struct drm_i915_private *dev_priv,
-			 enum pipe pipe,
+			 enum i915_pipe pipe,
 			 u32 interrupt_mask,
 			 u32 enabled_irq_mask);
 static inline void bdw_enable_pipe_irq(struct drm_i915_private *dev_priv,
-				       enum pipe pipe, u32 bits)
+				       enum i915_pipe pipe, u32 bits)
 {
 	bdw_update_pipe_irq(dev_priv, pipe, bits, bits);
 }
 static inline void bdw_disable_pipe_irq(struct drm_i915_private *dev_priv,
-					enum pipe pipe, u32 bits)
+					enum i915_pipe pipe, u32 bits)
 {
 	bdw_update_pipe_irq(dev_priv, pipe, bits, 0);
 }
@@ -3335,7 +3335,7 @@ int  intel_lpe_audio_init(struct drm_i915_private *dev_priv);
 void intel_lpe_audio_teardown(struct drm_i915_private *dev_priv);
 void intel_lpe_audio_irq_handler(struct drm_i915_private *dev_priv);
 void intel_lpe_audio_notify(struct drm_i915_private *dev_priv,
-			    enum pipe pipe, enum port port,
+			    enum i915_pipe pipe, enum port port,
 			    const void *eld, int ls_clock, bool dp_output);
 
 /* intel_i2c.c */
@@ -3469,8 +3469,8 @@ u32 vlv_ccu_read(struct drm_i915_private *dev_priv, u32 reg);
 void vlv_ccu_write(struct drm_i915_private *dev_priv, u32 reg, u32 val);
 u32 vlv_bunit_read(struct drm_i915_private *dev_priv, u32 reg);
 void vlv_bunit_write(struct drm_i915_private *dev_priv, u32 reg, u32 val);
-u32 vlv_dpio_read(struct drm_i915_private *dev_priv, enum pipe pipe, int reg);
-void vlv_dpio_write(struct drm_i915_private *dev_priv, enum pipe pipe, int reg, u32 val);
+u32 vlv_dpio_read(struct drm_i915_private *dev_priv, enum i915_pipe pipe, int reg);
+void vlv_dpio_write(struct drm_i915_private *dev_priv, enum i915_pipe pipe, int reg, u32 val);
 u32 intel_sbi_read(struct drm_i915_private *dev_priv, u16 reg,
 		   enum intel_sbi_destination destination);
 void intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value,

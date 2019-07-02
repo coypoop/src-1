@@ -732,7 +732,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 {
 	struct intel_device_info *info = mkwrite_device_info(dev_priv);
 	struct intel_runtime_info *runtime = RUNTIME_INFO(dev_priv);
-	enum pipe pipe;
+	enum i915_pipe pipe;
 
 	if (INTEL_GEN(dev_priv) >= 10) {
 		for_each_pipe(dev_priv, pipe)

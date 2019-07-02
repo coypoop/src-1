@@ -309,7 +309,7 @@ static void intel_mst_enable_dp(struct intel_encoder *encoder,
 }
 
 static bool intel_dp_mst_enc_get_hw_state(struct intel_encoder *encoder,
-				      enum pipe *pipe)
+				      enum i915_pipe *pipe)
 {
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
 	*pipe = intel_mst->pipe;
@@ -438,7 +438,7 @@ static const struct drm_encoder_funcs intel_dp_mst_enc_funcs = {
 static bool intel_dp_mst_get_hw_state(struct intel_connector *connector)
 {
 	if (connector->encoder && connector->base.state->crtc) {
-		enum pipe pipe;
+		enum i915_pipe pipe;
 		if (!connector->encoder->get_hw_state(connector->encoder, &pipe))
 			return false;
 		return true;
@@ -454,7 +454,7 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
-	enum pipe pipe;
+	enum i915_pipe pipe;
 	int ret;
 
 	intel_connector = intel_connector_alloc();
@@ -532,7 +532,7 @@ static const struct drm_dp_mst_topology_cbs mst_cbs = {
 };
 
 static struct intel_dp_mst_encoder *
-intel_dp_create_fake_mst_encoder(struct intel_digital_port *intel_dig_port, enum pipe pipe)
+intel_dp_create_fake_mst_encoder(struct intel_digital_port *intel_dig_port, enum i915_pipe pipe)
 {
 	struct intel_dp_mst_encoder *intel_mst;
 	struct intel_encoder *intel_encoder;
@@ -575,7 +575,7 @@ intel_dp_create_fake_mst_encoders(struct intel_digital_port *intel_dig_port)
 {
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
-	enum pipe pipe;
+	enum i915_pipe pipe;
 
 	for_each_pipe(dev_priv, pipe)
 		intel_dp->mst_encoders[pipe] = intel_dp_create_fake_mst_encoder(intel_dig_port, pipe);

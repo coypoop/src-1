@@ -321,7 +321,7 @@ void intel_lpe_audio_teardown(struct drm_i915_private *dev_priv)
  * Notify lpe audio driver of eld change.
  */
 void intel_lpe_audio_notify(struct drm_i915_private *dev_priv,
-			    enum pipe pipe, enum port port,
+			    enum i915_pipe pipe, enum port port,
 			    const void *eld, int ls_clock, bool dp_output)
 {
 	unsigned long irqflags;

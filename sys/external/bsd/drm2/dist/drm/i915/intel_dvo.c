@@ -139,7 +139,7 @@ static bool intel_dvo_connector_get_hw_state(struct intel_connector *connector)
 }
 
 static bool intel_dvo_get_hw_state(struct intel_encoder *encoder,
-				   enum pipe *pipe)
+				   enum i915_pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
@@ -436,7 +436,7 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 		struct i2c_adapter *i2c;
 		int gpio;
 		bool dvoinit;
-		enum pipe pipe;
+		enum i915_pipe pipe;
 		u32 dpll[I915_MAX_PIPES];
 		enum port port;
 

@@ -2231,7 +2231,7 @@ static int intel_compute_min_cdclk(struct drm_atomic_state *state)
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *crtc_state;
 	int min_cdclk, i;
-	enum pipe pipe;
+	enum i915_pipe pipe;
 
 	memcpy(intel_state->min_cdclk, dev_priv->min_cdclk,
 	       sizeof(intel_state->min_cdclk));
@@ -2267,7 +2267,7 @@ static u8 cnl_compute_min_voltage_level(struct intel_atomic_state *state)
 	struct intel_crtc_state *crtc_state;
 	u8 min_voltage_level;
 	int i;
-	enum pipe pipe;
+	enum i915_pipe pipe;
 
 	memcpy(state->min_voltage_level, dev_priv->min_voltage_level,
 	       sizeof(state->min_voltage_level));

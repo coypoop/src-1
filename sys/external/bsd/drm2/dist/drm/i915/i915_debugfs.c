@@ -3297,7 +3297,7 @@ static int i915_ddb_info(struct seq_file *m, void *unused)
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
-		enum pipe pipe = crtc->pipe;
+		enum i915_pipe pipe = crtc->pipe;
 		enum plane_id plane_id;
 
 		seq_printf(m, "Pipe %c\n", pipe_name(pipe));

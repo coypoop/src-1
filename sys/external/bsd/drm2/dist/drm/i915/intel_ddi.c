@@ -1761,7 +1761,7 @@ void intel_ddi_enable_transcoder_func(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct intel_encoder *encoder = intel_ddi_get_crtc_encoder(crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum pipe pipe = crtc->pipe;
+	enum i915_pipe pipe = crtc->pipe;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	enum port port = encoder->port;
 	u32 temp;
@@ -1868,7 +1868,7 @@ int intel_ddi_toggle_hdcp_signalling(struct intel_encoder *intel_encoder,
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	intel_wakeref_t wakeref;
-	enum pipe pipe = 0;
+	enum i915_pipe pipe = 0;
 	int ret = 0;
 	u32 tmp;
 
@@ -1902,7 +1902,7 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 	enum port port = encoder->port;
 	enum transcoder cpu_transcoder;
 	intel_wakeref_t wakeref;
-	enum pipe pipe = 0;
+	enum i915_pipe pipe = 0;
 	u32 tmp;
 	bool ret;
 
@@ -1962,7 +1962,7 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum port port = encoder->port;
 	intel_wakeref_t wakeref;
-	enum pipe p;
+	enum i915_pipe p;
 	u32 tmp;
 	u8 mst_pipe_mask;
 
@@ -2046,7 +2046,7 @@ out:
 }
 
 bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
-			    enum pipe *pipe)
+			    enum i915_pipe *pipe)
 {
 	u8 pipe_mask;
 	bool is_mst;
@@ -3207,7 +3207,7 @@ static void intel_ddi_pre_enable(struct intel_encoder *encoder,
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum pipe pipe = crtc->pipe;
+	enum i915_pipe pipe = crtc->pipe;
 
 	/*
 	 * When called from DP MST code:
@@ -4168,7 +4168,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	struct intel_encoder *intel_encoder;
 	struct drm_encoder *encoder;
 	bool init_hdmi, init_dp, init_lspcon = false;
-	enum pipe pipe;
+	enum i915_pipe pipe;
 
 	init_hdmi = port_info->supports_dvi || port_info->supports_hdmi;
 	init_dp = port_info->supports_dp;

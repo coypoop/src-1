@@ -324,7 +324,7 @@ hsw_dp_audio_config_update(struct intel_encoder *encoder,
 	struct i915_audio_component *acomp = dev_priv->audio_component;
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	enum port port = encoder->port;
-	enum pipe pipe = crtc->pipe;
+	enum i915_pipe pipe = crtc->pipe;
 	const struct dp_aud_n_m *nm;
 	int rate;
 	u32 tmp;
@@ -372,7 +372,7 @@ hsw_hdmi_audio_config_update(struct intel_encoder *encoder,
 	struct i915_audio_component *acomp = dev_priv->audio_component;
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	enum port port = encoder->port;
-	enum pipe pipe = crtc->pipe;
+	enum i915_pipe pipe = crtc->pipe;
 	int n, rate;
 	u32 tmp;
 
@@ -423,7 +423,7 @@ static void hsw_audio_codec_disable(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
-	enum pipe pipe = crtc->pipe;
+	enum i915_pipe pipe = crtc->pipe;
 	u32 tmp;
 
 	DRM_DEBUG_KMS("Disable audio codec on pipe %c\n", pipe_name(pipe));
@@ -456,7 +456,7 @@ static void hsw_audio_codec_enable(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_connector *connector = conn_state->connector;
-	enum pipe pipe = crtc->pipe;
+	enum i915_pipe pipe = crtc->pipe;
 	const u8 *eld = connector->eld;
 	u32 tmp;
 	int len, i;
@@ -506,7 +506,7 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
-	enum pipe pipe = crtc->pipe;
+	enum i915_pipe pipe = crtc->pipe;
 	enum port port = encoder->port;
 	u32 tmp, eldv;
 	i915_reg_t aud_config, aud_cntrl_st2;
@@ -553,7 +553,7 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_connector *connector = conn_state->connector;
-	enum pipe pipe = crtc->pipe;
+	enum i915_pipe pipe = crtc->pipe;
 	enum port port = encoder->port;
 	const u8 *eld = connector->eld;
 	u32 tmp, eldv;
@@ -645,7 +645,7 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->base.adjusted_mode;
 	enum port port = encoder->port;
-	enum pipe pipe = crtc->pipe;
+	enum i915_pipe pipe = crtc->pipe;
 
 	if (!connector->eld[0])
 		return;
@@ -701,7 +701,7 @@ void intel_audio_codec_disable(struct intel_encoder *encoder,
 	struct i915_audio_component *acomp = dev_priv->audio_component;
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
 	enum port port = encoder->port;
-	enum pipe pipe = crtc->pipe;
+	enum i915_pipe pipe = crtc->pipe;
 
 	if (dev_priv->display.audio_codec_disable)
 		dev_priv->display.audio_codec_disable(encoder,

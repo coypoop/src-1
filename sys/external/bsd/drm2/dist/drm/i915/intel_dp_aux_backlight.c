@@ -230,7 +230,7 @@ static void intel_dp_aux_disable_backlight(const struct drm_connector_state *old
 }
 
 static int intel_dp_aux_setup_backlight(struct intel_connector *connector,
-					enum pipe pipe)
+					enum i915_pipe pipe)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&connector->encoder->base);
 	struct intel_panel *panel = &connector->panel;

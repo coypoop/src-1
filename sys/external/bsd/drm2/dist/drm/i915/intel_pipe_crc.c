@@ -69,7 +69,7 @@ static int i8xx_pipe_crc_ctl_reg(enum intel_pipe_crc_source *source,
 }
 
 static int i9xx_pipe_crc_auto_source(struct drm_i915_private *dev_priv,
-				     enum pipe pipe,
+				     enum i915_pipe pipe,
 				     enum intel_pipe_crc_source *source)
 {
 	struct drm_device *dev = &dev_priv->drm;
@@ -123,7 +123,7 @@ static int i9xx_pipe_crc_auto_source(struct drm_i915_private *dev_priv,
 }
 
 static int vlv_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
-				enum pipe pipe,
+				enum i915_pipe pipe,
 				enum intel_pipe_crc_source *source,
 				u32 *val)
 {
@@ -193,7 +193,7 @@ static int vlv_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 }
 
 static int i9xx_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
-				 enum pipe pipe,
+				 enum i915_pipe pipe,
 				 enum intel_pipe_crc_source *source,
 				 u32 *val)
 {
@@ -268,7 +268,7 @@ static int i9xx_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 }
 
 static void vlv_undo_pipe_scramble_reset(struct drm_i915_private *dev_priv,
-					 enum pipe pipe)
+					 enum i915_pipe pipe)
 {
 	u32 tmp = I915_READ(PORT_DFT2_G4X);
 
@@ -292,7 +292,7 @@ static void vlv_undo_pipe_scramble_reset(struct drm_i915_private *dev_priv,
 }
 
 static void g4x_undo_pipe_scramble_reset(struct drm_i915_private *dev_priv,
-					 enum pipe pipe)
+					 enum i915_pipe pipe)
 {
 	u32 tmp = I915_READ(PORT_DFT2_G4X);
 
@@ -395,7 +395,7 @@ unlock:
 }
 
 static int ivb_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
-				enum pipe pipe,
+				enum i915_pipe pipe,
 				enum intel_pipe_crc_source *source,
 				u32 *val,
 				bool set_wa)
@@ -428,7 +428,7 @@ static int ivb_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 }
 
 static int get_new_crc_ctl_reg(struct drm_i915_private *dev_priv,
-			       enum pipe pipe,
+			       enum i915_pipe pipe,
 			       enum intel_pipe_crc_source *source, u32 *val,
 			       bool set_wa)
 {
@@ -464,7 +464,7 @@ display_crc_ctl_parse_source(const char *buf, enum intel_pipe_crc_source *s)
 
 void intel_display_crc_init(struct drm_i915_private *dev_priv)
 {
-	enum pipe pipe;
+	enum i915_pipe pipe;
 
 	for_each_pipe(dev_priv, pipe) {
 		struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];

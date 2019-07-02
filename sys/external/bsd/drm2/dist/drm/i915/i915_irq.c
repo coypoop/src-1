@@ -623,7 +623,7 @@ static void bdw_update_port_irq(struct drm_i915_private *dev_priv,
  * @enabled_irq_mask: mask of interrupt bits to enable
  */
 void bdw_update_pipe_irq(struct drm_i915_private *dev_priv,
-			 enum pipe pipe,
+			 enum i915_pipe pipe,
 			 u32 interrupt_mask,
 			 u32 enabled_irq_mask)
 {
@@ -673,7 +673,7 @@ void ibx_display_interrupt_update(struct drm_i915_private *dev_priv,
 }
 
 u32 i915_pipestat_enable_mask(struct drm_i915_private *dev_priv,
-			      enum pipe pipe)
+			      enum i915_pipe pipe)
 {
 	u32 status_mask = dev_priv->pipestat_irq_mask[pipe];
 	u32 enable_mask = status_mask << 16;
@@ -714,7 +714,7 @@ out:
 }
 
 void i915_enable_pipestat(struct drm_i915_private *dev_priv,
-			  enum pipe pipe, u32 status_mask)
+			  enum i915_pipe pipe, u32 status_mask)
 {
 	i915_reg_t reg = PIPESTAT(pipe);
 	u32 enable_mask;
@@ -737,7 +737,7 @@ void i915_enable_pipestat(struct drm_i915_private *dev_priv,
 }
 
 void i915_disable_pipestat(struct drm_i915_private *dev_priv,
-			   enum pipe pipe, u32 status_mask)
+			   enum i915_pipe pipe, u32 status_mask)
 {
 	i915_reg_t reg = PIPESTAT(pipe);
 	u32 enable_mask;
@@ -961,7 +961,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	const struct drm_display_mode *mode;
 	struct drm_vblank_crtc *vblank;
-	enum pipe pipe = crtc->pipe;
+	enum i915_pipe pipe = crtc->pipe;
 	int position, vtotal;
 
 	if (!crtc->active)
@@ -1717,7 +1717,7 @@ static void dp_aux_irq_handler(struct drm_i915_private *dev_priv)
 
 #if defined(CONFIG_DEBUG_FS)
 static void display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
-					 enum pipe pipe,
+					 enum i915_pipe pipe,
 					 u32 crc0, u32 crc1,
 					 u32 crc2, u32 crc3,
 					 u32 crc4)
@@ -1755,7 +1755,7 @@ static void display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 #else
 static inline void
 display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
-			     enum pipe pipe,
+			     enum i915_pipe pipe,
 			     u32 crc0, u32 crc1,
 			     u32 crc2, u32 crc3,
 			     u32 crc4) {}
@@ -1763,7 +1763,7 @@ display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 
 
 static void hsw_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
-				     enum pipe pipe)
+				     enum i915_pipe pipe)
 {
 	display_pipe_crc_irq_handler(dev_priv, pipe,
 				     I915_READ(PIPE_CRC_RES_1_IVB(pipe)),
@@ -1771,7 +1771,7 @@ static void hsw_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 }
 
 static void ivb_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
-				     enum pipe pipe)
+				     enum i915_pipe pipe)
 {
 	display_pipe_crc_irq_handler(dev_priv, pipe,
 				     I915_READ(PIPE_CRC_RES_1_IVB(pipe)),
@@ -1782,7 +1782,7 @@ static void ivb_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 }
 
 static void i9xx_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
-				      enum pipe pipe)
+				      enum i915_pipe pipe)
 {
 	u32 res1, res2;
 
@@ -1840,7 +1840,7 @@ static void gen9_guc_irq_handler(struct drm_i915_private *dev_priv, u32 gt_iir)
 
 static void i9xx_pipestat_irq_reset(struct drm_i915_private *dev_priv)
 {
-	enum pipe pipe;
+	enum i915_pipe pipe;
 
 	for_each_pipe(dev_priv, pipe) {
 		I915_WRITE(PIPESTAT(pipe),
@@ -1919,7 +1919,7 @@ static void i9xx_pipestat_irq_ack(struct drm_i915_private *dev_priv,
 static void i8xx_pipestat_irq_handler(struct drm_i915_private *dev_priv,
 				      u16 iir, u32 pipe_stats[I915_MAX_PIPES])
 {
-	enum pipe pipe;
+	enum i915_pipe pipe;
 
 	for_each_pipe(dev_priv, pipe) {
 		if (pipe_stats[pipe] & PIPE_VBLANK_INTERRUPT_STATUS)
@@ -1937,7 +1937,7 @@ static void i915_pipestat_irq_handler(struct drm_i915_private *dev_priv,
 				      u32 iir, u32 pipe_stats[I915_MAX_PIPES])
 {
 	bool blc_event = false;
-	enum pipe pipe;
+	enum i915_pipe pipe;
 
 	for_each_pipe(dev_priv, pipe) {
 		if (pipe_stats[pipe] & PIPE_VBLANK_INTERRUPT_STATUS)
@@ -1961,7 +1961,7 @@ static void i965_pipestat_irq_handler(struct drm_i915_private *dev_priv,
 				      u32 iir, u32 pipe_stats[I915_MAX_PIPES])
 {
 	bool blc_event = false;
-	enum pipe pipe;
+	enum i915_pipe pipe;
 
 	for_each_pipe(dev_priv, pipe) {
 		if (pipe_stats[pipe] & PIPE_START_VBLANK_INTERRUPT_STATUS)
@@ -1987,7 +1987,7 @@ static void i965_pipestat_irq_handler(struct drm_i915_private *dev_priv,
 static void valleyview_pipestat_irq_handler(struct drm_i915_private *dev_priv,
 					    u32 pipe_stats[I915_MAX_PIPES])
 {
-	enum pipe pipe;
+	enum i915_pipe pipe;
 
 	for_each_pipe(dev_priv, pipe) {
 		if (pipe_stats[pipe] & PIPE_START_VBLANK_INTERRUPT_STATUS)
@@ -2348,7 +2348,7 @@ static void ivb_err_int_handler(struct drm_i915_private *dev_priv)
 static void cpt_serr_int_handler(struct drm_i915_private *dev_priv)
 {
 	u32 serr_int = I915_READ(SERR_INT);
-	enum pipe pipe;
+	enum i915_pipe pipe;
 
 	if (serr_int & SERR_INT_POISON)
 		DRM_ERROR("PCH poison interrupt\n");
@@ -2488,7 +2488,7 @@ static void ilk_hpd_irq_handler(struct drm_i915_private *dev_priv,
 static void ilk_display_irq_handler(struct drm_i915_private *dev_priv,
 				    u32 de_iir)
 {
-	enum pipe pipe;
+	enum i915_pipe pipe;
 	u32 hotplug_trigger = de_iir & DE_DP_A_HOTPLUG;
 
 	if (hotplug_trigger)
@@ -2534,7 +2534,7 @@ static void ilk_display_irq_handler(struct drm_i915_private *dev_priv,
 static void ivb_display_irq_handler(struct drm_i915_private *dev_priv,
 				    u32 de_iir)
 {
-	enum pipe pipe;
+	enum i915_pipe pipe;
 	u32 hotplug_trigger = de_iir & DE_DP_A_HOTPLUG_IVB;
 
 	if (hotplug_trigger)
@@ -2703,7 +2703,7 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 {
 	irqreturn_t ret = IRQ_NONE;
 	u32 iir;
-	enum pipe pipe;
+	enum i915_pipe pipe;
 
 	if (master_ctl & GEN8_DE_MISC_IRQ) {
 		iir = I915_READ(GEN8_DE_MISC_IIR);
@@ -3298,7 +3298,7 @@ static void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	u32 pipestat_mask;
 	u32 enable_mask;
-	enum pipe pipe;
+	enum i915_pipe pipe;
 
 	pipestat_mask = PIPE_CRC_DONE_INTERRUPT_STATUS;
 
@@ -3440,7 +3440,7 @@ void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
 				     u8 pipe_mask)
 {
 	u32 extra_ier = GEN8_PIPE_VBLANK | GEN8_PIPE_FIFO_UNDERRUN;
-	enum pipe pipe;
+	enum i915_pipe pipe;
 
 	spin_lock_irq(&dev_priv->irq_lock);
 
@@ -3460,7 +3460,7 @@ void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
 void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
 				     u8 pipe_mask)
 {
-	enum pipe pipe;
+	enum i915_pipe pipe;
 
 	spin_lock_irq(&dev_priv->irq_lock);
 
@@ -3941,7 +3941,7 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	u32 de_port_masked = GEN8_AUX_CHANNEL_A;
 	u32 de_port_enables;
 	u32 de_misc_masked = GEN8_DE_EDP_PSR;
-	enum pipe pipe;
+	enum i915_pipe pipe;
 
 	if (INTEL_GEN(dev_priv) <= 10)
 		de_misc_masked |= GEN8_DE_MISC_GSE;

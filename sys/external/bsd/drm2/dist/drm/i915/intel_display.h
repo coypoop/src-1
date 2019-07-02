@@ -51,7 +51,7 @@ enum i915_gpio {
  * rest have consecutive values and match the enum values of transcoders
  * with a 1:1 transcoder -> pipe mapping.
  */
-enum pipe {
+enum i915_pipe {
 	INVALID_PIPE = -1,
 
 	PIPE_A = 0,

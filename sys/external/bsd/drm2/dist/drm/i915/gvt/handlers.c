@@ -579,7 +579,7 @@ static int fdi_auto_training_started(struct intel_vgpu *vgpu)
 }
 
 static int check_fdi_rx_train_status(struct intel_vgpu *vgpu,
-		enum pipe pipe, unsigned int train_pattern)
+		enum i915_pipe pipe, unsigned int train_pattern)
 {
 	i915_reg_t fdi_rx_imr, fdi_tx_ctl, fdi_rx_ctl;
 	unsigned int fdi_rx_check_bits, fdi_tx_check_bits;

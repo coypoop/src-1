@@ -295,7 +295,7 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 static void intel_overlay_flip_prepare(struct intel_overlay *overlay,
 				       struct i915_vma *vma)
 {
-	enum pipe pipe = overlay->crtc->pipe;
+	enum i915_pipe pipe = overlay->crtc->pipe;
 
 	WARN_ON(overlay->old_vma);
 
@@ -766,7 +766,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	struct overlay_registers __iomem *regs = overlay->regs;
 	struct drm_i915_private *dev_priv = overlay->i915;
 	u32 swidth, swidthsw, sheight, ostride;
-	enum pipe pipe = overlay->crtc->pipe;
+	enum i915_pipe pipe = overlay->crtc->pipe;
 	bool scale_changed = false;
 	struct i915_vma *vma;
 	int ret, tmp_width;

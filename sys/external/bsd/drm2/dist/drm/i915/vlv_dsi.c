@@ -991,7 +991,7 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder,
 }
 
 static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
-				   enum pipe *pipe)
+				   enum i915_pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
@@ -1388,7 +1388,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 			I915_WRITE(MIPI_CTRL(port), tmp |
 					READ_REQUEST_PRIORITY_HIGH);
 		} else if (IS_GEN9_LP(dev_priv)) {
-			enum pipe pipe = intel_crtc->pipe;
+			enum i915_pipe pipe = intel_crtc->pipe;
 
 			tmp = I915_READ(MIPI_CTRL(port));
 			tmp &= ~BXT_PIPE_SELECT_MASK;
@@ -1611,7 +1611,7 @@ vlv_dsi_get_hw_panel_orientation(struct intel_connector *connector)
 	struct intel_plane *plane;
 	struct intel_crtc *crtc;
 	intel_wakeref_t wakeref;
-	enum pipe pipe;
+	enum i915_pipe pipe;
 	u32 val;
 
 	if (!encoder->get_hw_state(encoder, &pipe))

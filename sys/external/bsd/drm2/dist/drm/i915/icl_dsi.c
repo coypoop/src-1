@@ -621,7 +621,7 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->base.crtc);
-	enum pipe pipe = intel_crtc->pipe;
+	enum i915_pipe pipe = intel_crtc->pipe;
 	u32 tmp;
 	enum port port;
 	enum transcoder dsi_trans;
@@ -1246,7 +1246,7 @@ static void gen11_dsi_get_power_domains(struct intel_encoder *encoder,
 }
 
 static bool gen11_dsi_get_hw_state(struct intel_encoder *encoder,
-				   enum pipe *pipe)
+				   enum i915_pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);

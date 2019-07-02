@@ -1331,7 +1331,7 @@ static void vlv_init_display_clock_gating(struct drm_i915_private *dev_priv)
 static void vlv_display_power_well_init(struct drm_i915_private *dev_priv)
 {
 	struct intel_encoder *encoder;
-	enum pipe pipe;
+	enum i915_pipe pipe;
 
 	/*
 	 * Enable the CRI clock source so we can get at the
@@ -1560,7 +1560,7 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
 	enum dpio_phy phy;
-	enum pipe pipe;
+	enum i915_pipe pipe;
 	u32 tmp;
 
 	WARN_ON_ONCE(power_well->desc->id != VLV_DISP_PW_DPIO_CMN_BC &&
@@ -1777,7 +1777,7 @@ void chv_phy_powergate_lanes(struct intel_encoder *encoder,
 static bool chv_pipe_power_well_enabled(struct drm_i915_private *dev_priv,
 					struct i915_power_well *power_well)
 {
-	enum pipe pipe = PIPE_A;
+	enum i915_pipe pipe = PIPE_A;
 	bool enabled;
 	u32 state, ctrl;
 
@@ -1807,7 +1807,7 @@ static void chv_set_pipe_power_well(struct drm_i915_private *dev_priv,
 				    struct i915_power_well *power_well,
 				    bool enable)
 {
-	enum pipe pipe = PIPE_A;
+	enum i915_pipe pipe = PIPE_A;
 	u32 state;
 	u32 ctrl;
 

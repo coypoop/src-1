@@ -264,7 +264,7 @@ static bool ibx_infoframe_enabled(struct intel_encoder *encoder,
 				  const struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	enum pipe pipe = to_intel_crtc(pipe_config->base.crtc)->pipe;
+	enum i915_pipe pipe = to_intel_crtc(pipe_config->base.crtc)->pipe;
 	i915_reg_t reg = TVIDEO_DIP_CTL(pipe);
 	u32 val = I915_READ(reg);
 
@@ -325,7 +325,7 @@ static bool cpt_infoframe_enabled(struct intel_encoder *encoder,
 				  const struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	enum pipe pipe = to_intel_crtc(pipe_config->base.crtc)->pipe;
+	enum i915_pipe pipe = to_intel_crtc(pipe_config->base.crtc)->pipe;
 	u32 val = I915_READ(TVIDEO_DIP_CTL(pipe));
 
 	if ((val & VIDEO_DIP_ENABLE) == 0)
@@ -379,7 +379,7 @@ static bool vlv_infoframe_enabled(struct intel_encoder *encoder,
 				  const struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	enum pipe pipe = to_intel_crtc(pipe_config->base.crtc)->pipe;
+	enum i915_pipe pipe = to_intel_crtc(pipe_config->base.crtc)->pipe;
 	u32 val = I915_READ(VLV_TVIDEO_DIP_CTL(pipe));
 
 	if ((val & VIDEO_DIP_ENABLE) == 0)
@@ -1187,7 +1187,7 @@ static void intel_hdmi_prepare(struct intel_encoder *encoder,
 }
 
 static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
-				    enum pipe *pipe)
+				    enum i915_pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
@@ -1350,7 +1350,7 @@ static void cpt_enable_hdmi(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->base.crtc);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
-	enum pipe pipe = crtc->pipe;
+	enum i915_pipe pipe = crtc->pipe;
 	u32 temp;
 
 	temp = I915_READ(intel_hdmi->hdmi_reg);
