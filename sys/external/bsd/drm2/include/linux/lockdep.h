@@ -38,6 +38,7 @@
 #define	__lockdep_used			__debugused
 #define	lock_acquire_shared_recursive(l, s, t, n, i)	__nothing
 #define	lock_release(l, n, i)		__nothing
+#define	lockdep_set_subclass(l, c)	__nothing
 #ifdef notyet
 #define	lockdep_assert_held(m)		KDASSERT(lockdep_is_held(m))
 #define	lockdep_assert_held_once(m)	KDASSERT(lockdep_is_held(m))
