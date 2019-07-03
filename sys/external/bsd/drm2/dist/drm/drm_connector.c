@@ -640,7 +640,8 @@ __drm_connector_put_safe(struct drm_connector *conn)
 
 	lockdep_assert_held(&config->connector_list_lock);
 
-	if (!refcount_dec_and_test(&conn->base.refcount.refcount))
+	/* XXX sketchy function pointer cast */
+	if (!kref_put(&conn->base.refcount, (void (*)(struct kref *))voidop))
 		return;
 
 	llist_add(&conn->free_node, &config->connector_free_list);
