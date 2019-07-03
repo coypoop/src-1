@@ -3080,7 +3080,7 @@ static inline bool i915_reset_backoff(struct i915_gpu_error *error)
 	return unlikely(test_bit(I915_RESET_BACKOFF, &error->flags));
 }
 
-static inline u32 i915_reset_count(struct i915_gpu_error *error)
+static inline bool i915_terminally_wedged(struct i915_gpu_error *error)
 {
 	return unlikely(test_bit(I915_WEDGED, &error->flags));
 }
