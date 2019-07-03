@@ -59,6 +59,7 @@
 #include <linux/reservation.h>
 #include <linux/shmem_fs.h>
 #include <linux/stackdepot.h>
+#include <linux/uuid.h>
 
 #include <drm/intel-gtt.h>
 #include <drm/drm_legacy.h> /* for struct drm_dma_handle */

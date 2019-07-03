@@ -28,6 +28,7 @@
 
 #include <linux/seqlock.h>
 #include <linux/idr.h>
+#include <linux/ktime.h>
 #include <linux/poll.h>
 #include <linux/timer.h>
 
