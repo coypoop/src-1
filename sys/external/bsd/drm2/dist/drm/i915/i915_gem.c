@@ -1549,8 +1549,14 @@ i915_gem_shmem_pwrite(struct drm_i915_gem_object *obj,
 	 * overcomplicate things and flush the entire patch.
 	 */
 	partial_cacheline_write = 0;
-	if (needs_clflush & CLFLUSH_BEFORE)
-		partial_cacheline_write = boot_cpu_data.x86_clflush_size - 1;
+	if (needs_clflush & CLFLUSH_BEFORE) {
+#ifdef __NetBSD__
+		size_t clflush_size = cpu_info_primary.ci_cflush_lsize;
+#else
+		size_t clflush_size = boot_cpu_data.x86_clflush_size;
+#endif
+		partial_cacheline_write = clflush_size - 1;
+	}
 
 	user_data = u64_to_user_ptr(args->data_ptr);
 	remain = args->size;
