@@ -1573,11 +1573,11 @@ static void connector_bad_edid(struct drm_connector *connector,
 		char prefix[20];
 
 		if (drm_edid_is_zero(block, EDID_LENGTH))
-			sprintf(prefix, "\t[%02x] ZERO ", i);
+			snprintf(prefix, sizeof prefix, "\t[%02x] ZERO ", i);
 		else if (!drm_edid_block_valid(block, i, false, NULL))
-			sprintf(prefix, "\t[%02x] BAD  ", i);
+			snprintf(prefix, sizeof prefix, "\t[%02x] BAD  ", i);
 		else
-			sprintf(prefix, "\t[%02x] GOOD ", i);
+			snprintf(prefix, sizeof prefix, "\t[%02x] GOOD ", i);
 
 		print_hex_dump(KERN_WARNING,
 			       prefix, DUMP_PREFIX_NONE, 16, 1,
