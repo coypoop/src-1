@@ -104,6 +104,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 #ifdef CONFIG_DRM_DEBUG_MM
 #include <linux/stackdepot.h>
+#include <linux/interval_tree.h>
 
 #define STACKDEPTH 32
 #define BUFSZ 4096

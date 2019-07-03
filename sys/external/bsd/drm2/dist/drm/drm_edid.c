@@ -33,6 +33,7 @@
 __KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/kernel.h>
+#include <linux/bitmap.h>
 #include <linux/slab.h>
 #include <linux/hdmi.h>
 #include <linux/i2c.h>
