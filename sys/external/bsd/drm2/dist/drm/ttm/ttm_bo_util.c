@@ -57,11 +57,6 @@ struct ttm_transfer_obj {
 	struct ttm_buffer_object *bo;
 };
 
-struct ttm_transfer_obj {
-	struct ttm_buffer_object base;
-	struct ttm_buffer_object *bo;
-};
-
 void ttm_bo_free_old_node(struct ttm_buffer_object *bo)
 {
 	ttm_bo_mem_put(bo, &bo->mem);
