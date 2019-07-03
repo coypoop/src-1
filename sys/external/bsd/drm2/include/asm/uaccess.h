@@ -38,11 +38,8 @@
 #include <sys/systm.h>
 
 /* XXX This is a cop-out.  */
-#define	VERIFY_READ	0
-#define	VERIFY_WRITE	1
 static inline bool
-access_ok(int verify_op __unused, const void *uaddr __unused,
-    size_t nbytes __unused)
+access_ok(const void *uaddr __unused, size_t nbytes __unused)
 {
 	return true;
 }
