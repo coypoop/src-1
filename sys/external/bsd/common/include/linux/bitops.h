@@ -102,11 +102,11 @@ sign_extend64(uint64_t x, unsigned n)
 	return (int64_t)(x << (63 - n)) >> (63 - n);
 }
 
-/*
- * XXX Don't define BITS_PER_LONG as sizeof(unsigned long)*CHAR_BIT
- * because that won't work in preprocessor conditionals, where it often
- * turns up.
- */
+#ifdef _LP64
+#define BITS_PER_LONG	8
+#else
+#define BITS_PER_LONG	4
+#endif
 
 #define	BITS_TO_LONGS(n)						\
 	roundup2((n), (sizeof(unsigned long) * CHAR_BIT))

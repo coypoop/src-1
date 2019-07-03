@@ -6,6 +6,7 @@
 
 #include <drm/drm_util.h>
 
+#include <asm/cpufeature.h>
 #include <linux/hashtable.h>
 #include <linux/irq_work.h>
 #include <linux/seqlock.h>
