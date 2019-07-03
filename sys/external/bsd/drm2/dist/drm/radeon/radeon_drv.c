@@ -308,16 +308,6 @@ module_param_named(mst, radeon_mst, int, 0444);
 
 MODULE_PARM_DESC(uvd, "uvd enable/disable uvd support (1 = enable, 0 = disable)");
 module_param_named(uvd, radeon_uvd, int, 0444);
-#ifdef __NetBSD__
-
-struct drm_driver *const radeon_drm_driver = &kms_driver;
-const struct pci_device_id *const radeon_device_ids = pciidlist;
-const size_t radeon_n_device_ids = __arraycount(pciidlist);
-
-/* XXX Kludge for the non-GEM GEM that radeon uses.  */
-static const struct uvm_pagerops radeon_gem_uvm_ops;
-
-#else
 
 MODULE_PARM_DESC(vce, "vce enable/disable vce support (1 = enable, 0 = disable)");
 module_param_named(vce, radeon_vce, int, 0444);
@@ -335,6 +325,19 @@ static struct pci_device_id pciidlist[] = {
 };
 
 MODULE_DEVICE_TABLE(pci, pciidlist);
+
+static struct drm_driver kms_driver;
+
+#ifdef __NetBSD__
+
+struct drm_driver *const radeon_drm_driver = &kms_driver;
+const struct pci_device_id *const radeon_device_ids = pciidlist;
+const size_t radeon_n_device_ids = __arraycount(pciidlist);
+
+/* XXX Kludge for the non-GEM GEM that radeon uses.  */
+static const struct uvm_pagerops radeon_gem_uvm_ops;
+
+#else
 
 bool radeon_device_is_virtual(void);
 
@@ -543,16 +546,6 @@ static const struct file_operations radeon_driver_kms_fops = {
 #endif
 };
 #endif	/* __NetBSD__ */
-
-static bool
-radeon_get_crtc_scanout_position(struct drm_device *dev, unsigned int pipe,
-				 bool in_vblank_irq, int *vpos, int *hpos,
-				 ktime_t *stime, ktime_t *etime,
-				 const struct drm_display_mode *mode)
-{
-	return radeon_get_crtc_scanoutpos(dev, pipe, 0, vpos, hpos,
-					  stime, etime, mode);
-}
 
 static bool
 radeon_get_crtc_scanout_position(struct drm_device *dev, unsigned int pipe,
