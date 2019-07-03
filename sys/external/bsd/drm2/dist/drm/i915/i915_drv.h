@@ -2649,8 +2649,6 @@ static inline unsigned int i915_sg_segment_size(void)
 
 #define HAS_DISPLAY(dev_priv) (INTEL_INFO(dev_priv)->num_pipes > 0)
 
-#include "i915_trace.h"
-
 static inline bool intel_vtd_active(void)
 {
 #ifdef CONFIG_INTEL_IOMMU
