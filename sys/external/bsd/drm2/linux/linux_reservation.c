@@ -245,7 +245,7 @@ reservation_object_get_list(struct reservation_object *robj)
  *	we don't have enough.  This is not guaranteed.
  */
 int
-reservation_object_reserve_shared(struct reservation_object *robj)
+reservation_object_reserve_shared(struct reservation_object *robj, uint32_t num_fences)
 {
 	struct reservation_object_list *list, *prealloc;
 	uint32_t n, nalloc;
@@ -258,18 +258,18 @@ reservation_object_reserve_shared(struct reservation_object *robj)
 	/* If there's an existing list, check it for space.  */
 	if (list) {
 		/* If there's too many already, give up.  */
-		if (list->shared_count == UINT32_MAX)
+		if (list->shared_count >= UINT32_MAX - num_fences)
 			return -ENOMEM;
 
 		/* Add one more. */
-		n = list->shared_count + 1;
+		n = list->shared_count + num_fences;
 
 		/* If there's enough for one more, we're done.  */
 		if (n <= list->shared_max)
 			return 0;
 	} else {
-		/* No list already.  We need space for 1.  */
-		n = 1;
+		/* No list already.  We need space for num_fences.  */
+		n = num_fences;
 	}
 
 	/* If not, maybe there's a preallocated list ready.  */

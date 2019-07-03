@@ -102,7 +102,7 @@ struct dma_fence *
 	reservation_object_get_excl(struct reservation_object *);
 struct reservation_object_list *
 	reservation_object_get_list(struct reservation_object *);
-int	reservation_object_reserve_shared(struct reservation_object *);
+int	reservation_object_reserve_shared(struct reservation_object *, uint32_t);
 void	reservation_object_add_excl_fence(struct reservation_object *,
 	    struct dma_fence *);
 void	reservation_object_add_shared_fence(struct reservation_object *,
