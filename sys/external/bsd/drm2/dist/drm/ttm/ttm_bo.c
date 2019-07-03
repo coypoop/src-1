@@ -65,7 +65,11 @@ static void ttm_bo_global_kobj_release(struct kobject *kobj);
 /**
  * ttm_global_mutex - protecting the global BO state
  */
+#ifdef __NetBSD__
+struct mutex ttm_global_mutex;
+#else
 DEFINE_MUTEX(ttm_global_mutex);
+#endif
 unsigned ttm_bo_glob_use_count;
 struct ttm_bo_global ttm_bo_glob;
 
@@ -103,8 +107,8 @@ static void ttm_mem_type_debug(struct ttm_bo_device *bdev, struct drm_printer *p
 	drm_printf(p, "    has_type: %d\n", man->has_type);
 	drm_printf(p, "    use_type: %d\n", man->use_type);
 	drm_printf(p, "    flags: 0x%08X\n", man->flags);
-	drm_printf(p, "    gpu_offset: 0x%08llX\n", man->gpu_offset);
-	drm_printf(p, "    size: %llu\n", man->size);
+	drm_printf(p, "    gpu_offset: 0x%08"PRIx64"\n", man->gpu_offset);
+	drm_printf(p, "    size: %"PRIu64"\n", man->size);
 	drm_printf(p, "    available_caching: 0x%08X\n", man->available_caching);
 	drm_printf(p, "    default_caching: 0x%08X\n", man->default_caching);
 	if (mem_type != TTM_PL_SYSTEM)
