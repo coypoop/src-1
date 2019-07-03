@@ -1100,9 +1100,14 @@ static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 		 * We don't care about copying too much here as we only
 		 * validate up to the end of the batch.
 		 */
-		if (dst_needs_clflush & CLFLUSH_BEFORE)
-			batch_len = roundup(batch_len,
-					    boot_cpu_data.x86_clflush_size);
+		if (dst_needs_clflush & CLFLUSH_BEFORE) {
+#ifdef __NetBSD__
+			size_t clflush_size = cpu_info_primary.ci_cflush_lsize;
+#else
+			size_t clflush_size = boot_cpu_data.x86_clflush_size;
+#endif
+			batch_len = roundup(batch_len, clflush_size);
+		}
 
 		ptr = dst;
 		for (n = batch_start_offset >> PAGE_SHIFT; batch_len; n++) {
