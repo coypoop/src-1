@@ -685,11 +685,11 @@ struct drm_driver {
 	/** @patchlevel: driver patch level */
 	int patchlevel;
 	/** @name: driver name */
-	char *name;
+	const char *name;
 	/** @desc: driver description */
-	char *desc;
+	const char *desc;
 	/** @date: driver date */
-	char *date;
+	const char *date;
 
 	/**
 	 * @driver_features:

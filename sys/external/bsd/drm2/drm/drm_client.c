@@ -37,7 +37,7 @@ drm_client_dev_unregister(struct drm_device *d)
 
 int
 drm_client_init(struct drm_device *dev, struct drm_client_dev *client,
-    const char *owner, struct drm_client_funcs *funcs)
+    const char *owner, const struct drm_client_funcs *funcs)
 {
 #ifdef notyet
 	client = kmem_zalloc(sizeof(*client), KM_NOSLEEP);

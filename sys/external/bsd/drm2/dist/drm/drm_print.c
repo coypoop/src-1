@@ -75,7 +75,7 @@ void __drm_puts_coredump(struct drm_printer *p, const char *str)
 
 		len = min_t(ssize_t, strlen(str), iterator->remain);
 
-		memcpy(iterator->data + pos, str, len);
+		memcpy((char *)iterator->data + pos, str, len);
 
 		iterator->offset += len;
 		iterator->remain -= len;
