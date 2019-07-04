@@ -575,6 +575,7 @@ int drm_gem_create_mmap_offset(struct drm_gem_object *obj)
 }
 EXPORT_SYMBOL(drm_gem_create_mmap_offset);
 
+#ifndef __NetBSD__
 /*
  * Move pages to appropriate lru and release the pagevec, decrementing the
  * ref count of those pages.
@@ -585,6 +586,7 @@ static void drm_gem_check_release_pagevec(struct pagevec *pvec)
 	__pagevec_release(pvec);
 	cond_resched();
 }
+#endif
 
 /**
  * drm_gem_get_pages - helper to allocate backing pages for a GEM object
