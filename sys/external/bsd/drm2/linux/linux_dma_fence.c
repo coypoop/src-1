@@ -87,6 +87,11 @@ dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
 	cv_init(&fence->f_cv, "dmafence");
 }
 
+struct dma_fence *dma_fence_get_stub(void)
+{
+	panic("XXX todo");
+}
+
 /*
  * dma_fence_destroy(fence)
  *
