@@ -831,11 +831,6 @@ static signed long drm_syncobj_array_wait_timeout(struct drm_syncobj **syncobjs,
 			timeout = -ETIME;
 			goto done_waiting;
 		}
-
-		if (signal_pending(current)) {
-			timeout = -ERESTARTSYS;
-			goto done_waiting;
-		}
 #ifdef __NetBSD__
 		unsigned long ticks = timeout;
 		mutex_enter(&lock);
@@ -851,6 +846,11 @@ static signed long drm_syncobj_array_wait_timeout(struct drm_syncobj **syncobjs,
 			KASSERTMSG(timeout == 0, "%ld", timeout);
 		}
 #else
+		if (signal_pending(current)) {
+			timeout = -ERESTARTSYS;
+			goto done_waiting;
+		}
+
 		timeout = schedule_timeout(timeout);
 #endif
 	} while (1);
