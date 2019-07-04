@@ -253,7 +253,7 @@ void ttm_tt_destroy(struct ttm_tt *ttm)
 	ttm->func->destroy(ttm);
 }
 
-void ttm_tt_init_fields(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
+static void ttm_tt_init_fields(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
 			uint32_t page_flags)
 {
 	ttm->bdev = bo->bdev;
