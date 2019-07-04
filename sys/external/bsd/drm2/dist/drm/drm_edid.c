@@ -5214,7 +5214,7 @@ static int drm_parse_display_id(struct drm_connector *connector,
 		return ret;
 
 	idx += sizeof(struct displayid_hdr);
-	while (block = (struct displayid_block *)&displayid[idx],
+	while (block = (const struct displayid_block *)&displayid[idx],
 	       idx + sizeof(struct displayid_block) <= length &&
 	       idx + sizeof(struct displayid_block) + block->num_bytes <= length &&
 	       block->num_bytes > 0) {
