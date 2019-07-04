@@ -55,7 +55,7 @@ ttm_bo_uvm_reference(struct uvm_object *uobj)
 	struct ttm_buffer_object *const bo = container_of(uobj,
 	    struct ttm_buffer_object, uvmobj);
 
-	(void)ttm_bo_reference(bo);
+	(void)ttm_bo_get(bo);
 }
 
 void
@@ -64,7 +64,7 @@ ttm_bo_uvm_detach(struct uvm_object *uobj)
 	struct ttm_buffer_object *bo = container_of(uobj,
 	    struct ttm_buffer_object, uvmobj);
 
-	ttm_bo_unref(&bo);
+	ttm_bo_put(bo);
 	KASSERT(bo == NULL);
 }
 
@@ -268,7 +268,7 @@ ttm_bo_mmap_object(struct ttm_bo_device *bdev, off_t offset, size_t size,
 	    (drm_vma_node_start(&bo->vma_node) << PAGE_SHIFT));
 	return 0;
 
-fail1:	ttm_bo_unref(&bo);
+fail1:	ttm_bo_put(bo);
 fail0:	KASSERT(ret);
 	return ret;
 }
