@@ -56,6 +56,13 @@
 		aprint_error("warn: " FMT, ##__VA_ARGS__);		      \
 } while (0)
 
+#define	dev_warn_ratelimited(DEV, FMT, ...)	do {			      \
+	if (DEV)							      \
+		aprint_error_dev((DEV), "warn: " FMT, ##__VA_ARGS__);	      \
+	else								      \
+		aprint_error("warn: " FMT, ##__VA_ARGS__);		      \
+} while (0)
+
 #define	dev_notice(DEV, FMT, ...)	do {				      \
 	if (DEV)							      \
 		aprint_normal_dev((DEV), "notice: " FMT, ##__VA_ARGS__);      \
