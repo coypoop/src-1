@@ -192,7 +192,7 @@ static int i915_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *
 	if (!obj->base.filp)
 		return -ENODEV;
 	/* XXX review mmap refcount */
-	drm_gem_object_reference(&obj->base);
+	drm_gem_object_get(&obj->base);
 	*advicep = UVM_ADV_RANDOM;
 	*uobjp = &obj->base.gemo_uvmobj;
 	*maxprotp = prot;
