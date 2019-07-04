@@ -35,6 +35,7 @@
 #ifndef _DRM_CACHE_H_
 #define _DRM_CACHE_H_
 
+#include <linux/mm_types.h>
 #include <linux/scatterlist.h>
 
 void drm_clflush_pages(struct page *pages[], unsigned long num_pages);

@@ -42,6 +42,7 @@
 
 #include <linux/kref.h>
 
+#include <drm/drm_print.h>
 #include <drm/drm_vma_manager.h>
 
 struct drm_gem_object;
