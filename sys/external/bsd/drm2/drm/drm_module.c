@@ -125,7 +125,6 @@ drm_init(void)
 	linux_mutex_init(&drm_global_mutex);
 	linux_mutex_init(&drm_kernel_fb_helper_lock);
 	drm_connector_ida_init();
-	drm_global_init();
 	drm_sysctl_init(&drm_def);
 	drm_i2c_encoders_init();
 
@@ -150,7 +149,6 @@ drm_fini(void)
 
 	drm_i2c_encoders_fini();
 	drm_sysctl_fini(&drm_def);
-	drm_global_release();
 	drm_connector_ida_destroy();
 	linux_mutex_destroy(&drm_kernel_fb_helper_lock);
 	linux_mutex_destroy(&drm_global_mutex);
