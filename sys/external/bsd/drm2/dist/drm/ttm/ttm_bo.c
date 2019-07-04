@@ -286,6 +286,7 @@ void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo,
 }
 EXPORT_SYMBOL(ttm_bo_move_to_lru_tail);
 
+#ifndef __NetBSD__
 void ttm_bo_bulk_move_lru_tail(struct ttm_lru_bulk_move *bulk)
 {
 	unsigned i;
@@ -335,6 +336,7 @@ void ttm_bo_bulk_move_lru_tail(struct ttm_lru_bulk_move *bulk)
 	}
 }
 EXPORT_SYMBOL(ttm_bo_bulk_move_lru_tail);
+#endif
 
 static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 				  struct ttm_mem_reg *mem, bool evict,
