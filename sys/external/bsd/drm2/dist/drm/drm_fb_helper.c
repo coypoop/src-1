@@ -3109,21 +3109,26 @@ static int drm_fbdev_fb_release(struct fb_info *info, int user)
 
 	return 0;
 }
+#endif
 
 static void drm_fbdev_cleanup(struct drm_fb_helper *fb_helper)
 {
+#ifndef __NetBSD__
 	struct fb_info *fbi = fb_helper->fbdev;
+#endif
 	struct fb_ops *fbops = NULL;
 	void *shadow = NULL;
 
 	if (!fb_helper->dev)
 		return;
 
+#ifndef __NetBSD__
 	if (fbi && fbi->fbdefio) {
 		fb_deferred_io_cleanup(fbi);
 		shadow = fbi->screen_buffer;
 		fbops = fbi->fbops;
 	}
+#endif
 
 	drm_fb_helper_fini(fb_helper);
 
@@ -3142,6 +3147,7 @@ static void drm_fbdev_release(struct drm_fb_helper *fb_helper)
 	kfree(fb_helper);
 }
 
+#ifndef __NetBSD__
 /*
  * fb_ops.fb_destroy is called by the last put_fb_info() call at the end of
  * unregister_framebuffer() or fb_release().
