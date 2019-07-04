@@ -370,4 +370,6 @@ struct drm_device {
 	struct drm_sg_mem *sg;
 };
 
+#define dev_is_pci(dev) (dev->pdev != NULL)
+
 #endif
