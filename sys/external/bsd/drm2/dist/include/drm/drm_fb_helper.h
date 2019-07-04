@@ -675,8 +675,10 @@ drm_fb_helper_remove_conflicting_pci_framebuffers(struct pci_dev *pdev,
 #if IS_REACHABLE(CONFIG_FB)
 	ret = remove_conflicting_pci_framebuffers(pdev, resource_id, name);
 #endif
+#ifndef __NetBSD__	/* XXX vga */
 	if (ret == 0)
 		ret = vga_remove_vgacon(pdev);
+#endif
 	return ret;
 }
 
