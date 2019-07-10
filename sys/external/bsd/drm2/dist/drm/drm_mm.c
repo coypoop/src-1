@@ -183,6 +183,20 @@ EXPORT_SYMBOL(__drm_mm_interval_first);
 static void drm_mm_interval_tree_add_node(struct drm_mm_node *hole_node,
 					  struct drm_mm_node *node)
 {
+#ifdef __NetBSD__
+	struct drm_mm *mm = hole_node->mm;
+
+	if (hole_node->allocated)
+		drm_mm_interval_tree_remove(hole_node, &mm->interval_tree);
+
+	/*
+	 * XXX linux doesn't check if the new hole might be bigger,
+	 * XXX is that a bug?
+	 */
+	node->__subtree_last = LAST(node);
+
+	drm_mm_interval_tree_insert(node, &mm->interval_tree);
+#else
 	struct drm_mm *mm = hole_node->mm;
 	struct rb_node **link, *rb;
 	struct drm_mm_node *parent;
@@ -226,6 +240,7 @@ static void drm_mm_interval_tree_add_node(struct drm_mm_node *hole_node,
 	rb_link_node(&node->rb, rb, link);
 	rb_insert_augmented_cached(&node->rb, &mm->interval_tree, leftmost,
 				   &drm_mm_interval_tree_augment);
+#endif
 }
 
 #ifndef __NetBSD__
