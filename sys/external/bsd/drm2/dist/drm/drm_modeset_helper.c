@@ -184,6 +184,7 @@ int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 }
 EXPORT_SYMBOL(drm_crtc_init);
 
+#ifndef __NetBSD__
 /**
  * drm_mode_config_helper_suspend - Modeset suspend helper
  * @dev: DRM device
@@ -256,3 +257,4 @@ int drm_mode_config_helper_resume(struct drm_device *dev)
 	return ret;
 }
 EXPORT_SYMBOL(drm_mode_config_helper_resume);
+#endif /* __NetBSD__ */

@@ -479,7 +479,7 @@ static inline bool drm_mm_clean(const struct drm_mm *mm)
 }
 
 struct drm_mm_node *
-__drm_mm_interval_first(const struct drm_mm *mm, u64 start, u64 last);
+__drm_mm_interval_first(/*const*/ struct drm_mm *mm, u64 start, u64 last);
 
 /**
  * drm_mm_for_each_node_in_range - iterator to walk over a range of

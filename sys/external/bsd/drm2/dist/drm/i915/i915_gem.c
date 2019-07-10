@@ -457,10 +457,6 @@ i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj,
 			struct page *page;
 			char *dst;
 
-			page = shmem_read_mapping_page(mapping, i);
-			if (IS_ERR(page))
-				continue;
-
 #ifdef __NetBSD__
 			struct pglist pageq = TAILQ_HEAD_INITIALIZER(pageq);
 			/* XXX errno NetBSD->Linux */
@@ -469,6 +465,10 @@ i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj,
 				continue;
 			page = container_of(TAILQ_FIRST(&pageq), struct page,
 			    p_vmp);
+#else
+			page = shmem_read_mapping_page(mapping, i);
+			if (IS_ERR(page))
+				continue;
 #endif
 
 			dst = kmap_atomic(page);
@@ -516,7 +516,7 @@ static const struct drm_i915_gem_object_ops i915_gem_object_ops;
 int i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 {
 	struct i915_vma *vma;
-	LIST_HEAD(still_in_list);
+	struct list_head still_in_list;
 	int ret;
 
 	lockdep_assert_held(&obj->base.dev->struct_mutex);
@@ -1172,7 +1172,7 @@ gtt_user_read(struct io_mapping *mapping,
 		unwritten = copy_to_user(user_data,
 					 (void __force *)vaddr + offset,
 					 length);
-		io_mapping_unmap(vaddr);
+		io_mapping_unmap(mapping, vaddr);
 	}
 	return unwritten;
 }
@@ -1360,7 +1360,7 @@ ggtt_write(struct io_mapping *mapping,
 		vaddr = io_mapping_map_wc(mapping, base, PAGE_SIZE);
 		unwritten = copy_from_user((void __force *)vaddr + offset,
 					   user_data, length);
-		io_mapping_unmap(vaddr);
+		io_mapping_unmap(mapping, vaddr);
 	}
 
 	return unwritten;
@@ -1814,6 +1814,7 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
+#ifndef __NetBSD__
 static inline bool
 __vma_matches(struct vm_area_struct *vma, struct file *filp,
 	      unsigned long addr, unsigned long size)
@@ -1824,6 +1825,7 @@ __vma_matches(struct vm_area_struct *vma, struct file *filp,
 	return vma->vm_start == addr &&
 	       (vma->vm_end - vma->vm_start) == PAGE_ALIGN(size);
 }
+#endif
 
 /**
  * i915_gem_mmap_ioctl - Maps the contents of an object, returning the address

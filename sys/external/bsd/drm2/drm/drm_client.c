@@ -48,10 +48,17 @@ drm_client_init(struct drm_device *dev, struct drm_client_dev *client,
 	client->funcs = funcs;
 	client->funcs->owner = kmem_strdup(owner, KM_SLEEP);
 #endif
+	return 0;
 }
 
 void
 drm_client_add(struct drm_client_dev *dev)
+{
+
+}
+
+void
+drm_client_release(struct drm_client_dev *dev)
 {
 
 }

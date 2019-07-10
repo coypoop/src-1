@@ -67,17 +67,19 @@ file	external/bsd/drm2/dist/drm/scheduler/sched_fence.o	drmkms_sched
 #file	external/bsd/drm2/dist/drm/drm_agpsupport.c	drmkms  # drmkms_pci
 file	external/bsd/drm2/dist/drm/drm_atomic.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_atomic_helper.c	drmkms
+file	external/bsd/drm2/dist/drm/drm_atomic_uapi.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_auth.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_blend.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_bridge.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_bufs.c	drmkms
 file	external/bsd/drm2/drm/drm_cache.c	drmkms
-file	external/bsd/drm2/dist/drm/drm_client.c	drmkms
+file	external/bsd/drm2/drm/drm_client.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_color_mgmt.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_connector.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_context.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_crtc.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_crtc_helper.c	drmkms
+file	external/bsd/drm2/dist/drm/drm_damage_helper.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_dma.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_dp_dual_mode_helper.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_dp_helper.c	drmkms
@@ -94,7 +96,6 @@ file	external/bsd/drm2/dist/drm/drm_fourcc.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_framebuffer.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_gem.c	drmkms
 file	external/bsd/drm2/drm/drm_gem_framebuffer_helper.c	drmkms
-file	external/bsd/drm2/dist/drm/drm_global.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_hashtab.c	drmkms
 #file	external/bsd/drm2/dist/drm/drm_info.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_ioctl.c	drmkms

@@ -29,8 +29,9 @@ struct drm_client_buffer {
 void drm_client_dev_hotplug(struct drm_device *);
 void drm_client_dev_unregister(struct drm_device *);
 int drm_client_init(struct drm_device *, struct drm_client_dev *,
-    const char *, struct drm_client_funcs *);
+    const char *, const struct drm_client_funcs *);
 void drm_client_add(struct drm_client_dev *);
+void drm_client_release(struct drm_client_dev *);
 
 static inline struct drm_client_buffer *
 drm_client_framebuffer_create(struct drm_client_dev *client,

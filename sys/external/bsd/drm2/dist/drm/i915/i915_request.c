@@ -89,6 +89,9 @@ static void i915_fence_release(struct dma_fence *fence)
 	 */
 	i915_sw_fence_fini(&rq->submit);
 
+	DRM_DESTROY_WAITQUEUE(&rq->execute);
+	dma_fence_destroy(&rq->fence);
+	spin_lock_destroy(&rq->lock);
 	kmem_cache_free(rq->i915->requests, rq);
 }
 
@@ -191,7 +194,11 @@ static void __retire_engine_request(struct intel_engine_cs *engine,
 
 	GEM_BUG_ON(!i915_request_completed(rq));
 
+#ifdef __NetBSD__
+	int s = splvm();
+#else
 	local_irq_disable();
+#endif
 
 	spin_lock(&engine->timeline.lock);
 	GEM_BUG_ON(!list_is_first(&rq->link, &engine->timeline.requests));
@@ -210,7 +217,11 @@ static void __retire_engine_request(struct intel_engine_cs *engine,
 	}
 	spin_unlock(&rq->lock);
 
+#ifdef __NetBSD__
+	splx(s);
+#else
 	local_irq_enable();
+#endif
 
 	/*
 	 * The backing object for the context is done after switching to the
@@ -872,10 +883,10 @@ void i915_request_skip(struct i915_request *rq, int error)
 	 */
 	head = rq->infix;
 	if (rq->postfix < head) {
-		memset(vaddr + head, 0, rq->ring->size - head);
+		memset((char *)vaddr + head, 0, rq->ring->size - head);
 		head = 0;
 	}
-	memset(vaddr + head, 0, rq->postfix - head);
+	memset((char *)vaddr + head, 0, rq->postfix - head);
 }
 
 /*

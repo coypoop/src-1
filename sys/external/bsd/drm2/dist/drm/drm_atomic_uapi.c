@@ -38,6 +38,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <drm/drm_writeback.h>
 #include <drm/drm_vblank.h>
 
+#include <linux/export.h>
 #include <linux/dma-fence.h>
 #include <linux/uaccess.h>
 #include <linux/sync_file.h>
@@ -567,7 +568,7 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 		state->pixel_blend_mode = val;
 	} else if (property == plane->rotation_property) {
 		if (!is_power_of_2(val & DRM_MODE_ROTATE_MASK)) {
-			DRM_DEBUG_ATOMIC("[PLANE:%d:%s] bad rotation bitmask: 0x%llx\n",
+			DRM_DEBUG_ATOMIC("[PLANE:%d:%s] bad rotation bitmask: 0x%"PRIx64"\n",
 					 plane->base.id, plane->name, val);
 			return -EINVAL;
 		}
@@ -1072,19 +1073,32 @@ struct drm_out_fence_state {
 	s32 __user *out_fence_ptr;
 	struct sync_file *sync_file;
 	int fd;
+	struct file *fp;
 };
 
 static int setup_out_fence(struct drm_out_fence_state *fence_state,
 			   struct dma_fence *fence)
 {
+#ifdef __NetBSD__
+	int err;
+
+	err = -fd_allocfile(&fence_state->fp, &fence_state->fd);
+	if (err)
+		return err;
+#else
 	fence_state->fd = get_unused_fd_flags(O_CLOEXEC);
 	if (fence_state->fd < 0)
 		return fence_state->fd;
+#endif
 
 	if (put_user(fence_state->fd, fence_state->out_fence_ptr))
 		return -EFAULT;
 
+#ifdef __NetBSD__
+	fence_state->sync_file = sync_file_create(fence, fence_state->fp);
+#else
 	fence_state->sync_file = sync_file_create(fence);
+#endif
 	if (!fence_state->sync_file)
 		return -ENOMEM;
 
@@ -1222,7 +1236,7 @@ static void complete_signaling(struct drm_device *dev,
 			       unsigned int num_fences,
 			       bool install_fds)
 {
-	struct drm_crtc *crtc;
+	struct drm_crtc *crtc __unused;
 	struct drm_crtc_state *crtc_state;
 	int i;
 
@@ -1252,10 +1266,17 @@ static void complete_signaling(struct drm_device *dev,
 		return;
 
 	for (i = 0; i < num_fences; i++) {
+#ifdef __NetBSD__
+		if (fence_state[i].sync_file)
+			fd_abort(curproc, fence_state[i].fp, fence_state[i].fd);
+		fence_state[i].fd = -1;
+		fence_state[i].fp = NULL;
+#else
 		if (fence_state[i].sync_file)
 			fput(fence_state[i].sync_file->file);
 		if (fence_state[i].fd >= 0)
 			put_unused_fd(fence_state[i].fd);
+#endif
 
 		/* If this fails log error to the user */
 		if (fence_state[i].out_fence_ptr &&

@@ -76,4 +76,7 @@ rb_erase_cached(struct rb_node *rbnode, struct rb_root_cached *root)
 			RB_DIR_RIGHT)));				      \
 		(NODE) = (TMP))
 
+#define rb_entry(rb,type,member)		container_of(rb,type,member)
+#define rb_entry_safe(rb,type,member)		rb ? container_of(rb,type,member) : NULL
+#define rb_parent(rb)				RB_FATHER(rb)
 #endif  /* _LINUX_RBTREE_H_ */

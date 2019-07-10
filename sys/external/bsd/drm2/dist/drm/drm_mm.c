@@ -144,14 +144,14 @@ static void show_leaks(struct drm_mm *mm)
 		};
 
 		if (!node->stack) {
-			DRM_ERROR("node [%08llx + %08llx]: unknown owner\n",
+			DRM_ERROR("node [%08"PRIx64" + %08"PRIx64"]: unknown owner\n",
 				  node->start, node->size);
 			continue;
 		}
 
 		depot_fetch_stack(node->stack, &trace);
 		snprint_stack_trace(buf, BUFSZ, &trace, 0);
-		DRM_ERROR("node [%08llx + %08llx]: inserted at\n%s",
+		DRM_ERROR("node [%08"PRIx64" + %08"PRIx64"]: inserted at\n%s",
 			  node->start, node->size, buf);
 	}
 
@@ -173,7 +173,7 @@ INTERVAL_TREE_DEFINE(struct drm_mm_node, rb,
 		     START, LAST, static inline, drm_mm_interval_tree)
 
 struct drm_mm_node *
-__drm_mm_interval_first(const struct drm_mm *mm, u64 start, u64 last)
+__drm_mm_interval_first(/*const*/ struct drm_mm *mm, u64 start, u64 last)
 {
 	return drm_mm_interval_tree_iter_first((struct rb_root_cached *)&mm->interval_tree,
 					       start, last) ?: (struct drm_mm_node *)&mm->head_node;
@@ -228,6 +228,7 @@ static void drm_mm_interval_tree_add_node(struct drm_mm_node *hole_node,
 				   &drm_mm_interval_tree_augment);
 }
 
+#ifndef __NetBSD__
 #define RB_INSERT(root, member, expr) do { \
 	struct rb_node **link = &root.rb_node, *rb = NULL; \
 	u64 x = expr(node); \
@@ -241,6 +242,7 @@ static void drm_mm_interval_tree_add_node(struct drm_mm_node *hole_node,
 	rb_link_node(&node->member, rb, link); \
 	rb_insert_color(&node->member, &root); \
 } while (0)
+#endif
 
 #define HOLE_SIZE(NODE) ((NODE)->hole_size)
 #define HOLE_ADDR(NODE) (__drm_mm_hole_node_start(NODE))
@@ -280,9 +282,15 @@ static void add_hole(struct drm_mm_node *node)
 	DRM_MM_BUG_ON(!drm_mm_hole_follows(node));
 
 	insert_hole_size(&mm->holes_size, node);
+#ifdef __NetBSD__
+	struct rb_node *collision __diagused;
+	collision = rb_tree_insert_node(&mm->holes_addr, mm->holes_addr);
+	if (!collision)
+		list_add(&node->hole_stack, &mm->hole_stack);
+#else
 	RB_INSERT(mm->holes_addr, rb_hole_addr, HOLE_ADDR);
-
 	list_add(&node->hole_stack, &mm->hole_stack);
+#endif
 }
 
 static void rm_hole(struct drm_mm_node *node)
@@ -970,7 +978,7 @@ static u64 drm_mm_dump_hole(struct drm_printer *p, const struct drm_mm_node *ent
 	size = entry->hole_size;
 	if (size) {
 		start = drm_mm_hole_node_start(entry);
-		drm_printf(p, "%#018llx-%#018llx: %llu: free\n",
+		drm_printf(p, "%#018"PRIx64"-%#018"PRIx64": %"PRIu64": free\n",
 			   start, start + size, size);
 	}
 
@@ -989,14 +997,14 @@ void drm_mm_print(const struct drm_mm *mm, struct drm_printer *p)
 	total_free += drm_mm_dump_hole(p, &mm->head_node);
 
 	drm_mm_for_each_node(entry, mm) {
-		drm_printf(p, "%#018llx-%#018llx: %llu: used\n", entry->start,
+		drm_printf(p, "%#018"PRIx64"-%#018"PRIx64": %"PRIu64": used\n", entry->start,
 			   entry->start + entry->size, entry->size);
 		total_used += entry->size;
 		total_free += drm_mm_dump_hole(p, entry);
 	}
 	total = total_free + total_used;
 
-	drm_printf(p, "total: %llu, used %llu free %llu\n", total,
+	drm_printf(p, "total: %"PRIu64", used %"PRIu64" free %"PRIu64"\n", total,
 		   total_used, total_free);
 }
 EXPORT_SYMBOL(drm_mm_print);

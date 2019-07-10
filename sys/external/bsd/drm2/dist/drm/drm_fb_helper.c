@@ -1008,6 +1008,7 @@ void drm_fb_helper_unregister_fbi(struct drm_fb_helper *fb_helper)
 		unregister_framebuffer(fb_helper->fbdev);
 }
 EXPORT_SYMBOL(drm_fb_helper_unregister_fbi);
+#endif	/* __NetBSD__ */
 
 /**
  * drm_fb_helper_fini - finialize a &struct drm_fb_helper
@@ -1018,7 +1019,9 @@ EXPORT_SYMBOL(drm_fb_helper_unregister_fbi);
  */
 void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 {
+#ifndef __NetBSD__		/* XXX fb info */
 	struct fb_info *info;
+#endif
 
 	if (!fb_helper)
 		return;
@@ -1029,6 +1032,7 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 		return;
 
 	cancel_work_sync(&fb_helper->resume_work);
+#ifndef __NetBSD__		/* XXX fb info, fb dirty */
 	cancel_work_sync(&fb_helper->dirty_work);
 
 	info = fb_helper->fbdev;
@@ -1038,6 +1042,7 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 		framebuffer_release(info);
 	}
 	fb_helper->fbdev = NULL;
+#endif
 
 	mutex_lock(&kernel_fb_helper_lock);
 	if (!list_empty(&fb_helper->kernel_fb_list)) {
@@ -1047,12 +1052,17 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 	}
 	mutex_unlock(&kernel_fb_helper_lock);
 
+#ifdef __NetBSD__
+	linux_mutex_destroy(&fb_helper->lock);
+#else
 	mutex_destroy(&fb_helper->lock);
+#endif
 	drm_fb_helper_crtc_free(fb_helper);
 
 }
 EXPORT_SYMBOL(drm_fb_helper_fini);
 
+#ifndef __NetBSD__		/* XXX fb info */
 /**
  * drm_fb_helper_unlink_fbi - wrapper around unlink_framebuffer
  * @fb_helper: driver-allocated fbdev helper, can be NULL
