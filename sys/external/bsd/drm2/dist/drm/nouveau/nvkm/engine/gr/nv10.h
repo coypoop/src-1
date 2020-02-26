@@ -1,5 +1,6 @@
-/*	$NetBSD: nv10.h,v 1.1.1.1 2018/08/27 01:34:56 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
+/* SPDX-License-Identifier: MIT */
 #ifndef __NV10_GR_H__
 #define __NV10_GR_H__
 #include "priv.h"

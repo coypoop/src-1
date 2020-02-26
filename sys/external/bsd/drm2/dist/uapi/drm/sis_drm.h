@@ -1,4 +1,4 @@
-/*	$NetBSD: sis_drm.h,v 1.1.1.2 2018/08/27 01:35:00 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
 /* sis_drv.h -- Private header for sis driver -*- linux-c -*- */
 /*
@@ -28,6 +28,12 @@
 
 #ifndef __SIS_DRM_H__
 #define __SIS_DRM_H__
+
+#include "drm.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /* SiS specific ioctls */
 #define NOT_USED_0_3
@@ -65,5 +71,9 @@ typedef struct {
 typedef struct {
 	unsigned long offset, size;
 } drm_sis_fb_t;
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif				/* __SIS_DRM_H__ */

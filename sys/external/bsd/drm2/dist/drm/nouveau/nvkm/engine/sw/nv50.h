@@ -1,5 +1,6 @@
-/*	$NetBSD: nv50.h,v 1.1.1.1 2018/08/27 01:34:56 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_SW_NV50_H__
 #define __NVKM_SW_NV50_H__
 #define nv50_sw_chan(p) container_of((p), struct nv50_sw_chan, base)

@@ -1,4 +1,4 @@
-/*	$NetBSD: nislands_smc.h,v 1.1.1.2 2018/08/27 01:34:57 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
 /*
  * Copyright 2012 Advanced Micro Devices, Inc.

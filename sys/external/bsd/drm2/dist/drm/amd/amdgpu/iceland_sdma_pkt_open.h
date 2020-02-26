@@ -1,4 +1,4 @@
-/*	$NetBSD: iceland_sdma_pkt_open.h,v 1.1.1.1 2018/08/27 01:34:45 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
 /*
  * Copyright (C) 2014  Advanced Micro Devices, Inc.

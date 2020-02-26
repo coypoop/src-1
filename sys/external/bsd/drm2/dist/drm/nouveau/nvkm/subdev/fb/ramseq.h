@@ -1,5 +1,6 @@
-/*	$NetBSD: ramseq.h,v 1.1.1.1 2018/08/27 01:34:56 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_FBRAM_SEQ_H__
 #define __NVKM_FBRAM_SEQ_H__
 #include <subdev/bus/hwsq.h>

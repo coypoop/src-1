@@ -1,4 +1,4 @@
-/*	$NetBSD: bif_5_0_enum.h,v 1.1.1.1 2018/08/27 01:34:47 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
 /*
  * BIF_5_0 Register documentation

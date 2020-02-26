@@ -1,4 +1,4 @@
-/*	$NetBSD: mga_drm.h,v 1.1.1.2 2018/08/27 01:35:00 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
 /* mga_drm.h -- Public header for the Matrox g200/g400 driver -*- linux-c -*-
  * Created: Tue Jan 25 01:50:01 1999 by jhartmann@precisioninsight.com
@@ -37,7 +37,11 @@
 #ifndef __MGA_DRM_H__
 #define __MGA_DRM_H__
 
-#include <drm/drm.h>
+#include "drm.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /* WARNING: If you change any of these defines, make sure to change the
  * defines in the Xserver file (mga_sarea.h)
@@ -417,5 +421,9 @@ typedef struct drm_mga_getparam {
 	int param;
 	void __user *value;
 } drm_mga_getparam_t;
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif
