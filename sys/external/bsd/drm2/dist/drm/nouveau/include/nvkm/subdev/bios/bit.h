@@ -1,5 +1,6 @@
-/*	$NetBSD: bit.h,v 1.1.1.1 2018/08/27 01:34:55 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVBIOS_BIT_H__
 #define __NVBIOS_BIT_H__
 struct bit_entry {

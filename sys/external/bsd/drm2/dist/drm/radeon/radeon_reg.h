@@ -1,4 +1,4 @@
-/*	$NetBSD: radeon_reg.h,v 1.1.1.2 2018/08/27 01:34:59 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and

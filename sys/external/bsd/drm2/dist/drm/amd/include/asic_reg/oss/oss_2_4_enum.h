@@ -1,4 +1,4 @@
-/*	$NetBSD: oss_2_4_enum.h,v 1.1.1.1 2018/08/27 01:34:52 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
 /*
  * OSS_2_4 Register documentation

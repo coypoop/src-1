@@ -1,5 +1,6 @@
-/*	$NetBSD: option.h,v 1.1.1.1 2018/08/27 01:36:13 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_OPTION_H__
 #define __NVKM_OPTION_H__
 #include <core/os.h>

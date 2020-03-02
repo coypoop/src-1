@@ -1,5 +1,6 @@
-/*	$NetBSD: fuse.h,v 1.1.1.1 2018/08/27 01:34:55 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_FUSE_H__
 #define __NVKM_FUSE_H__
 #include <core/subdev.h>

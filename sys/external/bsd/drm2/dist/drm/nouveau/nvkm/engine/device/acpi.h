@@ -1,5 +1,6 @@
-/*	$NetBSD: acpi.h,v 1.1.1.1 2018/08/27 01:34:55 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_DEVICE_ACPI_H__
 #define __NVKM_DEVICE_ACPI_H__
 #include <core/os.h>

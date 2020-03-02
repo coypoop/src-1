@@ -1,5 +1,6 @@
-/*	$NetBSD: ramfuc.h,v 1.1.1.1 2018/08/27 01:34:56 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_FBRAM_FUC_H__
 #define __NVKM_FBRAM_FUC_H__
 #include <subdev/fb.h>

@@ -1,5 +1,6 @@
-/*	$NetBSD: priv.h,v 1.1.1.1 2018/08/27 01:34:56 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_CLK_PRIV_H__
 #define __NVKM_CLK_PRIV_H__
 #define nvkm_clk(p) container_of((p), struct nvkm_clk, subdev)

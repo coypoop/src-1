@@ -1,5 +1,6 @@
-/*	$NetBSD: pll.h,v 1.1.1.1 2018/08/27 01:34:56 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_PLL_H__
 #define __NVKM_PLL_H__
 #include <core/os.h>

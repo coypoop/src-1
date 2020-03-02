@@ -1,4 +1,4 @@
-/*	$NetBSD: uvd_5_0_enum.h,v 1.1.1.1 2018/08/27 01:34:53 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
 /*
  * UVD_5_0 Register documentation

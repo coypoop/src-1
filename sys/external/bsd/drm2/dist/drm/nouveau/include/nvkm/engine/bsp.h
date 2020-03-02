@@ -1,5 +1,6 @@
-/*	$NetBSD: bsp.h,v 1.1.1.1 2018/08/27 01:34:55 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_BSP_H__
 #define __NVKM_BSP_H__
 #include <engine/xtensa.h>

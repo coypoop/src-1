@@ -1,4 +1,4 @@
-/*	$NetBSD: gfx_8_0_enum.h,v 1.1.1.1 2018/08/27 01:34:50 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
 /*
  * GFX_8_0 Register documentation

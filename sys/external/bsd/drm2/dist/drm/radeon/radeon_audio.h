@@ -1,4 +1,4 @@
-/*	$NetBSD: radeon_audio.h,v 1.1.1.1 2018/08/27 01:34:58 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
 /*
  * Copyright 2014 Advanced Micro Devices, Inc.

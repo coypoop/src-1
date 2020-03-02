@@ -1,5 +1,6 @@
-/*	$NetBSD: nouveau_usif.h,v 1.1.1.1 2018/08/27 01:34:55 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
+/* SPDX-License-Identifier: MIT */
 #ifndef __NOUVEAU_USIF_H__
 #define __NOUVEAU_USIF_H__
 

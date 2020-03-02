@@ -1,4 +1,4 @@
-/*	$NetBSD: gmc_7_1_d.h,v 1.1.1.1 2018/08/27 01:34:51 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
 /*
  * GMC_7_1 Register documentation

@@ -1,4 +1,4 @@
-/*	$NetBSD: dce_10_0_enum.h,v 1.1.1.1 2018/08/27 01:34:48 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
 /*
  * DCE_10_0 Register documentation

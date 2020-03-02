@@ -1,4 +1,4 @@
-/*	$NetBSD: r600_blit_shaders.h,v 1.1.1.2 2018/08/27 01:34:58 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
 /*
  * Copyright 2009 Advanced Micro Devices, Inc.
