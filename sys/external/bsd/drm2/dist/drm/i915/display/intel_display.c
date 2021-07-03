@@ -15299,6 +15299,8 @@ static void intel_atomic_commit_fence_wait(struct intel_atomic_state *intel_stat
 	waiter.private = intel_state;
 
 	spin_lock(&intel_state->commit_ready.wait.lock);
+	printf("%s: add fence=%p waiter=%p\n", __func__, fence, &waiter);
+	db_stacktrace();
 	list_add_tail(&waiter.entry, &intel_state->commit_ready.wait.head);
 	spin_unlock(&intel_state->commit_ready.wait.lock);
 
@@ -15310,6 +15312,8 @@ static void intel_atomic_commit_fence_wait(struct intel_atomic_state *intel_stat
 	spin_unlock(&dev_priv->atomic_commit_lock);
 
 	spin_lock(&intel_state->commit_ready.wait.lock);
+	printf("%s: del fence=%p waiter=%p\n", __func__, fence, &waiter);
+	db_stacktrace();
 	list_del(&waiter.entry);
 	spin_unlock(&intel_state->commit_ready.wait.lock);
 }
