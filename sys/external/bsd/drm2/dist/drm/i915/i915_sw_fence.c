@@ -175,6 +175,7 @@ autoremove_wake_function(struct i915_sw_fence_waiter *waiter, unsigned mode,
 	return 0;
 }
 
+#include <ddb/ddb.h>
 void
 i915_sw_fence_wait(struct i915_sw_fence *fence)
 {
@@ -190,9 +191,13 @@ i915_sw_fence_wait(struct i915_sw_fence *fence)
 	DRM_INIT_WAITQUEUE(&sfw.wq, "i915swf");
 
 	spin_lock(&fence->wait.lock);
+	printf("%s: add fence=%p waiter=%p\n", __func__, fence, &waiter);
+	db_stacktrace();
 	list_add_tail(&waiter.entry, &fence->wait.head);
 	DRM_SPIN_WAIT_NOINTR_UNTIL(ret, &sfw.wq, &fence->wait.lock,
 	    i915_sw_fence_done(fence));
+	printf("%s: del fence=%p waiter=%p\n", __func__, fence, &waiter);
+	db_stacktrace();
 	list_del(&waiter.entry);
 	spin_unlock(&fence->wait.lock);
 
@@ -323,6 +328,9 @@ static int i915_sw_fence_wake(wait_queue_entry_t *wq, unsigned mode, int flags, 
 {
 	i915_sw_fence_set_error_once(wq->private, flags);
 
+	printf("%s: del fence=%p waiter=%p\n", __func__,
+	    wq->private, wq);
+	db_stacktrace();
 	list_del(&wq->entry);
 	__i915_sw_fence_complete(wq->private, key);
 
@@ -431,6 +439,9 @@ static int __i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,
 	spin_lock_irqsave(&signaler->wait.lock, flags);
 	if (likely(!i915_sw_fence_done(signaler))) {
 #ifdef __NetBSD__
+		printf("%s: add fence=%p waiter=%p\n", __func__,
+		    signaler, wq);
+		db_stacktrace();
 		list_add(&wq->entry, &signaler->wait.head);
 #else
 		__add_wait_queue_entry_tail(&signaler->wait, wq);
